@@ -20,17 +20,19 @@ nombreuses et dangereuses. Le but est de survivre le plus longtemps possible.
 ### Objectif
 - Survivre le plus longtemps possible
 - Pas de fin predefinie -- la partie se termine quand tous les joueurs sont morts
-- **A valider**: y a-t-il un nombre de vagues a atteindre pour "gagner" ?
+- **A valider**: y a-t-il un nombre de vagues a atteindre pour "gagner" ? **[VALIDE: survie illimitee, score = nombre de vagues survecues]**
 
 ### Joueurs
 - Coop (tous dans la meme equipe)
-- **A valider**: nombre max de joueurs ?
+- **A valider**: nombre max de joueurs ? **[VALIDE: 8 joueurs max]**
 - Chaque joueur choisit un role au spawn (via un role picker)
-- **A valider**: roles uniques ou doublons autorises ?
+- **A valider**: roles uniques ou doublons autorises ? **[VALIDE: doublons autorises]**
 
 ### Mort
 - **A valider**: permadeath (spectateur jusqu'a la fin) ou respawn au debut
-  de la vague suivante ?
+  de la vague suivante ? **[VALIDE: permadeath -- le joueur mort devient
+  spectateur et peut faire spawner 1 zombie ou il veut pendant chaque vague
+  suivante]**
 - **A valider**: si tous les joueurs meurt pendant une vague = game over ?
 
 ### Vagues
@@ -40,20 +42,24 @@ nombreuses et dangereuses. Le but est de survivre le plus longtemps possible.
   - Vague 4-6: plus de zombies, quelques-uns plus rapides
   - Vague 7-10: beaucoup de zombies, sprinters possibles
   - Vague 10+: horde massive, zombies speciaux possibles
-- **A valider**: intervalle entre vagues (5 min fixe ? 10 min ? variable ?)
-- **A valider**: le premier intervalle est-il plus long (prep initiale) ?
+  **[VALIDE: a chaque nouvelle vague, les zombies deviennent un peu plus
+  agressifs et un peu plus rapides (progression continue, pas par paliers)]**
+- **A valider**: intervalle entre vagues (5 min fixe ? 10 min ? variable ?) **[VALIDE: 10 min fixe]**
+- **A valider**: le premier intervalle est-il plus long (prep initiale) ? **[VALIDE: non, 10 min comme les autres]**
 
 ### Spawn des hordes
 - **A valider**: les zombies viennent d'une direction ? De plusieurs ?
   - Option A: une direction par vague (annoncee avant)
   - Option B: 360 degres (tous les cotes)
   - Option C: de plus en plus de directions au fil des vagues
+  **[VALIDE: Option C -- direction croissante (1 direction au debut, puis
+  2, puis 360 aux vagues avancees), annoncee avant chaque vague]**
 - **A valider**: les zombies spawnent a quelle distance de la maison ?
 
 ## La maison
 
 ### Structure
-- **A valider**: maison custom build ou maison vanilla existante ?
+- **A valider**: maison custom build ou maison vanilla existante ? **[VALIDE: vanilla]**
 - La maison peut etre endommagee par les zombies (murs, portes, fenetres)
 - Les joueurs peuvent reparer, barricader, renforcer pendant les pauses
 
@@ -68,6 +74,8 @@ nombreuses et dangereuses. Le but est de survivre le plus longtemps possible.
   - Option A: ressources autour de la maison (arbres, deconstruction)
   - Option B: stock de ressources illimite dans la maison
   - Option C: loot dans les environs entre les vagues
+  **[VALIDE: Option B -- stock illimite dans la maison pour l'instant;
+  loot dans les environs a reflechir]**
 
 ## Roles
 
@@ -89,6 +97,7 @@ coop defense. Certains roles sont plus utiles que d'autres en defense.
 | Survivaliste | Autonomie / nature | Pieges, nourriture, autonomie |
 | Pompier | Sauveur / anti-feu | Demolition, secours, resistant |
 | Mecanicien | Repare vehicule | A revoir (pas de vehicule en defense) |
+| Builder | Construction / craft | Indispensable (construire, renforcer, reparer la maison) |
 | Athlete | Vitesse / mobilite | Alerte, va chercher des ressources loin |
 | Eclaireur | Exploration / discret | Repere la direction des hordes |
 | Demolisseur | Explosions / chaos | Degats de zone sur les hordes |
@@ -97,11 +106,13 @@ coop defense. Certains roles sont plus utiles que d'autres en defense.
 | Civil | Lambda / difficile | Challenge volontaire |
 
 ### Ajustements prevus
-- **A valider**: le Mecanicien doit-il etre remplace ou ajuste ?
-- **A valider**: l'Invincible doit-il etre nerf ?
-- **A valider**: le Voleur a-t-il une utilite en defense fixe ?
+- **A valider**: le Mecanicien doit-il etre remplace ou ajuste ? **[VALIDE: supprime (pas de vehicule en defense) -- les reparations seront couvertes par le Local/Geek]**
+- **A valider**: l'Invincible doit-il etre nerf ? **[VALIDE: garder tel quel, les joueurs s'autoregulent]**
+- **A valider**: le Voleur a-t-il une utilite en defense fixe ? **[VALIDE: garder -- il pourra aller piller les maisons aux alentours entre les vagues]**
 - **A valider**: faut-il des roles specifiques au mode defense ? (ex: Architecte
   pour construire/renforcer, Artificier pour les pieges)
+  **[VALIDE: non -- le Builder existe deja et couvre la construction/renforcement;
+  les pieges sont couverts par Geek/Survivaliste]**
 
 ## Mecaniques specifiques
 
@@ -118,6 +129,8 @@ coop defense. Certains roles sont plus utiles que d'autres en defense.
   - Option A: la vague suivante arrive quand meme (plus de zombies)
   - Option B: timer extended jusqu'a ce que la vague soit eliminee
   - Option C: la vague se retire apres un certain temps (survie = win)
+  **[VALIDE: Option A -- la vague suivante arrive quand meme (les zombies
+  restants s'ajoutent a la nouvelle vague)]**
 
 ### Progression entre les vagues
 - **A valider**: les joueurs gagnent-ils quelque chose entre les vagues ?
@@ -125,6 +138,7 @@ coop defense. Certains roles sont plus utiles que d'autres en defense.
   - Option B: loot qui apparait dans la maison
   - Option C: augmentation des skills
   - Option D: rien (survie pure)
+  **[VALIDE: Option D -- rien pour l'instant (survie pure)]**
 
 ### Evenements
 - **A valider**: evenements aleatoires entre les vagues ?
@@ -132,9 +146,11 @@ coop defense. Certains roles sont plus utiles que d'autres en defense.
   - PNJ a sauver
   - Maladie qui se declenche
   - Penurie d'eau ou d'electricite
+  **[VALIDE: aucun event pour l'instant]**
 - **A valider**: evenements pendant les vagues ?
   - Zombie special (plus rapide, plus resistant, explosion)
   - Horde qui vient de plusieurs directions
+  **[VALIDE: aucun event pour l'instant]**
 
 ## Architecture technique
 
@@ -170,7 +186,7 @@ last-home/
     LH-02-roles.md         (a creer -- roles reajustes en detail)
     LH-03-vagues.md        (a creer -- details techniques des vagues)
     LH-04-maison.md        (a creer -- structure, reparations, defense)
-    LH-05-events.md        (a creer -- evenements entre et pendant les vagues)
+    LH-05-events.md        (non necessaire -- aucun event valide dans LH-01 Q15)
 ```
 
 ## Critere d'acceptation
@@ -188,23 +204,23 @@ last-home/
 
 ## Questions en attente (a valider)
 
-1. **Nombre max de joueurs** ?
-2. **Roles**: uniques ou doublons autorises ?
-3. **Mort**: permadeath ou respawn au debut de la vague suivante ?
-4. **Nombre de vagues pour gagner** ou survie illimitee ?
-5. **Intervalle entre vagues**: 5 min, 10 min, variable ?
-6. **Prep initiale**: plus longue que les autres intervalles ?
-7. **Direction des hordes**: fixe, 360, ou croissante ?
-8. **Maison**: custom ou vanilla ?
-9. **Ressources**: autour de la maison, illimitees, ou loot entre les vagues ?
-10. **Mecanicien**: remplacer ou ajuster (pas de vehicule) ?
-11. **Invincible**: nerf pour la balance ?
-12. **Voleur**: utilite en defense fixe ?
-13. **Nouveaux roles**: Architecte, Artificier ?
-14. **Progression**: points, loot, skills, ou rien ?
-15. **Evenements**: lesquels entre/pendant les vagues ?
-16. **Vague non eliminee a temps**: que se passe-t-il ?
-17. **Zombies speciaux**: types, a partir de quelle vague ?
+1. **Nombre max de joueurs** ? **[VALIDE: 8 joueurs max]**
+2. **Roles**: uniques ou doublons autorises ? **[VALIDE: doublons autorises]**
+3. **Mort**: permadeath ou respawn au debut de la vague suivante ? **[VALIDE: permadeath -- spectateur, peut spawner 1 zombie ou il veut pendant chaque vague suivante]**
+4. **Nombre de vagues pour gagner** ou survie illimitee ? **[VALIDE: survie illimitee, score = nombre de vagues survecues]**
+5. **Intervalle entre vagues**: 5 min, 10 min, variable ? **[VALIDE: 10 min fixe]**
+6. **Prep initiale**: plus longue que les autres intervalles ? **[VALIDE: non, 10 min comme les autres]**
+7. **Direction des hordes**: fixe, 360, ou croissante ? **[VALIDE: croissante -- 1 direction au debut, puis 2, puis 360 aux vagues avancees, annoncee avant chaque vague]**
+8. **Maison**: custom ou vanilla ? **[VALIDE: vanilla]**
+9. **Ressources**: autour de la maison, illimitees, ou loot entre les vagues ? **[VALIDE: illimitees dans la maison pour l'instant; loot environs a reflechir]**
+10. **Mecanicien**: remplacer ou ajuster (pas de vehicule) ? **[VALIDE: supprime -- reparations couvertes par Local/Geek]**
+11. **Invincible**: nerf pour la balance ? **[VALIDE: garder tel quel, joueurs s'autoregulent]**
+12. **Voleur**: utilite en defense fixe ? **[VALIDE: garder -- il pourra piller les maisons aux alentours entre les vagues]**
+13. **Nouveaux roles**: Architecte, Artificier ? **[VALIDE: non -- Builder existe deja; pieges couverts par Geek/Survivaliste]**
+14. **Progression**: points, loot, skills, ou rien ? **[VALIDE: rien pour l'instant (survie pure)]**
+15. **Evenements**: lesquels entre/pendant les vagues ? **[VALIDE: aucun event pour l'instant]**
+16. **Vague non eliminee a temps**: que se passe-t-il ? **[VALIDE: la vague suivante arrive quand meme (zombies restants s'ajoutent a la nouvelle vague)]**
+17. **Zombies speciaux**: types, a partir de quelle vague ? **[VALIDE: pas de zombies speciaux -- a chaque nouvelle vague, les zombies deviennent un peu plus agressifs et un peu plus rapides (progression continue, pas par paliers)]**
 
 ## Dependencies
 
