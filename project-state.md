@@ -117,6 +117,8 @@
 - [ ] Loot structuré dans les environs des maisons si nécessaire
 - [ ] HUD / notifications plus complètes pour Last Home
 - [ ] Ajustements d'équilibrage des rôles si nécessaire après tests
+- [ ] Refactor: extraire `applyRole` dans `LastHomeShared.lua` pour éliminer la duplication client/serveur (review point 1)
+- [ ] Vérifier `Events.OnTick.Remove` en B41 — si l'API n'existe pas, le tick fallback tourne en idle (review point 2, non-bloquant)
 
 ## Notes d'implémentation
 
