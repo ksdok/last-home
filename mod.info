@@ -1,5 +1,7 @@
 name=Last Home
 id=LastHome
 version=0.3.0
+minGameVersion=41.78
+requireClient=true
 description=Mod coop Project Zomboid: defense d'une maison contre des vagues croissantes de zombies.
 author=Kim

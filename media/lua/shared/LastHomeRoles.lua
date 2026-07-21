@@ -124,7 +124,7 @@ Roles.ROLE_DEFS = {
             {Perks.Carpentry, 6},
             {Perks.Cooking, 6},
             {Perks.Mechanics, 4},
-            {Perks.Electricity, 4},
+            {Perks.Electrical, 4},
             {Perks.PlantScavenging, 5},
             {Perks.Strength, 4},
         },
@@ -272,7 +272,7 @@ Roles.ROLE_DEFS = {
     geek = {
         name = "Geek",
         skills = {
-            {Perks.Electricity, 8},
+            {Perks.Electrical, 8},
             {Perks.Carpentry, 5},
             {Perks.Mechanics, 4},
             {Perks.Cooking, 3},
@@ -417,7 +417,7 @@ Roles.ROLE_DEFS = {
             {Perks.Axe, 5},
             {Perks.LongBlunt, 5},
             {Perks.Aiming, 4},
-            {Perks.Electricity, 8},
+            {Perks.Electrical, 8},
             {Perks.Mechanics, 7},
         },
         items = {
@@ -464,7 +464,7 @@ Roles.ROLE_DEFS = {
             {Perks.Doctor, 10},
             {Perks.Carpentry, 10},
             {Perks.Mechanics, 10},
-            {Perks.Electricity, 10},
+            {Perks.Electrical, 10},
             {Perks.Cooking, 10},
             {Perks.PlantScavenging, 10},
         },
@@ -537,7 +537,7 @@ Roles.ROLE_DEFS = {
         name = "Builder",
         skills = {
             {Perks.Carpentry, 10},
-            {Perks.Electricity, 10},
+            {Perks.Electrical, 10},
             {Perks.MetalWelding, 10},
             {Perks.Mechanics, 10},
             {Perks.Tailoring, 10},
