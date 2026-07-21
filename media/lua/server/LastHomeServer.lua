@@ -8,12 +8,14 @@ local Server = {
     selectedHouse = nil,
     nextBuilderRefillAt = nil,
     lastBuilderTickSecond = nil,
+    lastHouseSupplyRefillAt = nil,
 }
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
 local ROLE_NAMES = LastHomeRoles.ROLE_NAMES
 local BUILDER_REFILL_ITEMS = LastHomeRoles.BUILDER_REFILL_ITEMS
 local HOUSE_SUPPLY_MULTIPLIER = 8
+local HOUSE_SUPPLY_REFILL_GUARD_SECONDS = 30
 
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
@@ -45,6 +47,22 @@ local function ensureSelectedHouse()
     return Server.selectedHouse
 end
 
+local function isUsableSpawnSquare(square)
+    if square == nil then return false end
+
+    if square.isFree ~= nil then
+        local ok, isFree = pcall(function()
+            return square:isFree(false)
+        end)
+
+        if ok then
+            return isFree == true
+        end
+    end
+
+    return true
+end
+
 local function pickHouseSpawnPoint(house)
     if house == nil then return nil, nil, nil end
 
@@ -61,17 +79,21 @@ local function pickHouseSpawnPoint(house)
     end
 
     local cell = getCell ~= nil and getCell() or nil
+    if cell == nil then
+        local fallback = candidates[startIndex]
+        return fallback.x, fallback.y, fallback.z or house.centerZ or 0
+    end
+
     for offset = 0, #candidates - 1 do
         local index = ((startIndex + offset - 1) % #candidates) + 1
         local candidate = candidates[index]
-        local square = cell ~= nil and cell:getGridSquare(candidate.x, candidate.y, candidate.z or house.centerZ or 0) or nil
-        if square ~= nil then
+        local square = cell:getGridSquare(candidate.x, candidate.y, candidate.z or house.centerZ or 0)
+        if isUsableSpawnSquare(square) then
             return square:getX(), square:getY(), square:getZ()
         end
     end
 
-    local fallback = candidates[startIndex]
-    return fallback.x, fallback.y, fallback.z or house.centerZ or 0
+    return nil, nil, nil
 end
 
 local function teleportPlayerToHouse(player)
@@ -100,6 +122,11 @@ local function teleportPlayerToHouse(player)
     end
 
     return true
+end
+
+local function warnTeleportFailure(player, context)
+    local username = player and player.getUsername and player:getUsername() or "?"
+    print("[LastHome] WARN: teleport vers la maison echoue pour " .. tostring(username) .. " (" .. tostring(context or "unknown") .. ")")
 end
 
 local function addItemsToContainer(container, itemId, count)
@@ -387,7 +414,19 @@ local function refillHouseSupplies()
         end
     end
 
+    Server.lastHouseSupplyRefillAt = getNowSeconds()
     return true
+end
+
+local function refillHouseSuppliesIfNeeded(minIntervalSeconds)
+    local now = getNowSeconds()
+    local minInterval = minIntervalSeconds or 0
+
+    if Server.lastHouseSupplyRefillAt ~= nil and now < (Server.lastHouseSupplyRefillAt + minInterval) then
+        return false
+    end
+
+    return refillHouseSupplies()
 end
 
 local function refillBuilderResources()
@@ -418,7 +457,7 @@ local function onBuilderRefillTick()
     Server.lastBuilderTickSecond = now
 
     if Server.nextBuilderRefillAt == nil then
-        refillHouseSupplies()
+        refillHouseSuppliesIfNeeded()
         Server.nextBuilderRefillAt = now + 600
         return
     end
@@ -426,7 +465,7 @@ local function onBuilderRefillTick()
     if now < Server.nextBuilderRefillAt then return end
 
     refillBuilderResources()
-    refillHouseSupplies()
+    refillHouseSuppliesIfNeeded()
     repeat
         Server.nextBuilderRefillAt = Server.nextBuilderRefillAt + 600
     until Server.nextBuilderRefillAt > now
@@ -443,7 +482,7 @@ end
 
 local function notifyWavesRoleAssigned()
     ensureSelectedHouse()
-    refillHouseSupplies()
+    refillHouseSuppliesIfNeeded(HOUSE_SUPPLY_REFILL_GUARD_SECONDS)
 
     if LastHomeWaves ~= nil and LastHomeWaves.ensureScenarioStarted ~= nil then
         LastHomeWaves.ensureScenarioStarted()
@@ -474,7 +513,9 @@ local function restoreAssignedRole(player)
 
     if roleKey ~= nil and ROLE_DEFS[roleKey] ~= nil then
         applyRole(player, roleKey)
-        teleportPlayerToHouse(player)
+        if not teleportPlayerToHouse(player) then
+            warnTeleportFailure(player, "restoreAssignedRole")
+        end
         return roleKey
     end
 
@@ -519,7 +560,9 @@ local function onClientCommand(module, command, player, data)
     end
 
     local granted = applyRole(player, roleKey)
-    teleportPlayerToHouse(player)
+    if not teleportPlayerToHouse(player) then
+        warnTeleportFailure(player, "ChooseRole")
+    end
 
     if granted then
         print("[LastHome] Role assigne: " .. tostring(username) .. " = " .. tostring(ROLE_NAMES[roleKey] or roleKey))
@@ -538,8 +581,9 @@ local function onGameStart()
     Server.selectedHouse = nil
     Server.nextBuilderRefillAt = nil
     Server.lastBuilderTickSecond = nil
+    Server.lastHouseSupplyRefillAt = nil
 
     ensureSelectedHouse()
-    refillHouseSupplies()
+    refillHouseSuppliesIfNeeded()
 end
 Events.OnGameStart.Add(onGameStart)

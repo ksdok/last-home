@@ -12,7 +12,8 @@
 - ✅ Les specs **LH-01** à **LH-04** sont rédigées et validées
 - ✅ **LH-02** est implémenté et corrigé après review
 - ✅ **LH-03** est implémenté et corrigé après review
-- ⏳ Le prochain ticket recommandé est **LH-04**
+- ✅ **LH-04** est implémenté et corrigé après review
+- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur)
 
 ## Terminé
 
@@ -56,20 +57,33 @@
     - feedback ciblé si un spawn spectateur est refusé
     - `version=0.2.0` ajoutée à `mod.info`
 
+- [x] LH-04 — Maison, réparations et défense
+  - `media/lua/shared/LastHomeShared.lua`
+  - `media/lua/server/LastHomeServer.lua`
+  - `media/lua/server/LastHomeWaves.lua`
+  - `media/lua/client/LastHomeClient.lua`
+  - `mod.info`
+  - Fonctionnalités implémentées :
+    - sélection aléatoire d'un bâtiment vanilla parmi 4 (Hôpital, Villa, Prison, École élémentaire)
+    - zones de spawn joueur par bâtiment (radius ou box selon la maison)
+    - centre de maison synchronisé au système de vagues et au HUD client
+    - stock communautaire dans un conteneur vanilla dédié par maison
+    - fallback sur le conteneur vanilla le plus proche si le conteneur dédié est absent
+    - refill Builder conservé + stock maison rerempli toutes les 10 minutes
+  - Correctifs post-review appliqués :
+    - validation plus stricte des squares de spawn joueur
+    - garde anti-spam sur le refill du stock maison lors des reconnexions / assignations
+    - warning serveur si un téléport de joueur vers la maison échoue
+    - `version=0.3.0` ajoutée à `mod.info`
+
 ## Backlog
 
 ### Priorité haute
-- [ ] **LH-04 — Maison, réparations et défense**
-  - sélection aléatoire d'un bâtiment vanilla parmi les 4 validés
-  - spawn des joueurs dans la zone du bâtiment choisi
-  - calcul du centre et des points de spawn à 40 tiles
-  - synchronisation client du bâtiment courant
-  - intégration avec les réparations / barricades vanilla
-  - préparation du loot structuré dans les environs
+- [ ] Vérification en jeu solo/LAN de LH-03 + LH-04 (timer réel, spectateurs, score, spawn maison, stock partagé)
+- [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn et du refill Builder/maison
 
 ### Plus tard
-- [ ] Vérification en jeu solo/LAN du système de vagues LH-03 (timer réel, spectateurs, score)
-- [ ] Vérification en jeu multijoueur du picker de rôles et du refill Builder
+- [ ] Loot structuré dans les environs des maisons si nécessaire
 - [ ] HUD / notifications plus complètes pour Last Home
 - [ ] Ajustements d'équilibrage des rôles si nécessaire après tests
 
@@ -79,5 +93,7 @@
 - Le rôle `mecanicien` est supprimé
 - Le `builder` conserve `setUnlimitedCarry` et son refill toutes les 10 minutes en temps réel
 - LH-03 introduit `LastHomeShared.lua` pour mutualiser `round()`, `getScenarioPlayers()` et `getNowSeconds()`
+- LH-04 étend `LastHomeShared.lua` avec la définition des 4 maisons, leurs zones de spawn et leurs conteneurs de stock dédiés
+- Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
 - La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé
