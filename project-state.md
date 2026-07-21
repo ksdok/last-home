@@ -96,6 +96,17 @@
     - garde client `_houseSelectionSent` pour éviter les doublons `SetHouse`
     - API explicite `LastHomeWaves.hasStarted()` + log debug sur le no-op `SetHouse` avec même maison
 
+- [x] Fallback solo role picker (mode Challenge)
+  - `media/lua/client/LastHomeClient.lua`
+  - `media/lua/client/LastHomeRolePicker.lua`
+  - Fonctionnalités implémentées :
+    - `isSinglePlayerRuntime()` détecte le solo (isClient + getOnlinePlayers)
+    - `TickRolePickerFallback` ouvre le picker localement après 3s si le serveur ne répond pas
+    - `applyRoleLocally()` duplique la logique d'applyRole côté client (items, skills, stats, equip, unlimitedCarry)
+    - `openLocal()` + mode "solo" dans `onChooseRole` du RolePicker
+    - `showRoleAssigned` déclenché en solo via forward declaration
+    - `roleRequestSent` reset dans `onGameStart` pour permettre le Retry en mode Challenge
+
 ## Backlog
 
 ### Priorité haute
