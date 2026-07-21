@@ -1,5 +1,9 @@
 LastHomeShared = LastHomeShared or {}
 
+local NOW_SOURCE = nil
+
+print("[LastHome] LastHomeShared charge, maisons: " .. tostring(4))
+
 local HOUSE_DEFS = {
     {
         id = "hospital",
@@ -263,22 +267,38 @@ end
 
 function LastHomeShared.getNowSeconds()
     if getTimestamp ~= nil then
-        local timestamp = getTimestamp()
-        if timestamp ~= nil then
+        local ok, timestamp = pcall(getTimestamp)
+        if ok and timestamp ~= nil then
+            if NOW_SOURCE ~= "getTimestamp" then
+                NOW_SOURCE = "getTimestamp"
+                print("[LastHome] getNowSeconds -> getTimestamp")
+            end
             return math.floor(timestamp)
         end
     end
 
     if os ~= nil and os.time ~= nil then
+        if NOW_SOURCE ~= "os.time" then
+            NOW_SOURCE = "os.time"
+            print("[LastHome] getNowSeconds -> os.time")
+        end
         return os.time()
     end
 
     if getGameTime ~= nil then
-        local gameTime = getGameTime()
-        if gameTime ~= nil and gameTime.getWorldAgeHours ~= nil then
+        local ok, gameTime = pcall(getGameTime)
+        if ok and gameTime ~= nil and gameTime.getWorldAgeHours ~= nil then
+            if NOW_SOURCE ~= "getGameTime" then
+                NOW_SOURCE = "getGameTime"
+                print("[LastHome] getNowSeconds -> getGameTime:getWorldAgeHours")
+            end
             return math.floor(gameTime:getWorldAgeHours() * 3600)
         end
     end
 
+    if NOW_SOURCE ~= "zero" then
+        NOW_SOURCE = "zero"
+        print("[LastHome] WARN: getNowSeconds aucun timer disponible, retourne 0")
+    end
     return 0
 end

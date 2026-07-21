@@ -4,6 +4,8 @@ require "LastHomeRoles"
 
 LastHomeRolePicker = LastHomeRolePicker or {}
 
+print("[LastHome] LastHomeRolePicker charge")
+
 local RolePickerPanel = ISPanel:derive("LastHomeRolePickerPanel")
 
 local ROLE_ORDER = LastHomeRoles.ROLE_ORDER

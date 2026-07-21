@@ -2,6 +2,8 @@ require "LastHomeRoles"
 require "LastHomeShared"
 require "LastHomeWaves"
 
+print("[LastHome] LastHomeServer charge")
+
 local Server = {
     assignedRoles = {},
     roleLoadouts = {},
@@ -37,7 +39,10 @@ local function ensureSelectedHouse()
     end
 
     local house = getRandomHouse ~= nil and getRandomHouse() or nil
-    if house == nil then return nil end
+    if house == nil then
+        print("[LastHome] ERREUR: aucune maison disponible dans HOUSE_DEFS")
+        return nil
+    end
 
     house.source = "rotation"
     Server.selectedHouse = house
@@ -111,7 +116,11 @@ local function teleportPlayerToHouse(player)
     end
 
     local x, y, z = pickHouseSpawnPoint(house)
-    if x == nil or y == nil or z == nil then return false end
+    if x == nil or y == nil or z == nil then
+        local username = player:getUsername() or "?"
+        print("[LastHome] WARN: pickHouseSpawnPoint a echoue pour " .. tostring(username) .. " (maison=" .. tostring(house.name or house.id or "?") .. ", candidats=" .. tostring(getHouseSpawnCandidates ~= nil and #(getHouseSpawnCandidates(house) or {}) or 0) .. ")")
+        return false
+    end
 
     player:setX(x)
     player:setY(y)
@@ -355,10 +364,16 @@ local function getPrimaryHouseSupplyContainer()
     if house == nil then return nil end
 
     local bounds = house.bounds
-    if bounds == nil or bounds.min == nil or bounds.max == nil then return nil end
+    if bounds == nil or bounds.min == nil or bounds.max == nil then
+        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - pas de bounds pour " .. tostring(house.name or house.id or "?"))
+        return nil
+    end
 
     local cell = getCell ~= nil and getCell() or nil
-    if cell == nil then return nil end
+    if cell == nil then
+        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - getCell() est nil")
+        return nil
+    end
 
     if house.supply ~= nil then
         local configuredSquare = cell:getGridSquare(house.supply.x, house.supply.y, house.supply.z or house.centerZ or 0)
@@ -393,12 +408,23 @@ local function getPrimaryHouseSupplyContainer()
         end
     end
 
+    if bestContainer == nil then
+        local houseName = house.name or house.id or "?"
+        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - aucun conteneur trouve pour " .. tostring(houseName) .. " dans bounds [" .. tostring(bounds.min.x) .. "," .. tostring(bounds.min.y) .. "," .. tostring(minZ) .. "] -> [" .. tostring(bounds.max.x) .. "," .. tostring(bounds.max.y) .. "," .. tostring(maxZ) .. "]")
+    end
+
     return bestContainer
 end
 
 local function refillHouseSupplies()
     local supplyContainer = getPrimaryHouseSupplyContainer()
-    if supplyContainer == nil then return false end
+    if supplyContainer == nil then
+        print("[LastHome] WARN: refillHouseSupplies - aucun conteneur de ravitaillement")
+        return false
+    end
+
+    local totalAdded = 0
+    local totalItems = 0
 
     for _, refillDef in ipairs(BUILDER_REFILL_ITEMS) do
         local itemId = refillDef[1]
@@ -409,12 +435,19 @@ local function refillHouseSupplies()
 
         if needed > 1 then
             supplyContainer:AddItems(itemId, needed)
+            totalAdded = totalAdded + needed
+            totalItems = totalItems + 1
         elseif needed == 1 then
             supplyContainer:AddItem(itemId)
+            totalAdded = totalAdded + 1
+            totalItems = totalItems + 1
         end
     end
 
     Server.lastHouseSupplyRefillAt = getNowSeconds()
+    if totalAdded > 0 then
+        print("[LastHome] refillHouseSupplies: " .. tostring(totalItems) .. " types, " .. tostring(totalAdded) .. " items ajoutes")
+    end
     return true
 end
 
@@ -576,6 +609,7 @@ end
 Events.OnClientCommand.Add(onClientCommand)
 
 local function onGameStart()
+    print("[LastHome] LastHomeServer OnGameStart")
     Server.assignedRoles = {}
     Server.roleLoadouts = {}
     Server.selectedHouse = nil
@@ -587,3 +621,4 @@ local function onGameStart()
     refillHouseSuppliesIfNeeded()
 end
 Events.OnGameStart.Add(onGameStart)
+print("[LastHome] LastHomeServer pret - handlers: OnGameStart, OnClientCommand, OnTick")

@@ -2,6 +2,8 @@ require "LastHomeShared"
 
 LastHomeWaves = LastHomeWaves or {}
 
+print("[LastHome] LastHomeWaves charge")
+
 local Server = LastHomeWaves
 
 local PREP_DURATION_SECONDS = 10 * 60
@@ -164,6 +166,7 @@ local function resetState()
     Server.house = nil
     Server.lastTickSecond = nil
     Server.nextPressurePulseAt = nil
+    print("[LastHome] LastHomeWaves resetState - etat reinitialise")
 end
 
 resetState()
@@ -246,11 +249,15 @@ local function ensureHouse()
     if randomHouse ~= nil then
         randomHouse.source = "shared-random-fallback"
         Server.house = normalizeHouseData(randomHouse)
+        print("[LastHome] LastHomeWaves ensureHouse - fallback maison aleatoire: " .. tostring(Server.house.name or Server.house.id or "?"))
         return Server.house ~= nil
     end
 
     local anchor = getAlivePlayers()[1]
-    if anchor == nil then return false end
+    if anchor == nil then
+        print("[LastHome] WARN: LastHomeWaves ensureHouse - aucun joueur ni maison disponible")
+        return false
+    end
 
     Server.house = {
         centerX = round(anchor:getX()),
@@ -259,6 +266,7 @@ local function ensureHouse()
         source = "player-fallback",
     }
 
+    print("[LastHome] LastHomeWaves ensureHouse - fallback joueur: (" .. tostring(Server.house.centerX) .. ", " .. tostring(Server.house.centerY) .. ", " .. tostring(Server.house.centerZ) .. ")")
     return true
 end
 
@@ -437,7 +445,10 @@ local function spawnWaveZombies(count)
     if count == nil or count <= 0 then return 0 end
 
     local points = getSpawnPoints(Server.directions)
-    if #points == 0 then return 0 end
+    if #points == 0 then
+        print("[LastHome] WARN: spawnWaveZombies - aucun point de spawn (directions=" .. tostring(formatDirections(Server.directions)) .. ", house=" .. tostring(Server.house ~= nil) .. ")")
+        return 0
+    end
 
     local spawnedCount = 0
     local basePerPoint = math.floor(count / #points)
@@ -457,7 +468,14 @@ local function spawnWaveZombies(count)
 
     Server.zombieCount = Server.zombieCount + spawnedCount
     refreshZombiePressure()
+    print("[LastHome] Vague " .. tostring(Server.currentWave) .. ": " .. tostring(spawnedCount) .. "/" .. tostring(count) .. " zombies spawnes, total restants=" .. tostring(Server.zombieCount))
     return spawnedCount
+end
+
+local function countSpectators()
+    local count = 0
+    for _ in pairs(Server.spectators) do count = count + 1 end
+    return count
 end
 
 local function triggerGameOver()
@@ -477,6 +495,7 @@ local function triggerGameOver()
         score = finalScore,
     })
     broadcastAlert("[Last Home] Game over! Score final: " .. tostring(finalScore) .. " vague(s).", "danger")
+    print("[LastHome] GAME OVER - score final: " .. tostring(finalScore) .. " vague(s), " .. tostring(#getAlivePlayers()) .. " survivants, " .. tostring(countSpectators()) .. " spectateurs")
 end
 
 local function startPrepPhase()
@@ -500,6 +519,8 @@ local function startPrepPhase()
 
     resetSpectatorWaveUsage()
     syncWaveState()
+
+    print("[LastHome] Phase PREP - vague " .. tostring(Server.currentWave + 1) .. ", " .. tostring(getAlivePlayerCount()) .. " joueurs, " .. tostring(Server.pendingEstimate) .. " zombies estimes, direction(s): " .. formatDirections(Server.pendingDirections))
 
     local houseLabel = ""
     if Server.house ~= nil and Server.house.name ~= nil then
@@ -531,6 +552,7 @@ local function startWave(immediate)
     Server.nextPressurePulseAt = getNowSeconds() + PRESSURE_PULSE_SECONDS
 
     resetSpectatorWaveUsage()
+    print("[LastHome] VAGUE " .. tostring(Server.currentWave) .. " demarree - " .. tostring(getAlivePlayerCount()) .. " joueurs, direction(s): " .. formatDirections(Server.directions))
     spawnWaveZombies(calculateZombieCount(Server.currentWave, getAlivePlayerCount()))
     syncWaveState()
     broadcastAlert(string.format("[Last Home] Vague %d! Les zombies arrivent par %s!", Server.currentWave, formatDirections(Server.directions)), "warning")
@@ -548,6 +570,7 @@ local function endWaveCleared()
     Server.waveActive = false
     Server.zombieCount = 0
     Server.wavesSurvived = Server.currentWave
+    print("[LastHome] Vague " .. tostring(Server.currentWave) .. " eliminee - " .. tostring(Server.wavesSurvived) .. " vagues survecces")
     broadcastAlert(string.format("[Last Home] Vague %d eliminee! Prochaine vague dans 10 min.", Server.currentWave), "success")
     startPrepPhase()
 end
@@ -576,6 +599,8 @@ local function handlePlayerDeath(player, x, y, z)
 
     Server.spectators[username] = Server.spectators[username] or {}
     Server.spectators[username].spawnedThisWave = not Server.waveActive
+
+    print("[LastHome] Joueur mort: " .. tostring(username) .. " -> spectateur (vague active=" .. tostring(Server.waveActive) .. ", spawns cette vague=" .. tostring(Server.spectators[username].spawnedThisWave) .. ")")
 
     syncSpectatorState(username)
     syncWaveState()
@@ -728,6 +753,7 @@ local function onTick()
 end
 
 local function onGameStart()
+    print("[LastHome] LastHomeWaves OnGameStart")
     resetState()
 end
 Events.OnGameStart.Add(onGameStart)
@@ -759,3 +785,4 @@ local function onClientCommand(module, command, player, data)
     end
 end
 Events.OnClientCommand.Add(onClientCommand)
+print("[LastHome] LastHomeWaves pret - handlers: OnGameStart, OnTick, OnZombieDead, OnClientCommand")

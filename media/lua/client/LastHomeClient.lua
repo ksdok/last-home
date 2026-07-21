@@ -4,6 +4,8 @@ require "LastHomeShared"
 
 LastHomeClient = LastHomeClient or {}
 
+print("[LastHome] LastHomeClient charge")
+
 local roleRequestSent = false
 local getNowSeconds = LastHomeShared.getNowSeconds
 
@@ -269,9 +271,11 @@ local function onServerCommand(module, command, data)
         if player ~= nil and data ~= nil and data.username == player:getUsername() then
             player:getModData().LH_role = data.role
             showRoleAssigned(data.roleName or data.role)
+            print("[LastHome] Client: role recu - " .. tostring(data.roleName or data.role))
         end
     elseif command == "RoleDenied" or command == "RoleUnavailable" then
         roleRequestSent = false
+        print("[LastHome] Client: role refuse/indisponible - " .. tostring(data and data.text or "?"))
     elseif command == "WaveState" then
         updateWaveState(data)
     elseif command == "AlertMessage" then
@@ -287,12 +291,15 @@ local function onServerCommand(module, command, data)
                 modData.LH_spectator = LastHomeClient.isSpectator
                 modData.LH_dead = LastHomeClient.isSpectator
             end
+            print("[LastHome] Client: SpectatorState - isSpectator=" .. tostring(LastHomeClient.isSpectator) .. ", spawnUsed=" .. tostring(LastHomeClient.spectatorSpawnUsed))
         end
     elseif command == "GameOver" then
         if LastHomeClient.waveState ~= nil then
             LastHomeClient.waveState.phase = "gameover"
             LastHomeClient.waveState.score = data and data.score or LastHomeClient.waveState.score
+            print("[LastHome] Client: GameOver recu - score=" .. tostring(LastHomeClient.waveState.score))
         end
     end
 end
 Events.OnServerCommand.Add(onServerCommand)
+print("[LastHome] LastHomeClient pret - handlers: OnCreatePlayer, OnGameStart, OnPostUIDraw, OnFillWorldObjectContextMenu, OnPlayerDeath, OnServerCommand")

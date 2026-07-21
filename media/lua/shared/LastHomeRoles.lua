@@ -1,5 +1,7 @@
 LastHomeRoles = LastHomeRoles or {}
 
+print("[LastHome] LastHomeRoles charge - " .. tostring(17) .. " roles")
+
 local Roles = LastHomeRoles
 
 Roles.MODULE = "LastHome"
