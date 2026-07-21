@@ -19,18 +19,13 @@ local function requestRolePicker()
     })
 end
 
-local function tryRequestRolePicker()
-    roleRequestSent = false
-    requestRolePicker()
-end
-
 local function onCreatePlayer()
-    tryRequestRolePicker()
+    requestRolePicker()
 end
 Events.OnCreatePlayer.Add(onCreatePlayer)
 
 local function onGameStart()
-    tryRequestRolePicker()
+    requestRolePicker()
 end
 Events.OnGameStart.Add(onGameStart)
 

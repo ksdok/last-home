@@ -10,7 +10,7 @@
 ## État actuel
 
 - ✅ Les specs **LH-01** à **LH-04** sont rédigées et validées
-- ✅ **LH-02** est implémenté
+- ✅ **LH-02** est implémenté et corrigé après review
 - ⏳ Le prochain ticket recommandé est **LH-03**
 - ⏳ **LH-04** dépend en partie de l'infrastructure de vagues et de maison
 
@@ -29,6 +29,11 @@
   - `media/lua/client/LastHomeClient.lua`
   - `media/lua/server/LastHomeServer.lua`
   - `mod.info`
+  - Correctifs post-review appliqués :
+    - ouverture du role picker fiabilisée côté client
+    - `applyPerkLevel()` rendu plus robuste
+    - texte du picker rendu plus pérenne
+    - `version=0.1.0` ajoutée à `mod.info`
 
 ## Backlog
 
@@ -63,3 +68,4 @@
 - Le rôle `mecanicien` est supprimé
 - Le `builder` conserve `setUnlimitedCarry` et son refill toutes les 10 minutes
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
+- La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé

@@ -146,14 +146,22 @@ local function applyPerkLevel(player, perk, level)
         if currentLevel ~= nil and player.LevelPerk ~= nil then
             while currentLevel < level do
                 player:LevelPerk(perk, false)
-                currentLevel = currentLevel + 1
+                local newLevel = player:getPerkLevel(perk)
+                if newLevel == nil or newLevel <= currentLevel then
+                    break
+                end
+                currentLevel = newLevel
             end
         end
 
         if currentLevel ~= nil and player.LoseLevel ~= nil then
             while currentLevel > level do
                 player:LoseLevel(perk)
-                currentLevel = currentLevel - 1
+                local newLevel = player:getPerkLevel(perk)
+                if newLevel == nil or newLevel >= currentLevel then
+                    break
+                end
+                currentLevel = newLevel
             end
         end
     end

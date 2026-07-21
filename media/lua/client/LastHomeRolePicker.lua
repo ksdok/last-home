@@ -124,9 +124,11 @@ end
 function RolePickerPanel:prerender()
     ISPanel.prerender(self)
 
+    local roleCount = #ROLE_ORDER
+
     self:drawTextCentre("Choisis ton role", self.width / 2, 12, 1, 1, 1, 1, UIFont.Medium)
-    self:drawText("17 roles disponibles. Les doublons sont autorises et le choix est definitif pour la partie.", 16, 40, 0.9, 0.9, 0.9, 1, UIFont.Small)
-    self:drawText("Le Builder conserve son refill automatique. Le Mecanicien est retire pour Last Home.", 16, 58, 0.9, 0.9, 0.9, 1, UIFont.Small)
+    self:drawText(string.format("%d roles disponibles. Les doublons sont autorises et le choix est definitif pour la partie.", roleCount), 16, 40, 0.9, 0.9, 0.9, 1, UIFont.Small)
+    self:drawText("Le Builder conserve son refill automatique de ressources toutes les 10 minutes.", 16, 58, 0.9, 0.9, 0.9, 1, UIFont.Small)
 end
 
 function RolePickerPanel:render()
