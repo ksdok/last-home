@@ -1,4 +1,5 @@
 require "LastHomeRoles"
+require "LastHomeWaves"
 
 local Server = {
     assignedRoles = {},
@@ -267,6 +268,12 @@ local function sendRoleAssigned(username, roleKey)
     })
 end
 
+local function notifyWavesRoleAssigned()
+    if LastHomeWaves ~= nil and LastHomeWaves.ensureScenarioStarted ~= nil then
+        LastHomeWaves.ensureScenarioStarted()
+    end
+end
+
 local function sendRoleUnavailable(username, text)
     sendServerCommand("LastHome", "RoleUnavailable", {
         username = username,
@@ -307,6 +314,7 @@ local function onClientCommand(module, command, player, data)
         local roleKey = restoreAssignedRole(player)
         if roleKey ~= nil then
             sendRoleAssigned(username, roleKey)
+            notifyWavesRoleAssigned()
             return
         end
 
@@ -338,5 +346,6 @@ local function onClientCommand(module, command, player, data)
     end
 
     sendRoleAssigned(username, roleKey)
+    notifyWavesRoleAssigned()
 end
 Events.OnClientCommand.Add(onClientCommand)
