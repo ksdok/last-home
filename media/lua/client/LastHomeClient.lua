@@ -1,22 +1,28 @@
 require "LastHomeRolePicker"
 require "LastHomeRoles"
+require "LastHomeShared"
 
 LastHomeClient = LastHomeClient or {}
 
 local roleRequestSent = false
+local getNowSeconds = LastHomeShared.getNowSeconds
 
 LastHomeClient.waveState = LastHomeClient.waveState or {
     phase = "idle",
     currentWave = 0,
     nextWave = 1,
     waveActive = false,
-    minutesRemaining = 0,
+    remainingSeconds = 0,
+    phaseEndsAt = 0,
+    durationSeconds = 0,
     directionsText = "",
     estimatedCount = 0,
     zombieCount = 0,
+    score = 0,
 }
 LastHomeClient.alertText = nil
 LastHomeClient.alertType = "info"
+LastHomeClient.alertExpiresAt = nil
 LastHomeClient.isSpectator = false
 LastHomeClient.spectatorSpawnUsed = false
 
@@ -57,16 +63,18 @@ local function showRoleAssigned(roleName)
     end
 end
 
-local function showAlert(text, alertType)
-    if text == nil then return end
-
-    LastHomeClient.alertText = string.gsub(text, "\n", " | ")
-    LastHomeClient.alertType = alertType or "info"
-
+local function isLocalUser(data)
     local player = getPlayer()
-    if player ~= nil then
-        player:Say(text)
-    end
+    return player ~= nil and data ~= nil and data.username == player:getUsername()
+end
+
+local function showAlert(data)
+    if data == nil or data.text == nil then return end
+    if data.username ~= nil and not isLocalUser(data) then return end
+
+    LastHomeClient.alertText = string.gsub(data.text, "\n", " | ")
+    LastHomeClient.alertType = data.type or "info"
+    LastHomeClient.alertExpiresAt = getNowSeconds() + (data.durationSeconds or 8)
 end
 
 local function updateWaveState(data)
@@ -77,23 +85,45 @@ local function updateWaveState(data)
         currentWave = data.currentWave or 0,
         nextWave = data.nextWave or 1,
         waveActive = data.waveActive == true,
-        minutesRemaining = data.minutesRemaining or 0,
+        remainingSeconds = data.remainingSeconds or 0,
+        phaseEndsAt = data.phaseEndsAt or 0,
+        durationSeconds = data.durationSeconds or 0,
         directionsText = data.directionsText or "",
         estimatedCount = data.estimatedCount or 0,
         zombieCount = data.zombieCount or 0,
-        score = data.score or data.currentWave or 0,
+        score = data.score or 0,
     }
 end
 
 local function drawLine(x, y, text, color)
     local c = color or ALERT_COLORS.info
-    getTextManager():DrawString(UIFont.NewSmall, x, y, text, 0, 0, 0, 1)
-    getTextManager():DrawString(UIFont.NewSmall, x + 1, y + 1, text, c.r, c.g, c.b, c.a or 1)
+    getTextManager():DrawString(UIFont.Small, x, y, text, 0, 0, 0, 1)
+    getTextManager():DrawString(UIFont.Small, x + 1, y + 1, text, c.r, c.g, c.b, c.a or 1)
+end
+
+local function formatClock(totalSeconds)
+    totalSeconds = math.max(0, math.floor(totalSeconds or 0))
+    local minutes = math.floor(totalSeconds / 60)
+    local seconds = totalSeconds % 60
+    return string.format("%02d:%02d", minutes, seconds)
+end
+
+local function getRemainingSeconds(state)
+    if state == nil then return 0 end
+    if state.phaseEndsAt ~= nil and state.phaseEndsAt > 0 then
+        return math.max(0, state.phaseEndsAt - getNowSeconds())
+    end
+    return math.max(0, state.remainingSeconds or 0)
 end
 
 local function drawWaveHud()
     local player = getPlayer()
     if player == nil then return end
+
+    if LastHomeClient.alertExpiresAt ~= nil and getNowSeconds() >= LastHomeClient.alertExpiresAt then
+        LastHomeClient.alertText = nil
+        LastHomeClient.alertExpiresAt = nil
+    end
 
     local state = LastHomeClient.waveState or {}
     local shouldDraw = state.phase ~= "idle" or LastHomeClient.isSpectator or LastHomeClient.alertText ~= nil
@@ -101,19 +131,20 @@ local function drawWaveHud()
 
     local x = 20
     local y = 120
+    local remainingSeconds = getRemainingSeconds(state)
 
     drawLine(x, y, "[Last Home]", ALERT_COLORS.info)
     y = y + 18
 
     if state.phase == "prep" then
-        drawLine(x, y, string.format("Preparation - Vague %d dans %02d:00", state.nextWave or 1, math.max(0, state.minutesRemaining or 0)), ALERT_COLORS.info)
+        drawLine(x, y, string.format("Preparation - Vague %d dans %s", state.nextWave or 1, formatClock(remainingSeconds)), ALERT_COLORS.info)
         y = y + 16
         drawLine(x, y, "Direction: " .. tostring(state.directionsText or "?"), ALERT_COLORS.info)
         y = y + 16
         drawLine(x, y, "Taille estimee: ~" .. tostring(state.estimatedCount or 0) .. " zombies", ALERT_COLORS.info)
         y = y + 16
     elseif state.phase == "wave" then
-        drawLine(x, y, string.format("Vague %d active - %02d:00 restantes", state.currentWave or 0, math.max(0, state.minutesRemaining or 0)), ALERT_COLORS.warning)
+        drawLine(x, y, string.format("Vague %d active - %s restantes", state.currentWave or 0, formatClock(remainingSeconds)), ALERT_COLORS.warning)
         y = y + 16
         drawLine(x, y, "Directions: " .. tostring(state.directionsText or "?"), ALERT_COLORS.info)
         y = y + 16
@@ -221,11 +252,6 @@ local function onPlayerDeath(player)
 end
 Events.OnPlayerDeath.Add(onPlayerDeath)
 
-local function isLocalUser(data)
-    local player = getPlayer()
-    return player ~= nil and data ~= nil and data.username == player:getUsername()
-end
-
 local function onServerCommand(module, command, data)
     if module ~= "LastHome" then return end
 
@@ -242,7 +268,7 @@ local function onServerCommand(module, command, data)
     elseif command == "WaveState" then
         updateWaveState(data)
     elseif command == "AlertMessage" then
-        showAlert(data and data.text or nil, data and data.type or "info")
+        showAlert(data)
     elseif command == "SpectatorState" then
         if isLocalUser(data) then
             LastHomeClient.isSpectator = data.isSpectator == true

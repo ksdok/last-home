@@ -1,37 +1,20 @@
 require "LastHomeRoles"
+require "LastHomeShared"
 require "LastHomeWaves"
 
 local Server = {
     assignedRoles = {},
     roleLoadouts = {},
+    nextBuilderRefillAt = nil,
+    lastBuilderTickSecond = nil,
 }
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
 local ROLE_NAMES = LastHomeRoles.ROLE_NAMES
 local BUILDER_REFILL_ITEMS = LastHomeRoles.BUILDER_REFILL_ITEMS
 
-local function getScenarioPlayers()
-    local result = {}
-
-    if getOnlinePlayers ~= nil then
-        local onlinePlayers = getOnlinePlayers()
-        if onlinePlayers ~= nil and onlinePlayers:size() > 0 then
-            for i = 0, onlinePlayers:size() - 1 do
-                result[#result + 1] = onlinePlayers:get(i)
-            end
-            return result
-        end
-    end
-
-    if getPlayer ~= nil then
-        local singlePlayer = getPlayer()
-        if singlePlayer ~= nil then
-            result[#result + 1] = singlePlayer
-        end
-    end
-
-    return result
-end
+local getScenarioPlayers = LastHomeShared.getScenarioPlayers
+local getNowSeconds = LastHomeShared.getNowSeconds
 
 local function addItemsToContainer(container, itemId, count)
     if container == nil or itemId == nil or count == nil or count <= 0 then return end
@@ -258,7 +241,25 @@ local function refillBuilderResources()
         end
     end
 end
-Events.EveryTenMinutes.Add(refillBuilderResources)
+
+local function onBuilderRefillTick()
+    local now = getNowSeconds()
+    if now == Server.lastBuilderTickSecond then return end
+    Server.lastBuilderTickSecond = now
+
+    if Server.nextBuilderRefillAt == nil then
+        Server.nextBuilderRefillAt = now + 600
+        return
+    end
+
+    if now < Server.nextBuilderRefillAt then return end
+
+    refillBuilderResources()
+    repeat
+        Server.nextBuilderRefillAt = Server.nextBuilderRefillAt + 600
+    until Server.nextBuilderRefillAt > now
+end
+Events.OnTick.Add(onBuilderRefillTick)
 
 local function sendRoleAssigned(username, roleKey)
     sendServerCommand("LastHome", "RoleAssigned", {
