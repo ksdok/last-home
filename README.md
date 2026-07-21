@@ -5,10 +5,10 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 ## Concept
 
 - **Coop** jusqu'à 8 joueurs (doublons de rôles autorisés)
-- **Vagues** toutes les 10 minutes, de plus en plus dangereuses (zombies plus rapides et agressifs à chaque vague)
-- **Bâtiment aléatoire** parmi 4 (Hôpital, Villa, Prison, École élémentaire) — tiré au sort au spawn
-- **Direction croissante** des hordes : 1 direction au début, puis 2, 3, jusqu'à 360° aux vagues avancées
-- **Permadeath** : le joueur mort devient spectateur et peut faire spawner 1 zombie où il veut pendant chaque vague suivante
+- **Vagues** toutes les 10 minutes, de plus en plus dangereuses
+- **Bâtiment aléatoire** parmi 4 (Hôpital, Villa, Prison, École élémentaire)
+- **Direction croissante** des hordes : 1 direction au début, puis 2, 3, jusqu'à 360°
+- **Permadeath** : le joueur mort devient spectateur et peut faire spawner 1 zombie pendant les vagues suivantes
 - **17 rôles** repris d'Escapade Express (sans Mécanicien, avec Builder)
 - **Survie illimitée** : le score = nombre de vagues survécues
 
@@ -24,23 +24,27 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 ## État
 
 - ✅ Spécifications complètes (LH-01 à LH-04)
-- ⏳ Implémentation à venir
+- ✅ Implémentation de **LH-02** terminée
+- ⏳ **LH-03** et **LH-04** restent à implémenter
+- 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
 
-## Structure du mod (prévue)
+## Structure du mod
 
-```
+```text
 last-home/
-  modinfo.txt
+  mod.info
+  README.md
+  project-state.md
   media/
     lua/
       server/
-        LastHomeServer.lua      -- logique serveur (vagues, zombies, timer, events)
-        LastHomeWaves.lua       -- gestion des vagues (spawn, scaling, direction)
+        LastHomeServer.lua      -- rôles, attribution, refill Builder
+        LastHomeWaves.lua       -- à venir
       client/
-        LastHomeClient.lua     -- logique client (UI, timer, notifications, annonces)
+        LastHomeClient.lua      -- bootstrap client / ouverture du picker
         LastHomeRolePicker.lua  -- picker de rôles
       shared/
-        LastHomeRoles.lua       -- definitions des rôles réajustés
+        LastHomeRoles.lua       -- définitions des 17 rôles
   specs/
     LH-01-concept.md
     LH-02-roles.md
