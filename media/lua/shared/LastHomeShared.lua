@@ -267,8 +267,8 @@ end
 
 function LastHomeShared.getNowSeconds()
     if getTimestamp ~= nil then
-        local ok, timestamp = pcall(getTimestamp)
-        if ok and timestamp ~= nil then
+        local timestamp = getTimestamp()
+        if timestamp ~= nil then
             if NOW_SOURCE ~= "getTimestamp" then
                 NOW_SOURCE = "getTimestamp"
                 print("[LastHome] getNowSeconds -> getTimestamp")
@@ -286,8 +286,8 @@ function LastHomeShared.getNowSeconds()
     end
 
     if getGameTime ~= nil then
-        local ok, gameTime = pcall(getGameTime)
-        if ok and gameTime ~= nil and gameTime.getWorldAgeHours ~= nil then
+        local gameTime = getGameTime()
+        if gameTime ~= nil and gameTime.getWorldAgeHours ~= nil then
             if NOW_SOURCE ~= "getGameTime" then
                 NOW_SOURCE = "getGameTime"
                 print("[LastHome] getNowSeconds -> getGameTime:getWorldAgeHours")
