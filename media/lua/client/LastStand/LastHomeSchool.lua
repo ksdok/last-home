@@ -2,19 +2,30 @@
 -- Defendez l'ecole elementaire contre des vagues croissantes de zombies.
 
 LastHomeSchool = {}
+LastHomeSchool._gameStartRegistered = LastHomeSchool._gameStartRegistered or false
+LastHomeSchool._houseSelectionSent = false
 
 LastHomeSchool.Add = function()
     addChallenge(LastHomeSchool)
 end
 
-LastHomeSchool.OnGameStart = function()
+LastHomeSchool.SendHouseSelection = function()
+    if LastHomeSchool._houseSelectionSent then return end
+
+    LastHomeSchool._houseSelectionSent = true
     sendClientCommand("LastHome", "SetHouse", { houseId = "elementary_school" })
 end
 
+LastHomeSchool.OnGameStart = function()
+    LastHomeSchool.SendHouseSelection()
+end
+
 LastHomeSchool.OnInitWorld = function()
-    if not LastHomeSchool._registered then
+    LastHomeSchool._houseSelectionSent = false
+
+    if not LastHomeSchool._gameStartRegistered then
         Events.OnGameStart.Add(LastHomeSchool.OnGameStart)
-        LastHomeSchool._registered = true
+        LastHomeSchool._gameStartRegistered = true
     end
 end
 

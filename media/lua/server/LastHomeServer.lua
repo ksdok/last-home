@@ -8,6 +8,7 @@ local Server = {
     assignedRoles = {},
     roleLoadouts = {},
     selectedHouse = nil,
+    houseSelectionLocked = false,
     nextBuilderRefillAt = nil,
     lastBuilderTickSecond = nil,
     lastHouseSupplyRefillAt = nil,
@@ -46,6 +47,7 @@ local function ensureSelectedHouse()
 
     house.source = "rotation"
     Server.selectedHouse = house
+    Server.houseSelectionLocked = true
     syncSelectedHouse()
 
     print("[LastHome] Maison choisie: " .. tostring(house.name or house.id or "?") .. " (" .. tostring(house.centerX) .. ", " .. tostring(house.centerY) .. ", " .. tostring(house.centerZ or 0) .. ")")
@@ -490,7 +492,9 @@ local function onBuilderRefillTick()
     Server.lastBuilderTickSecond = now
 
     if Server.nextBuilderRefillAt == nil then
-        refillHouseSuppliesIfNeeded()
+        if Server.selectedHouse ~= nil then
+            refillHouseSuppliesIfNeeded()
+        end
         Server.nextBuilderRefillAt = now + 600
         return
     end
@@ -565,13 +569,47 @@ local function onClientCommand(module, command, player, data)
         local houseId = data and data.houseId or nil
         if houseId == nil then return end
 
-        local house = LastHomeShared.getHouseById(houseId)
-        if house ~= nil then
-            house.source = "challenge"
-            Server.selectedHouse = house
-            syncSelectedHouse()
-            print("[LastHome] Maison forcee par challenge: " .. tostring(house.name or house.id))
+        local canOverrideRotation = Server.selectedHouse ~= nil
+            and Server.selectedHouse.source == "rotation"
+            and (LastHomeWaves == nil or LastHomeWaves.started ~= true)
+
+        if Server.houseSelectionLocked and not canOverrideRotation then
+            if Server.selectedHouse ~= nil and Server.selectedHouse.id == houseId then
+                return
+            end
+
+            print("[LastHome] WARN: SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja verrouillee")
+            return
         end
+
+        local house = LastHomeShared.getHouseById(houseId)
+        if house == nil then
+            print("[LastHome] WARN: SetHouse ignore pour " .. tostring(username) .. " (houseId inconnu=" .. tostring(houseId) .. ")")
+            return
+        end
+
+        local previousHouse = Server.selectedHouse
+        house.source = "challenge"
+        Server.selectedHouse = house
+        Server.houseSelectionLocked = true
+        Server.lastHouseSupplyRefillAt = nil
+        syncSelectedHouse()
+        refillHouseSuppliesIfNeeded()
+
+        for _, scenarioPlayer in ipairs(getScenarioPlayers()) do
+            local modData = scenarioPlayer:getModData()
+            if modData ~= nil and modData.LH_role ~= nil then
+                modData.LH_houseSpawnId = nil
+                if not teleportPlayerToHouse(scenarioPlayer) then
+                    warnTeleportFailure(scenarioPlayer, "SetHouse")
+                end
+            end
+        end
+
+        if previousHouse ~= nil and previousHouse.id ~= nil and previousHouse.id ~= house.id then
+            print("[LastHome] Maison challenge remplace la rotation: " .. tostring(previousHouse.id) .. " -> " .. tostring(house.id))
+        end
+        print("[LastHome] Maison forcee par challenge: " .. tostring(house.name or house.id))
         return
     end
 
@@ -627,12 +665,12 @@ local function onGameStart()
     Server.assignedRoles = {}
     Server.roleLoadouts = {}
     Server.selectedHouse = nil
+    Server.houseSelectionLocked = false
     Server.nextBuilderRefillAt = nil
     Server.lastBuilderTickSecond = nil
     Server.lastHouseSupplyRefillAt = nil
 
-    ensureSelectedHouse()
-    refillHouseSuppliesIfNeeded()
+    print("[LastHome] Attente de la maison du challenge avant initialisation finale")
 end
 Events.OnGameStart.Add(onGameStart)
 print("[LastHome] LastHomeServer pret - handlers: OnGameStart, OnClientCommand, OnTick")

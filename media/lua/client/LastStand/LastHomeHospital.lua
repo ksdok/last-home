@@ -2,19 +2,30 @@
 -- Defendez l'hopital contre des vagues croissantes de zombies.
 
 LastHomeHospital = {}
+LastHomeHospital._gameStartRegistered = LastHomeHospital._gameStartRegistered or false
+LastHomeHospital._houseSelectionSent = false
 
 LastHomeHospital.Add = function()
     addChallenge(LastHomeHospital)
 end
 
-LastHomeHospital.OnGameStart = function()
+LastHomeHospital.SendHouseSelection = function()
+    if LastHomeHospital._houseSelectionSent then return end
+
+    LastHomeHospital._houseSelectionSent = true
     sendClientCommand("LastHome", "SetHouse", { houseId = "hospital" })
 end
 
+LastHomeHospital.OnGameStart = function()
+    LastHomeHospital.SendHouseSelection()
+end
+
 LastHomeHospital.OnInitWorld = function()
-    if not LastHomeHospital._registered then
+    LastHomeHospital._houseSelectionSent = false
+
+    if not LastHomeHospital._gameStartRegistered then
         Events.OnGameStart.Add(LastHomeHospital.OnGameStart)
-        LastHomeHospital._registered = true
+        LastHomeHospital._gameStartRegistered = true
     end
 end
 

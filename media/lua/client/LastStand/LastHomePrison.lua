@@ -2,19 +2,30 @@
 -- Defendez la prison contre des vagues croissantes de zombies.
 
 LastHomePrison = {}
+LastHomePrison._gameStartRegistered = LastHomePrison._gameStartRegistered or false
+LastHomePrison._houseSelectionSent = false
 
 LastHomePrison.Add = function()
     addChallenge(LastHomePrison)
 end
 
-LastHomePrison.OnGameStart = function()
+LastHomePrison.SendHouseSelection = function()
+    if LastHomePrison._houseSelectionSent then return end
+
+    LastHomePrison._houseSelectionSent = true
     sendClientCommand("LastHome", "SetHouse", { houseId = "prison" })
 end
 
+LastHomePrison.OnGameStart = function()
+    LastHomePrison.SendHouseSelection()
+end
+
 LastHomePrison.OnInitWorld = function()
-    if not LastHomePrison._registered then
+    LastHomePrison._houseSelectionSent = false
+
+    if not LastHomePrison._gameStartRegistered then
         Events.OnGameStart.Add(LastHomePrison.OnGameStart)
-        LastHomePrison._registered = true
+        LastHomePrison._gameStartRegistered = true
     end
 end
 

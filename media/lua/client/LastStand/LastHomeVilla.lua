@@ -2,19 +2,30 @@
 -- Defendez la villa contre des vagues croissantes de zombies.
 
 LastHomeVilla = {}
+LastHomeVilla._gameStartRegistered = LastHomeVilla._gameStartRegistered or false
+LastHomeVilla._houseSelectionSent = false
 
 LastHomeVilla.Add = function()
     addChallenge(LastHomeVilla)
 end
 
-LastHomeVilla.OnGameStart = function()
+LastHomeVilla.SendHouseSelection = function()
+    if LastHomeVilla._houseSelectionSent then return end
+
+    LastHomeVilla._houseSelectionSent = true
     sendClientCommand("LastHome", "SetHouse", { houseId = "villa" })
 end
 
+LastHomeVilla.OnGameStart = function()
+    LastHomeVilla.SendHouseSelection()
+end
+
 LastHomeVilla.OnInitWorld = function()
-    if not LastHomeVilla._registered then
+    LastHomeVilla._houseSelectionSent = false
+
+    if not LastHomeVilla._gameStartRegistered then
         Events.OnGameStart.Add(LastHomeVilla.OnGameStart)
-        LastHomeVilla._registered = true
+        LastHomeVilla._gameStartRegistered = true
     end
 end
 
