@@ -23,6 +23,7 @@ LastHomeRolePicker.panel = nil
 LastHomeRolePicker.pendingRole = nil
 LastHomeRolePicker.statusText = nil
 LastHomeRolePicker.statusColor = COLOR_WHITE
+LastHomeRolePicker.mode = "network"
 
 local function setButtonEnabled(button, enabled)
     if button == nil then return end
@@ -94,6 +95,18 @@ end
 function RolePickerPanel:onChooseRole(button)
     local roleKey = button and button.internal or nil
     if roleKey == nil then return end
+
+    if LastHomeRolePicker.mode == "solo" then
+        local player = getPlayer()
+        if player == nil then return end
+        if LastHomeClient == nil or LastHomeClient.applyRoleLocally == nil then return end
+
+        local applied = LastHomeClient.applyRoleLocally(player, roleKey)
+        if applied then
+            LastHomeRolePicker.close()
+        end
+        return
+    end
 
     LastHomeRolePicker.pendingRole = roleKey
     LastHomeRolePicker.statusText = "Validation du role en cours..."
@@ -179,7 +192,8 @@ function LastHomeRolePicker.setStatus(text, color)
     end
 end
 
-function LastHomeRolePicker.open()
+function LastHomeRolePicker.open(mode)
+    LastHomeRolePicker.mode = mode or "network"
     LastHomeRolePicker.pendingRole = nil
     LastHomeRolePicker.statusText = nil
     LastHomeRolePicker.statusColor = COLOR_WHITE
@@ -205,6 +219,10 @@ function LastHomeRolePicker.open()
 
     LastHomeRolePicker.panel = panel
     return panel
+end
+
+function LastHomeRolePicker.openLocal()
+    return LastHomeRolePicker.open("solo")
 end
 
 function LastHomeRolePicker.close()

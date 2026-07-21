@@ -7,7 +7,20 @@ LastHomeClient = LastHomeClient or {}
 print("[LastHome] LastHomeClient charge")
 
 local roleRequestSent = false
+local soloPickerFallbackAt = nil
+local soloFallbackTickRegistered = false
 local getNowSeconds = LastHomeShared.getNowSeconds
+
+local function isSinglePlayerRuntime()
+    if isClient ~= nil then
+        return not isClient()
+    end
+    if getOnlinePlayers ~= nil then
+        local onlinePlayers = getOnlinePlayers()
+        return onlinePlayers == nil or onlinePlayers:size() == 0
+    end
+    return true
+end
 
 LastHomeClient.waveState = LastHomeClient.waveState or {
     phase = "idle",
@@ -36,6 +49,227 @@ local ALERT_COLORS = {
     danger = {r = 1, g = 0.45, b = 0.45, a = 1},
 }
 
+local function ensureSoloFallbackTickRegistered()
+    if soloFallbackTickRegistered then return end
+    Events.OnTick.Add(LastHomeClient.TickRolePickerFallback)
+    soloFallbackTickRegistered = true
+end
+
+local function unregisterSoloFallbackTick()
+    if not soloFallbackTickRegistered then return end
+    Events.OnTick.Remove(LastHomeClient.TickRolePickerFallback)
+    soloFallbackTickRegistered = false
+end
+
+LastHomeClient.TickRolePickerFallback = function()
+    if soloPickerFallbackAt == nil then
+        unregisterSoloFallbackTick()
+        return
+    end
+
+    if not isSinglePlayerRuntime() then
+        soloPickerFallbackAt = nil
+        unregisterSoloFallbackTick()
+        return
+    end
+
+    local player = getPlayer()
+    if player == nil then return end
+    if player:getModData().LH_role ~= nil then
+        soloPickerFallbackAt = nil
+        unregisterSoloFallbackTick()
+        return
+    end
+
+    if LastHomeRolePicker.isVisible() then
+        soloPickerFallbackAt = nil
+        unregisterSoloFallbackTick()
+        return
+    end
+
+    if getNowSeconds() >= soloPickerFallbackAt then
+        soloPickerFallbackAt = nil
+        unregisterSoloFallbackTick()
+        LastHomeRolePicker.openLocal()
+    end
+end
+
+-- ============================================================
+-- SOLO: application locale du role (sans serveur)
+-- ============================================================
+
+local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
+
+local function addItemsToContainer(container, itemId, count)
+    if container == nil or itemId == nil or count == nil or count <= 0 then return end
+    for _ = 1, count do
+        container:AddItem(itemId)
+    end
+end
+
+local function buildItemCounts(items)
+    local counts = {}
+    if items == nil then return counts end
+    for _, itemDef in ipairs(items) do
+        local itemId = itemDef[1]
+        local count = itemDef[2] or 1
+        counts[itemId] = (counts[itemId] or 0) + count
+    end
+    return counts
+end
+
+local function addRoleItems(inv, bagItem, bagItemId, items, bagContents)
+    if inv == nil or items == nil then return end
+
+    local bagContainer = bagItem and bagItem:getItemContainer() or nil
+    local bagCounts = buildItemCounts(bagContents)
+
+    for _, itemDef in ipairs(items) do
+        local itemId = itemDef[1]
+        local totalCount = itemDef[2] or 1
+
+        if itemId ~= bagItemId then
+            local bagCount = 0
+            if bagContainer ~= nil and bagCounts[itemId] ~= nil then
+                bagCount = math.min(totalCount, bagCounts[itemId])
+            end
+            local invCount = totalCount - bagCount
+
+            if invCount > 1 then
+                inv:AddItems(itemId, invCount)
+            elseif invCount == 1 then
+                inv:AddItem(itemId)
+            end
+
+            addItemsToContainer(bagContainer, itemId, bagCount)
+        end
+    end
+end
+
+local function equipRoleItems(player, inv, equipped)
+    if player == nil or inv == nil or equipped == nil then return end
+
+    if equipped.primary then
+        local primary = inv:FindAndReturn(equipped.primary)
+        if primary then player:setPrimaryHandItem(primary) end
+    end
+
+    if equipped.secondary then
+        local secondary = inv:FindAndReturn(equipped.secondary)
+        if secondary then player:setSecondaryHandItem(secondary) end
+    end
+
+    if equipped.bag then
+        local bag = inv:FindAndReturn(equipped.bag)
+        if bag then player:setClothingItem_Back(bag) end
+    end
+
+    if equipped.clothes then
+        for _, clothId in ipairs(equipped.clothes) do
+            local cloth = inv:FindAndReturn(clothId)
+            if cloth and cloth:getBodyLocation() ~= nil then
+                player:setWornItem(cloth:getBodyLocation(), cloth)
+            end
+        end
+    end
+end
+
+local function applyRoleStats(player, stats)
+    if player == nil then return end
+
+    local playerStats = player:getStats()
+    playerStats:setPanic(30)
+    playerStats:setHunger(0.2)
+    playerStats:setThirst(0.2)
+    playerStats:setFatigue(0)
+
+    if stats == nil then return end
+    if stats.endurance ~= nil then playerStats:setEndurance(stats.endurance) end
+    if stats.panic ~= nil then playerStats:setPanic(stats.panic) end
+    if stats.fatigue ~= nil then playerStats:setFatigue(stats.fatigue) end
+    if stats.hunger ~= nil then playerStats:setHunger(stats.hunger) end
+    if stats.thirst ~= nil then playerStats:setThirst(stats.thirst) end
+end
+
+local function isPassivePerk(perk)
+    return perk == Perks.Strength or perk == Perks.Fitness
+end
+
+local function applyPerkLevel(player, perk, level)
+    if player == nil or perk == nil or level == nil then return end
+
+    local xp = player:getXp()
+    xp:setXPToLevel(perk, level)
+
+    if isPassivePerk(perk) and player.setPerkLevelDebug ~= nil then
+        player:setPerkLevelDebug(perk, level)
+    end
+
+    if player.getPerkLevel ~= nil then
+        local currentLevel = player:getPerkLevel(perk)
+
+        if currentLevel ~= nil and player.LevelPerk ~= nil then
+            while currentLevel < level do
+                player:LevelPerk(perk, false)
+                local newLevel = player:getPerkLevel(perk)
+                if newLevel == nil or newLevel <= currentLevel then
+                    break
+                end
+                currentLevel = newLevel
+            end
+        end
+
+        if currentLevel ~= nil and player.LoseLevel ~= nil then
+            while currentLevel > level do
+                player:LoseLevel(perk)
+                local newLevel = player:getPerkLevel(perk)
+                if newLevel == nil or newLevel >= currentLevel then
+                    break
+                end
+                currentLevel = newLevel
+            end
+        end
+    end
+
+    xp:setXPToLevel(perk, level)
+end
+
+function LastHomeClient.applyRoleLocally(player, roleKey)
+    if player == nil or roleKey == nil then return false end
+
+    local def = ROLE_DEFS[roleKey]
+    if def == nil then return false end
+
+    local modData = player:getModData()
+    if modData.LH_role ~= nil then return false end
+
+    local inv = player:getInventory()
+    local roleBag = nil
+
+    if def.equipped and def.equipped.bag then
+        roleBag = inv:AddItem(def.equipped.bag)
+    end
+
+    addRoleItems(inv, roleBag, def.equipped and def.equipped.bag or nil, def.items, def.bagContents)
+
+    for _, skillDef in ipairs(def.skills or {}) do
+        applyPerkLevel(player, skillDef[1], skillDef[2])
+    end
+
+    equipRoleItems(player, inv, def.equipped)
+    applyRoleStats(player, def.stats)
+
+    if player.setUnlimitedCarry ~= nil then
+        player:setUnlimitedCarry(roleKey == "builder")
+    end
+
+    modData.LH_role = roleKey
+    modData.LH_localRoleApplied = roleKey
+
+    print("[LastHome] Role applique localement (solo): " .. tostring(roleKey))
+    return true
+end
+
 local function requestRolePicker()
     local player = getPlayer()
     if player == nil then return end
@@ -45,6 +279,12 @@ local function requestRolePicker()
     if roleRequestSent then return end
 
     roleRequestSent = true
+
+    if isSinglePlayerRuntime() and soloPickerFallbackAt == nil then
+        soloPickerFallbackAt = getNowSeconds() + 3
+        ensureSoloFallbackTickRegistered()
+    end
+
     sendClientCommand("LastHome", "RolePickerReady", {
         username = player:getUsername(),
     })
