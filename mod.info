@@ -1,7 +1,6 @@
 name=Last Home
 id=LastHome
-version=0.3.0
-minGameVersion=41.78
-requireClient=true
-description=Mod coop Project Zomboid: defense d'une maison contre des vagues croissantes de zombies.
+version=0.4.0
+description=Mod coop Project Zomboid: 4 scenarios de defense de batiment contre des vagues croissantes de zombies (Hopital, Villa, Prison, Ecole).
+poster=poster.png
 author=Kim

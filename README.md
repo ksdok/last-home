@@ -24,8 +24,8 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 ## État
 
 - ✅ Spécifications complètes (LH-01 à LH-04)
-- ✅ Implémentation de **LH-02** terminée
-- ⏳ **LH-03** et **LH-04** restent à implémenter
+- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04** terminée
+- ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
 - 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
 
 ## Structure du mod
@@ -33,18 +33,26 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 ```text
 last-home/
   mod.info
+  poster.png
   README.md
   project-state.md
   media/
     lua/
       server/
-        LastHomeServer.lua      -- rôles, attribution, refill Builder
-        LastHomeWaves.lua       -- à venir
+        LastHomeServer.lua      -- rôles, attribution, refill Builder, SetHouse
+        LastHomeWaves.lua       -- vagues, scaling, directions, spectateur
       client/
+        LastStand/
+          LastHomeHospital.lua  -- challenge Hôpital
+          LastHomeVilla.lua     -- challenge Villa
+          LastHomePrison.lua    -- challenge Prison
+          LastHomeSchool.lua    -- challenge École
+          *.png                 -- images de preview (200x200)
         LastHomeClient.lua      -- bootstrap client / ouverture du picker
         LastHomeRolePicker.lua  -- picker de rôles
       shared/
         LastHomeRoles.lua       -- définitions des 17 rôles
+        LastHomeShared.lua      -- helpers partagés (maisons, coords, timers)
   specs/
     LH-01-concept.md
     LH-02-roles.md

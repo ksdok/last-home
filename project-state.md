@@ -13,6 +13,7 @@
 - ✅ **LH-02** est implémenté et corrigé après review
 - ✅ **LH-03** est implémenté et corrigé après review
 - ✅ **LH-04** est implémenté et corrigé après review
+- ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
 - ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur)
 
 ## Terminé
@@ -75,6 +76,18 @@
     - garde anti-spam sur le refill du stock maison lors des reconnexions / assignations
     - warning serveur si un téléport de joueur vers la maison échoue
     - `version=0.3.0` ajoutée à `mod.info`
+
+- [x] Challenges PZ (menu Challenges)
+  - `media/lua/client/LastStand/LastHomeHospital.lua`
+  - `media/lua/client/LastStand/LastHomeVilla.lua`
+  - `media/lua/client/LastStand/LastHomePrison.lua`
+  - `media/lua/client/LastStand/LastHomeSchool.lua`
+  - `media/lua/server/LastHomeServer.lua` (handler `SetHouse`)
+  - `mod.info` (`poster=poster.png`, `version=0.4.0`)
+  - Fonctionnalités implémentées :
+    - 4 challenges enregistrés via `Events.OnChallengeQuery.Add()`
+    - chaque challenge force la maison correspondante côté serveur
+    - images de preview 200x200 + poster 256x256
 
 ## Backlog
 

@@ -561,6 +561,20 @@ local function onClientCommand(module, command, player, data)
     local username = player and player:getUsername() or nil
     if username == nil then return end
 
+    if command == "SetHouse" then
+        local houseId = data and data.houseId or nil
+        if houseId == nil then return end
+
+        local house = LastHomeShared.getHouseById(houseId)
+        if house ~= nil then
+            house.source = "challenge"
+            Server.selectedHouse = house
+            syncSelectedHouse()
+            print("[LastHome] Maison forcee par challenge: " .. tostring(house.name or house.id))
+        end
+        return
+    end
+
     if command == "RolePickerReady" then
         ensureSelectedHouse()
 
