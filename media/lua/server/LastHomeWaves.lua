@@ -575,6 +575,10 @@ local function endWaveCleared()
     startPrepPhase()
 end
 
+function LastHomeWaves.hasStarted()
+    return Server.started == true
+end
+
 function LastHomeWaves.ensureScenarioStarted()
     if Server.started or Server.gameOver then
         return false

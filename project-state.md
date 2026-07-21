@@ -83,11 +83,18 @@
   - `media/lua/client/LastStand/LastHomePrison.lua`
   - `media/lua/client/LastStand/LastHomeSchool.lua`
   - `media/lua/server/LastHomeServer.lua` (handler `SetHouse`)
+  - `media/lua/server/LastHomeWaves.lua` (`hasStarted()`)
   - `mod.info` (`poster=poster.png`, `version=0.4.0`)
   - Fonctionnalités implémentées :
     - 4 challenges enregistrés via `Events.OnChallengeQuery.Add()`
     - chaque challenge force la maison correspondante côté serveur
     - images de preview 200x200 + poster 256x256
+  - Correctifs post-review appliqués :
+    - verrouillage serveur de la maison challenge via `houseSelectionLocked`
+    - surcharge autorisée d'une rotation initiale tant que les vagues n'ont pas démarré
+    - re-téléport des joueurs déjà assignés + refill immédiat si `SetHouse` corrige une rotation initiale
+    - garde client `_houseSelectionSent` pour éviter les doublons `SetHouse`
+    - API explicite `LastHomeWaves.hasStarted()` + log debug sur le no-op `SetHouse` avec même maison
 
 ## Backlog
 

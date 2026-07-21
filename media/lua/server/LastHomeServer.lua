@@ -569,12 +569,17 @@ local function onClientCommand(module, command, player, data)
         local houseId = data and data.houseId or nil
         if houseId == nil then return end
 
+        local wavesStarted = LastHomeWaves ~= nil
+            and LastHomeWaves.hasStarted ~= nil
+            and LastHomeWaves.hasStarted() == true
+
         local canOverrideRotation = Server.selectedHouse ~= nil
             and Server.selectedHouse.source == "rotation"
-            and (LastHomeWaves == nil or LastHomeWaves.started ~= true)
+            and not wavesStarted
 
         if Server.houseSelectionLocked and not canOverrideRotation then
             if Server.selectedHouse ~= nil and Server.selectedHouse.id == houseId then
+                print("[LastHome] SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
                 return
             end
 
