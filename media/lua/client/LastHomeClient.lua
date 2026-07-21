@@ -11,6 +11,8 @@ local soloPickerFallbackAt = nil
 local soloFallbackTickRegistered = false
 local getNowSeconds = LastHomeShared.getNowSeconds
 
+local showRoleAssigned -- forward declaration (définie plus bas)
+
 local function isSinglePlayerRuntime()
     if isClient ~= nil then
         return not isClient()
@@ -266,6 +268,9 @@ function LastHomeClient.applyRoleLocally(player, roleKey)
     modData.LH_role = roleKey
     modData.LH_localRoleApplied = roleKey
 
+    local roleName = LastHomeRoles.ROLE_NAMES[roleKey] or roleKey
+    showRoleAssigned(roleName)
+
     print("[LastHome] Role applique localement (solo): " .. tostring(roleKey))
     return true
 end
@@ -296,11 +301,12 @@ end
 Events.OnCreatePlayer.Add(onCreatePlayer)
 
 local function onGameStart()
+    roleRequestSent = false
     requestRolePicker()
 end
 Events.OnGameStart.Add(onGameStart)
 
-local function showRoleAssigned(roleName)
+showRoleAssigned = function(roleName)
     if HaloTextHelper ~= nil and HaloTextHelper.addTextWithArrow ~= nil and HaloTextHelper.getColorGreen ~= nil then
         HaloTextHelper.addTextWithArrow(getPlayer(), "Role: " .. tostring(roleName), true, HaloTextHelper.getColorGreen())
     end
