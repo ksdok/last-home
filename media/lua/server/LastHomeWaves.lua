@@ -31,6 +31,9 @@ local ADJACENT_DIRECTION_SETS = {
 local round = LastHomeShared.round
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
+local getHouseBounds = LastHomeShared.getHouseBounds
+local getRandomHouse = LastHomeShared.getRandomHouse
+local cloneHouse = LastHomeShared.cloneHouse
 
 local function isPlayerAlive(player)
     if player == nil then return false end
@@ -214,8 +217,37 @@ local function notifyPlayer(username, text, alertType)
     sendAlert(text, alertType or "warning", username)
 end
 
+local function normalizeHouseData(houseOrX, centerY, centerZ, bounds)
+    if type(houseOrX) == "table" then
+        local house = cloneHouse ~= nil and cloneHouse(houseOrX) or houseOrX
+        if house == nil then return nil end
+
+        house.centerX = round(house.centerX)
+        house.centerY = round(house.centerY)
+        house.centerZ = round(house.centerZ or 0)
+        house.bounds = getHouseBounds ~= nil and getHouseBounds(house) or house.bounds
+        house.source = house.source or "configured"
+        return house
+    end
+
+    return {
+        centerX = round(houseOrX),
+        centerY = round(centerY),
+        centerZ = round(centerZ or 0),
+        bounds = bounds,
+        source = "configured",
+    }
+end
+
 local function ensureHouse()
     if Server.house ~= nil then return true end
+
+    local randomHouse = getRandomHouse ~= nil and getRandomHouse() or nil
+    if randomHouse ~= nil then
+        randomHouse.source = "shared-random-fallback"
+        Server.house = normalizeHouseData(randomHouse)
+        return Server.house ~= nil
+    end
 
     local anchor = getAlivePlayers()[1]
     if anchor == nil then return false end
@@ -230,15 +262,13 @@ local function ensureHouse()
     return true
 end
 
-function LastHomeWaves.setHouse(centerX, centerY, centerZ, bounds)
-    Server.house = {
-        centerX = round(centerX),
-        centerY = round(centerY),
-        centerZ = round(centerZ or 0),
-        bounds = bounds,
-        source = "configured",
-    }
+function LastHomeWaves.setHouse(houseOrX, centerY, centerZ, bounds)
+    Server.house = normalizeHouseData(houseOrX, centerY, centerZ, bounds)
     syncWaveState()
+end
+
+function LastHomeWaves.getHouse()
+    return Server.house
 end
 
 local function calculateZombieCount(wave, alivePlayers)
@@ -470,7 +500,13 @@ local function startPrepPhase()
 
     resetSpectatorWaveUsage()
     syncWaveState()
-    broadcastAlert(string.format("[Last Home] Vague %d dans 10 min\nDirection: %s\nTaille estimee: ~%d zombies", Server.currentWave + 1, formatDirections(Server.pendingDirections), Server.pendingEstimate), "info")
+
+    local houseLabel = ""
+    if Server.house ~= nil and Server.house.name ~= nil then
+        houseLabel = "\nBase: " .. tostring(Server.house.name)
+    end
+
+    broadcastAlert(string.format("[Last Home] Vague %d dans 10 min%s\nDirection: %s\nTaille estimee: ~%d zombies", Server.currentWave + 1, houseLabel, formatDirections(Server.pendingDirections), Server.pendingEstimate), "info")
     return true
 end
 

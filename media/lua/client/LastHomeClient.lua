@@ -19,6 +19,7 @@ LastHomeClient.waveState = LastHomeClient.waveState or {
     estimatedCount = 0,
     zombieCount = 0,
     score = 0,
+    house = nil,
 }
 LastHomeClient.alertText = nil
 LastHomeClient.alertType = "info"
@@ -92,6 +93,7 @@ local function updateWaveState(data)
         estimatedCount = data.estimatedCount or 0,
         zombieCount = data.zombieCount or 0,
         score = data.score or 0,
+        house = data.house,
     }
 end
 
@@ -135,6 +137,11 @@ local function drawWaveHud()
 
     drawLine(x, y, "[Last Home]", ALERT_COLORS.info)
     y = y + 18
+
+    if state.house ~= nil and state.house.name ~= nil then
+        drawLine(x, y, "Base: " .. tostring(state.house.name), ALERT_COLORS.info)
+        y = y + 16
+    end
 
     if state.phase == "prep" then
         drawLine(x, y, string.format("Preparation - Vague %d dans %s", state.nextWave or 1, formatClock(remainingSeconds)), ALERT_COLORS.info)

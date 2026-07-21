@@ -5,6 +5,7 @@ require "LastHomeWaves"
 local Server = {
     assignedRoles = {},
     roleLoadouts = {},
+    selectedHouse = nil,
     nextBuilderRefillAt = nil,
     lastBuilderTickSecond = nil,
 }
@@ -12,9 +13,94 @@ local Server = {
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
 local ROLE_NAMES = LastHomeRoles.ROLE_NAMES
 local BUILDER_REFILL_ITEMS = LastHomeRoles.BUILDER_REFILL_ITEMS
+local HOUSE_SUPPLY_MULTIPLIER = 8
 
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
+local getRandomHouse = LastHomeShared.getRandomHouse
+local getHouseSpawnCandidates = LastHomeShared.getHouseSpawnCandidates
+
+local function syncSelectedHouse()
+    if Server.selectedHouse == nil then return end
+
+    if LastHomeWaves ~= nil and LastHomeWaves.setHouse ~= nil then
+        LastHomeWaves.setHouse(Server.selectedHouse)
+    end
+end
+
+local function ensureSelectedHouse()
+    if Server.selectedHouse ~= nil then
+        syncSelectedHouse()
+        return Server.selectedHouse
+    end
+
+    local house = getRandomHouse ~= nil and getRandomHouse() or nil
+    if house == nil then return nil end
+
+    house.source = "rotation"
+    Server.selectedHouse = house
+    syncSelectedHouse()
+
+    print("[LastHome] Maison choisie: " .. tostring(house.name or house.id or "?") .. " (" .. tostring(house.centerX) .. ", " .. tostring(house.centerY) .. ", " .. tostring(house.centerZ or 0) .. ")")
+    return Server.selectedHouse
+end
+
+local function pickHouseSpawnPoint(house)
+    if house == nil then return nil, nil, nil end
+
+    local candidates = getHouseSpawnCandidates ~= nil and getHouseSpawnCandidates(house) or nil
+    if candidates == nil or #candidates == 0 then
+        return house.centerX, house.centerY, house.centerZ or 0
+    end
+
+    local startIndex = 1
+    if ZombRand ~= nil then
+        startIndex = ZombRand(#candidates) + 1
+    elseif math ~= nil and math.random ~= nil then
+        startIndex = math.random(#candidates)
+    end
+
+    local cell = getCell ~= nil and getCell() or nil
+    for offset = 0, #candidates - 1 do
+        local index = ((startIndex + offset - 1) % #candidates) + 1
+        local candidate = candidates[index]
+        local square = cell ~= nil and cell:getGridSquare(candidate.x, candidate.y, candidate.z or house.centerZ or 0) or nil
+        if square ~= nil then
+            return square:getX(), square:getY(), square:getZ()
+        end
+    end
+
+    local fallback = candidates[startIndex]
+    return fallback.x, fallback.y, fallback.z or house.centerZ or 0
+end
+
+local function teleportPlayerToHouse(player)
+    if player == nil then return false end
+
+    local modData = player:getModData()
+    if modData ~= nil and (modData.LH_dead or modData.LH_spectator) then
+        return false
+    end
+
+    local house = ensureSelectedHouse()
+    if house == nil then return false end
+    if modData ~= nil and modData.LH_houseSpawnId == house.id then
+        return false
+    end
+
+    local x, y, z = pickHouseSpawnPoint(house)
+    if x == nil or y == nil or z == nil then return false end
+
+    player:setX(x)
+    player:setY(y)
+    player:setZ(z)
+
+    if modData ~= nil then
+        modData.LH_houseSpawnId = house.id
+    end
+
+    return true
+end
 
 local function addItemsToContainer(container, itemId, count)
     if container == nil or itemId == nil or count == nil or count <= 0 then return end
@@ -220,6 +306,90 @@ local function countContainerItemsRecursive(container, itemId)
     return total
 end
 
+local function getFirstObjectContainer(square)
+    if square == nil or square.getObjects == nil then return nil end
+
+    local objects = square:getObjects()
+    if objects == nil then return nil end
+
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        local container = object and object.getContainer and object:getContainer() or nil
+        if container ~= nil then
+            return container
+        end
+    end
+
+    return nil
+end
+
+local function getPrimaryHouseSupplyContainer()
+    local house = ensureSelectedHouse()
+    if house == nil then return nil end
+
+    local bounds = house.bounds
+    if bounds == nil or bounds.min == nil or bounds.max == nil then return nil end
+
+    local cell = getCell ~= nil and getCell() or nil
+    if cell == nil then return nil end
+
+    if house.supply ~= nil then
+        local configuredSquare = cell:getGridSquare(house.supply.x, house.supply.y, house.supply.z or house.centerZ or 0)
+        local configuredContainer = getFirstObjectContainer(configuredSquare)
+        if configuredContainer ~= nil then
+            return configuredContainer
+        end
+    end
+
+    local centerX = house.centerX or bounds.min.x or 0
+    local centerY = house.centerY or bounds.min.y or 0
+    local minZ = bounds.min.z or house.centerZ or 0
+    local maxZ = bounds.max.z or house.centerZ or minZ
+    local bestContainer = nil
+    local bestDistance = nil
+
+    for z = minZ, maxZ do
+        for x = bounds.min.x, bounds.max.x do
+            for y = bounds.min.y, bounds.max.y do
+                local square = cell:getGridSquare(x, y, z)
+                local container = getFirstObjectContainer(square)
+                if container ~= nil then
+                    local dx = centerX - x
+                    local dy = centerY - y
+                    local distance = (dx * dx) + (dy * dy)
+                    if bestDistance == nil or distance < bestDistance then
+                        bestDistance = distance
+                        bestContainer = container
+                    end
+                end
+            end
+        end
+    end
+
+    return bestContainer
+end
+
+local function refillHouseSupplies()
+    local supplyContainer = getPrimaryHouseSupplyContainer()
+    if supplyContainer == nil then return false end
+
+    for _, refillDef in ipairs(BUILDER_REFILL_ITEMS) do
+        local itemId = refillDef[1]
+        local baseTargetCount = refillDef[2] or 0
+        local targetCount = baseTargetCount * HOUSE_SUPPLY_MULTIPLIER
+        local currentCount = countContainerItemsRecursive(supplyContainer, itemId)
+        local needed = targetCount - currentCount
+
+        if needed > 1 then
+            supplyContainer:AddItems(itemId, needed)
+        elseif needed == 1 then
+            supplyContainer:AddItem(itemId)
+        end
+    end
+
+    return true
+end
+
 local function refillBuilderResources()
     for _, player in ipairs(getScenarioPlayers()) do
         local modData = player:getModData()
@@ -248,6 +418,7 @@ local function onBuilderRefillTick()
     Server.lastBuilderTickSecond = now
 
     if Server.nextBuilderRefillAt == nil then
+        refillHouseSupplies()
         Server.nextBuilderRefillAt = now + 600
         return
     end
@@ -255,6 +426,7 @@ local function onBuilderRefillTick()
     if now < Server.nextBuilderRefillAt then return end
 
     refillBuilderResources()
+    refillHouseSupplies()
     repeat
         Server.nextBuilderRefillAt = Server.nextBuilderRefillAt + 600
     until Server.nextBuilderRefillAt > now
@@ -270,6 +442,9 @@ local function sendRoleAssigned(username, roleKey)
 end
 
 local function notifyWavesRoleAssigned()
+    ensureSelectedHouse()
+    refillHouseSupplies()
+
     if LastHomeWaves ~= nil and LastHomeWaves.ensureScenarioStarted ~= nil then
         LastHomeWaves.ensureScenarioStarted()
     end
@@ -299,6 +474,7 @@ local function restoreAssignedRole(player)
 
     if roleKey ~= nil and ROLE_DEFS[roleKey] ~= nil then
         applyRole(player, roleKey)
+        teleportPlayerToHouse(player)
         return roleKey
     end
 
@@ -312,6 +488,8 @@ local function onClientCommand(module, command, player, data)
     if username == nil then return end
 
     if command == "RolePickerReady" then
+        ensureSelectedHouse()
+
         local roleKey = restoreAssignedRole(player)
         if roleKey ~= nil then
             sendRoleAssigned(username, roleKey)
@@ -330,6 +508,7 @@ local function onClientCommand(module, command, player, data)
     local existingRole = restoreAssignedRole(player)
     if existingRole ~= nil then
         sendRoleAssigned(username, existingRole)
+        notifyWavesRoleAssigned()
         return
     end
 
@@ -340,6 +519,8 @@ local function onClientCommand(module, command, player, data)
     end
 
     local granted = applyRole(player, roleKey)
+    teleportPlayerToHouse(player)
+
     if granted then
         print("[LastHome] Role assigne: " .. tostring(username) .. " = " .. tostring(ROLE_NAMES[roleKey] or roleKey))
     else
@@ -350,3 +531,15 @@ local function onClientCommand(module, command, player, data)
     notifyWavesRoleAssigned()
 end
 Events.OnClientCommand.Add(onClientCommand)
+
+local function onGameStart()
+    Server.assignedRoles = {}
+    Server.roleLoadouts = {}
+    Server.selectedHouse = nil
+    Server.nextBuilderRefillAt = nil
+    Server.lastBuilderTickSecond = nil
+
+    ensureSelectedHouse()
+    refillHouseSupplies()
+end
+Events.OnGameStart.Add(onGameStart)
