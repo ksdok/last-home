@@ -11,7 +11,7 @@ local PREP_DURATION_SECONDS = 5 * 60
 local WAVE_DURATION_SECONDS = 5 * 60
 local ONE_MINUTE_WARNING_SECONDS = 60
 local PRESSURE_PULSE_SECONDS = 15
-local SPAWN_DISTANCE = 40
+local SPAWN_DISTANCE = 30
 local SPAWN_SPREAD = 8
 local BOUNDARY_COUNTDOWN_SECONDS = 10
 local BOUNDARY_DAMAGE_AMOUNT = 5
@@ -207,14 +207,6 @@ local function cloneDirections(directions)
         result[#result + 1] = direction
     end
     return result
-end
-
-local function getSpeedMultiplier(wave)
-    return 0.8 + (wave * 0.05)
-end
-
-local function getAggression(wave)
-    return 0.3 + (wave * 0.03)
 end
 
 local function getDetectionRange(wave)
@@ -466,9 +458,9 @@ function LastHomeWaves.getClientState(username)
 end
 
 local function calculateZombieCount(wave, alivePlayers)
-    local baseCount = 10 + (wave * 5)
-    local scaledByPlayers = baseCount * ((alivePlayers or 0) / 4)
-    return math.max(1, round(scaledByPlayers))
+    local baseCount = 3 + (wave * 5)
+    local multiplier = math.max(1, (alivePlayers or 0) / 2)
+    return math.max(1, round(baseCount * multiplier))
 end
 
 local function calculateDirections(wave)
@@ -577,7 +569,6 @@ end
 local function scaleZombieStats(zombie, wave)
     if zombie == nil then return end
 
-    local speedMultiplier = getSpeedMultiplier(wave)
     local detectionRange = getDetectionRange(wave)
     local modData = zombie:getModData()
 
@@ -585,10 +576,6 @@ local function scaleZombieStats(zombie, wave)
     modData.LH_waveNumber = wave
     modData.LH_countedDead = false
     modData.LH_detectionRange = detectionRange
-
-    if zombie.setSpeedMod ~= nil then
-        zombie:setSpeedMod(speedMultiplier)
-    end
 
     if zombie.setCanWalk ~= nil then
         zombie:setCanWalk(true)
