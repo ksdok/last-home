@@ -563,7 +563,43 @@ local function refreshZombiePressure()
     if targetData == nil or targetData.player == nil then return end
 
     local alarm = getAlarmProfile()
-    addSound(targetData.player, alarm.x, alarm.y, alarm.z, alarm.radius, alarm.volume)
+    -- Le world sound est emis a la position REELLE du joueur (et non au centre fixe
+    -- de la base). Un son au point fixe fait converger les zombies vers un endroit
+    -- ou ils ne voient pas le joueur, donc aucun aggro (ex: Villa, joueur a l'etage
+    -- z=1 mais alarme au RDC z=0). Le joueur etant confine dans la base, l'impulsion
+    -- reste centree sur la base tout en pathant les zombies jusqu'au joueur pour
+    -- qu'ils l'aggroent vraiment.
+    local soundX = round(targetData.x or alarm.x)
+    local soundY = round(targetData.y or alarm.y)
+    local soundZ = round(targetData.z or alarm.z or 0)
+    addSound(targetData.player, soundX, soundY, soundZ, alarm.radius, alarm.volume)
+
+    -- Le pulse sonore seul ne fait que mettre les zombies en etat "investigation"
+    -- (ils pathent vers la tuile sonore). Pour garantir l'aggro meme sans ligne de
+    -- vue (ex: joueur a l'etage de la Villa, zombie arrive au RDC), on force le
+    -- spotted sur chaque zombie de vague a chaque pulse. On reste 100% vanilla sur
+    -- l'aggression/vitesse/pathing : on se contente d'indiquer au zombie qu'il a
+    -- "vu" sa cible, le moteur PZ fait le reste.
+    local cell = getCell()
+    if cell == nil or cell.getZombieList == nil then return end
+
+    local zombies = cell:getZombieList()
+    if zombies == nil then return end
+
+    local target = targetData.player
+    for i = 0, zombies:size() - 1 do
+        local zombie = zombies:get(i)
+        if zombie ~= nil then
+            local modData = zombie:getModData()
+            if modData ~= nil and modData.LH_waveZombie and not modData.LH_countedDead then
+                if zombie.spotted ~= nil then
+                    pcall(function()
+                        zombie:spotted(target, true)
+                    end)
+                end
+            end
+        end
+    end
 end
 
 local function scaleZombieStats(zombie, wave)
