@@ -4,7 +4,7 @@
 
 - Projet : **Last Home**
 - Repo : `/Users/kim/Documents/Zomboid/last-home`
-- Branche de travail actuelle : `feat/lh-05-zone-confinement`
+- Branche de travail actuelle : `main`
 - Référence utilisée : `/Users/kim/Documents/Zomboid/EscapadeExpress`
 
 ## État actuel
@@ -13,7 +13,7 @@
 - ✅ **LH-02** est implémenté et corrigé après review
 - ✅ **LH-03** est implémenté et corrigé après review
 - ✅ **LH-04** est implémenté et corrigé après review
-- ✅ **LH-05** est implémenté
+- ✅ **LH-05** est implémenté et corrigé après review
 - ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
 - ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05
 
@@ -94,6 +94,8 @@
     - exemption des spectateurs et arrêt immédiat du confinement au retour dans la zone
   - Notes :
     - l'architecture de la spec a été corrigée vers un modèle **serveur autoritatif** pour le multijoueur
+    - zones de confinement rectangulaires 2D `X/Y` sans contrainte `Z` pour les 4 lieux
+    - correctifs post-review : suppression de la re-normalisation inutile de `boundary` à chaque tick, alignement du fallback de dégâts sur `BOUNDARY_DAMAGE_AMOUNT`
     - `version=0.5.0` ajoutée à `mod.info`
 
 - [x] Challenges PZ (menu Challenges)

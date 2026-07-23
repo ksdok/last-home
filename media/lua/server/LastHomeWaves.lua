@@ -785,7 +785,7 @@ local function applyBoundaryDamage(player)
     end
 
     if player.getHealth ~= nil and player.setHealth ~= nil then
-        player:setHealth(math.max(0, player:getHealth() - 0.05))
+        player:setHealth(math.max(0, player:getHealth() - BOUNDARY_DAMAGE_AMOUNT))
     end
 end
 

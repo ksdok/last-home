@@ -245,7 +245,7 @@ function LastHomeShared.isInsideBoundary(playerOrX, house, y, z)
 
     if x == nil or y == nil then return true end
 
-    local boundary = normalizeBoundary(house.boundary, house)
+    local boundary = house.boundary
     if boundary ~= nil then
         local insideXY = x >= boundary.minX and x <= boundary.maxX and y >= boundary.minY and y <= boundary.maxY
         if not insideXY then
