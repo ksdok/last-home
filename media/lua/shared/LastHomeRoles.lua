@@ -218,7 +218,7 @@ Roles.ROLE_DEFS = {
         },
         equipped = {
             primary = "Base.Axe",
-            secondary = "Base.Axe",
+
             bag = "Base.Bag_NormalHikingBag",
         },
         stats = { endurance = 0.7, panic = 10 },
@@ -252,7 +252,7 @@ Roles.ROLE_DEFS = {
         },
         equipped = {
             primary = "Base.HuntingRifle",
-            secondary = "Base.HuntingRifle",
+
             bag = "Base.Bag_NormalHikingBag",
         },
         stats = { endurance = 0.4, panic = 15 },
@@ -281,7 +281,7 @@ Roles.ROLE_DEFS = {
         },
         equipped = {
             primary = "Base.Katana",
-            secondary = "Base.Katana",
+
             bag = "Base.Bag_NormalHikingBag",
         },
         stats = { endurance = 0.5, panic = 10 },
@@ -347,7 +347,7 @@ Roles.ROLE_DEFS = {
         },
         equipped = {
             primary = "Base.HuntingRifle",
-            secondary = "Base.HuntingRifle",
+
             bag = "Base.Bag_ALICEpack",
         },
         stats = { endurance = 0.4, panic = 15 },
@@ -374,7 +374,7 @@ Roles.ROLE_DEFS = {
         },
         equipped = {
             primary = "Base.Axe",
-            secondary = "Base.Axe",
+
             bag = "Base.Bag_ALICEpack",
         },
         stats = { endurance = 0.6, panic = 10 },
@@ -472,7 +472,7 @@ Roles.ROLE_DEFS = {
         },
         equipped = {
             primary = "Base.Sledgehammer",
-            secondary = "Base.Sledgehammer",
+
             bag = "Base.Bag_ALICEpack",
         },
         stats = { endurance = 0.5, panic = 15 },
@@ -538,7 +538,7 @@ Roles.ROLE_DEFS = {
         },
         equipped = {
             primary = "Base.AssaultRifle",
-            secondary = "Base.AssaultRifle",
+
             bag = "Base.Bag_ALICEpack_Army",
         },
         stats = { endurance = 0.8, panic = 5, fatigue = 0 },

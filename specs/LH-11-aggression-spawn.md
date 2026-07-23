@@ -64,8 +64,10 @@ Dans `scaleZombieStats()` :
 - Supprimer l'appel `zombie:setSpeedMod(speedMultiplier)`
 - Supprimer l'appel `zombie:addAggro(target, aggression * 100)`
 - Conserver `zombie:setCanWalk(true)`
-- Conserver `zombie:spotted(target, true)`
-- Conserver `zombie:setTurnAlertedValues(centerX, centerY)`
+- Supprimer `zombie:spotted(target, true)` — les zombies sont 100% vanilla, le
+  pressure pulse (`addSound`) suffit à les attirer vers la maison
+- Supprimer `zombie:setTurnAlertedValues(centerX, centerY)` — les zombies
+  utilisent leur comportement vanilla de détection
 - Conserver le modData (tags LH_waveZombie, etc.)
 
 ## Critères d'acceptation
