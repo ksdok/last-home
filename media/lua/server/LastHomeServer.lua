@@ -24,6 +24,9 @@ local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
 local getRandomHouse = LastHomeShared.getRandomHouse
 local getHouseSpawnCandidates = LastHomeShared.getHouseSpawnCandidates
+local applyCarryProfile = LastHomeShared.applyCarryProfile
+local primeRoleLoadout = LastHomeShared.primeRoleLoadout
+local equipRoleItems = LastHomeShared.equipRoleItems
 local DEBUG_ENABLED = LastHomeShared.DEBUG == true
 
 local function logServer(message)
@@ -216,146 +219,6 @@ local function addRoleItems(inv, bagItem, bagItemId, items, bagContents)
             end
 
             addItemsToContainer(bagContainer, itemId, bagCount)
-        end
-    end
-end
-
-local ROLE_CARRY_CAPACITY = {
-    builder = 90,
-    demolisseur = 60,
-    invincible = 90,
-}
-
-local function applyCarryProfile(player, roleKey)
-    if player == nil then return end
-
-    local carryCapacity = ROLE_CARRY_CAPACITY[roleKey]
-    local unlimitedCarry = carryCapacity ~= nil
-
-    if player.setUnlimitedCarry ~= nil then
-        player:setUnlimitedCarry(unlimitedCarry)
-    end
-
-    if not unlimitedCarry then return end
-
-    if player.getMaxWeightBase ~= nil and player.setMaxWeightBase ~= nil then
-        local baseWeight = player:getMaxWeightBase() or 0
-        if baseWeight < carryCapacity then
-            player:setMaxWeightBase(carryCapacity)
-        end
-    end
-
-    if player.getMaxWeight ~= nil and player.setMaxWeight ~= nil then
-        local maxWeight = player:getMaxWeight() or 0
-        if maxWeight < carryCapacity then
-            player:setMaxWeight(carryCapacity)
-        end
-    end
-
-    if player.setMaxWeightDelta ~= nil then
-        player:setMaxWeightDelta(0)
-    end
-end
-
-local function forEachContainerItemRecursive(container, callback)
-    if container == nil or callback == nil or container.getItems == nil then return end
-
-    local items = container:getItems()
-    if items == nil then return end
-
-    for i = 0, items:size() - 1 do
-        local item = items:get(i)
-        if item ~= nil then
-            callback(item)
-
-            local childContainer = item.getItemContainer and item:getItemContainer() or nil
-            if childContainer ~= nil then
-                forEachContainerItemRecursive(childContainer, callback)
-            end
-        end
-    end
-end
-
-local function fillAmmoItem(item)
-    if item == nil then return end
-
-    if item.getMaxAmmo ~= nil and item.setCurrentAmmoCount ~= nil then
-        local maxAmmo = item:getMaxAmmo()
-        if maxAmmo ~= nil and maxAmmo > 0 then
-            item:setCurrentAmmoCount(maxAmmo)
-        end
-    end
-
-    if item.getClipSize ~= nil and item.setCurrentAmmoCount ~= nil then
-        local clipSize = item:getClipSize()
-        if clipSize ~= nil and clipSize > 0 then
-            item:setCurrentAmmoCount(clipSize)
-        end
-    end
-
-    if item.getMagazineType ~= nil and item.setContainsClip ~= nil then
-        local magazineType = item:getMagazineType()
-        if magazineType ~= nil and magazineType ~= "" then
-            item:setContainsClip(true)
-        end
-    end
-
-    if item.setRoundChambered ~= nil and item.getCurrentAmmoCount ~= nil then
-        item:setRoundChambered((item:getCurrentAmmoCount() or 0) > 0)
-    end
-
-    if item.setSpentRoundChambered ~= nil then
-        item:setSpentRoundChambered(false)
-    end
-end
-
-local function primeRoleLoadout(inv)
-    if inv == nil then return end
-    forEachContainerItemRecursive(inv, fillAmmoItem)
-end
-
-local function resolveSecondaryEquipItem(inv, equipped, primary)
-    if inv == nil or equipped == nil then return nil end
-
-    if equipped.secondary then
-        if primary ~= nil and equipped.secondary == equipped.primary then
-            return primary
-        end
-        return inv:FindAndReturn(equipped.secondary)
-    end
-
-    if primary ~= nil and primary.isTwoHandWeapon ~= nil and primary:isTwoHandWeapon() then
-        return primary
-    end
-
-    return nil
-end
-
-local function equipRoleItems(player, inv, equipped)
-    if player == nil or inv == nil or equipped == nil then return end
-
-    local primary = nil
-    if equipped.primary then
-        primary = inv:FindAndReturn(equipped.primary)
-        if primary then player:setPrimaryHandItem(primary) end
-    end
-
-    local secondary = resolveSecondaryEquipItem(inv, equipped, primary)
-    if secondary ~= nil then
-        player:setSecondaryHandItem(secondary)
-    end
-
-    if equipped.bag then
-        local bag = inv:FindAndReturn(equipped.bag)
-        if bag then player:setClothingItem_Back(bag) end
-    end
-
-    if equipped.clothes then
-        for _, clothId in ipairs(equipped.clothes) do
-            local cloth = inv:FindAndReturn(clothId)
-            if cloth and cloth:getBodyLocation() ~= nil then
-                player:setWornItem(cloth:getBodyLocation(), cloth)
-            end
         end
     end
 end

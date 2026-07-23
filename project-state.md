@@ -4,7 +4,7 @@
 
 - Projet : **Last Home**
 - Repo : `/Users/kim/Documents/Zomboid/last-home`
-- Branche de travail actuelle : `main`
+- Branche de travail actuelle : `feat/lh-08-role-equipement`
 - Référence utilisée : `/Users/kim/Documents/Zomboid/EscapadeExpress`
 
 ## État actuel
@@ -17,7 +17,8 @@
 - ✅ **LH-06** est implémenté et corrigé après review
 - ✅ **LH-07** est implémenté et corrigé après debug en jeu
 - ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
-- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05, le HUD LH-06 et le fix solo LH-07
+- ⏳ **LH-08** est en cours sur branche dédiée : répartition inventaire/sac, armes 2 mains auto-détectées, munitions préchargées, profil de charge partagé client/serveur
+- ⏳ Le prochain ticket recommandé reste la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05, le HUD LH-06, le fix solo LH-07 et LH-08
 
 ## Terminé
 
@@ -170,7 +171,7 @@
 - [ ] Loot structuré dans les environs des maisons si nécessaire
 - [ ] HUD / notifications plus complètes pour Last Home
 - [ ] Ajustements d'équilibrage des rôles si nécessaire après tests
-- [ ] Refactor: extraire `applyRole` dans `LastHomeShared.lua` pour éliminer la duplication client/serveur (review point 1)
+- [ ] Refactor complémentaire: extraire le reste de `applyRole` / `addRoleItems` dans un helper shared pour finir d'éliminer la duplication client/serveur
 - [ ] Vérifier `Events.OnTick.Remove` en B41 — si l'API n'existe pas, le tick fallback tourne en idle (review point 2, non-bloquant)
 
 ## Notes d'implémentation
@@ -182,6 +183,7 @@
 - LH-04 étend `LastHomeShared.lua` avec la définition des 4 maisons, leurs zones de spawn et leurs conteneurs de stock dédiés
 - LH-05 ajoute un `boundary` rectangulaire par maison et un confinement **autoritatif côté serveur**, avec affichage HUD côté client
 - LH-07 déplace la sync solo sur `Events.OnTick`, corrige la détection `isInsideBoundary()` pour les objets joueur PZ et ajoute un indicateur HUD local `Zone: IN/OUT`
+- LH-08 extrait la logique commune d'équipement/charge dans `LastHomeShared.lua` (`applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`) pour réduire la duplication client/serveur
 - Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
 - La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé
