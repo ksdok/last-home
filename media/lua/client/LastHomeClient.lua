@@ -12,6 +12,9 @@ local soloFallbackTickRegistered = false
 local soloStateLastSyncSecond = nil
 local getNowSeconds = LastHomeShared.getNowSeconds
 local isInsideBoundary = LastHomeShared.isInsideBoundary
+local applyCarryProfile = LastHomeShared.applyCarryProfile
+local primeRoleLoadout = LastHomeShared.primeRoleLoadout
+local equipRoleItems = LastHomeShared.equipRoleItems
 local DEBUG_ENABLED = LastHomeShared.DEBUG == true
 
 local showRoleAssigned -- forward declaration (définie plus bas)
@@ -198,34 +201,6 @@ local function addRoleItems(inv, bagItem, bagItemId, items, bagContents)
     end
 end
 
-local function equipRoleItems(player, inv, equipped)
-    if player == nil or inv == nil or equipped == nil then return end
-
-    if equipped.primary then
-        local primary = inv:FindAndReturn(equipped.primary)
-        if primary then player:setPrimaryHandItem(primary) end
-    end
-
-    if equipped.secondary then
-        local secondary = inv:FindAndReturn(equipped.secondary)
-        if secondary then player:setSecondaryHandItem(secondary) end
-    end
-
-    if equipped.bag then
-        local bag = inv:FindAndReturn(equipped.bag)
-        if bag then player:setClothingItem_Back(bag) end
-    end
-
-    if equipped.clothes then
-        for _, clothId in ipairs(equipped.clothes) do
-            local cloth = inv:FindAndReturn(clothId)
-            if cloth and cloth:getBodyLocation() ~= nil then
-                player:setWornItem(cloth:getBodyLocation(), cloth)
-            end
-        end
-    end
-end
-
 local function applyRoleStats(player, stats)
     if player == nil then return end
 
@@ -286,7 +261,8 @@ local function applyPerkLevel(player, perk, level)
     xp:setXPToLevel(perk, level)
 end
 
--- Fallback legacy solo: conserve pour debug/secours si le flux serveur solo doit etre re-active.
+-- Fallback legacy solo: conserve intentionnellement comme filet de securite si le flux serveur
+-- du mode Challenge / solo regressait. Cette voie n'est pas le chemin nominal.
 function LastHomeClient.applyRoleLocally(player, roleKey)
     if player == nil or roleKey == nil then return false end
 
@@ -306,6 +282,7 @@ function LastHomeClient.applyRoleLocally(player, roleKey)
     end
 
     addRoleItems(inv, roleBag, def.equipped and def.equipped.bag or nil, def.items, def.bagContents)
+    primeRoleLoadout(inv)
 
     for _, skillDef in ipairs(def.skills or {}) do
         applyPerkLevel(player, skillDef[1], skillDef[2])
@@ -313,10 +290,7 @@ function LastHomeClient.applyRoleLocally(player, roleKey)
 
     equipRoleItems(player, inv, def.equipped)
     applyRoleStats(player, def.stats)
-
-    if player.setUnlimitedCarry ~= nil then
-        player:setUnlimitedCarry(roleKey == "builder")
-    end
+    applyCarryProfile(player, roleKey)
 
     modData.LH_role = roleKey
     modData.LH_localRoleApplied = roleKey
