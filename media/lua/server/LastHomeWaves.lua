@@ -12,6 +12,7 @@ local WAVE_DURATION_SECONDS = 5 * 60
 local ONE_MINUTE_WARNING_SECONDS = 60
 local PRESSURE_PULSE_SECONDS = 15
 local SPAWN_DISTANCE = 30
+local ARRIVAL_DIST_SQ = 36   -- 6 tiles: on stoppe le pulse quand un zombie de vague arrive pres du joueur
 local SPAWN_SPREAD = 8
 local BOUNDARY_COUNTDOWN_SECONDS = 10
 local BOUNDARY_DAMAGE_AMOUNT = 5
@@ -560,7 +561,10 @@ local function refreshZombiePressure()
     if Server.house == nil or not Server.waveActive then return end
 
     local targetData = getAggroTarget(Server.house.centerX, Server.house.centerY)
-    if targetData == nil or targetData.player == nil then return end
+    if targetData == nil or targetData.player == nil then
+        print("[LastHome][Pressure] SKIP - aucun target (vague=" .. tostring(Server.currentWave) .. ")")
+        return
+    end
 
     local alarm = getAlarmProfile()
     -- Le world sound est emis a la position REELLE du joueur (et non au centre fixe
@@ -581,24 +585,104 @@ local function refreshZombiePressure()
     -- l'aggression/vitesse/pathing : on se contente d'indiquer au zombie qu'il a
     -- "vu" sa cible, le moteur PZ fait le reste.
     local cell = getCell()
-    if cell == nil or cell.getZombieList == nil then return end
+    if cell == nil or cell.getZombieList == nil then
+        print("[LastHome][Pressure] SKIP - cell/getZombieList indispo")
+        return
+    end
 
     local zombies = cell:getZombieList()
-    if zombies == nil then return end
+    if zombies == nil then
+        print("[LastHome][Pressure] SKIP - zombieList nil")
+        return
+    end
 
     local target = targetData.player
-    for i = 0, zombies:size() - 1 do
+    local totalZombies = zombies:size()
+    local waveCount = 0
+    local aggroCount = 0
+    local pathCount = 0
+    local spottedCount = 0
+    local spottedFail = 0
+    local minDistSq = nil
+    local closestZombie = nil
+    for i = 0, totalZombies - 1 do
         local zombie = zombies:get(i)
         if zombie ~= nil then
             local modData = zombie:getModData()
             if modData ~= nil and modData.LH_waveZombie and not modData.LH_countedDead then
+                waveCount = waveCount + 1
+
+                local dx = zombie:getX() - targetData.x
+                local dy = zombie:getY() - targetData.y
+                local distSq = (dx * dx) + (dy * dy)
+                if minDistSq == nil or distSq < minDistSq then
+                    minDistSq = distSq
+                    closestZombie = zombie
+                end
+
+                -- addAggro force vraiment l'aggro vers la cible (spotted seul ne le
+                -- fait pas, confirme par test : getTarget() restait none). pathToCharacter
+                -- force le pathing vers le joueur. Les deux sont re-assertes a chaque
+                -- pulse (3s) pour entretenir l'aggro toute la vague.
+                local okAggro = pcall(function()
+                    if zombie.addAggro ~= nil then zombie:addAggro(target, 100) end
+                end)
+                if okAggro then aggroCount = aggroCount + 1 end
+
+                local okPath = pcall(function()
+                    if zombie.pathToCharacter ~= nil then zombie:pathToCharacter(target) end
+                end)
+                if okPath then pathCount = pathCount + 1 end
+
                 if zombie.spotted ~= nil then
-                    pcall(function()
+                    local ok = pcall(function()
                         zombie:spotted(target, true)
                     end)
+                    if ok then spottedCount = spottedCount + 1 else spottedFail = spottedFail + 1 end
                 end
             end
         end
+    end
+
+    local minDist = minDistSq ~= nil and math.floor(math.sqrt(minDistSq)) or -1
+    print("[LastHome][Pressure] pulse cible=" .. tostring(targetData.player:getUsername()) ..
+        " son=(" .. soundX .. "," .. soundY .. "," .. soundZ .. ") r=" .. tostring(alarm.radius) ..
+        " v=" .. tostring(alarm.volume) .. " zombiesCell=" .. tostring(totalZombies) ..
+        " waveZ=" .. tostring(waveCount) .. " aggro=" .. tostring(aggroCount) ..
+        " path=" .. tostring(pathCount) .. " spotted=" .. tostring(spottedCount) ..
+        " fail=" .. tostring(spottedFail) .. " minDist=" .. tostring(minDist))
+
+    -- Arrivee: on stoppe le pulse pour laisser l'IA vanilla enchaîner l'attaque.
+    -- Le pulse continu re-emet addSound/pathToCharacter toutes les 3s, ce qui peut
+    -- reset le state machine du zombie avant la transition vers AttackState.
+    if minDistSq ~= nil and minDistSq <= ARRIVAL_DIST_SQ then
+        local cz = closestZombie
+        local tDesc, stDesc = "none", "n/a"
+        local dontAttack, fakeDead, attacking, canWalk, targetVis = "n/a", "n/a", "n/a", "n/a", "n/a"
+        pcall(function()
+            if cz.getTarget ~= nil then
+                local t = cz:getTarget()
+                if t ~= nil then
+                    if t.getUsername ~= nil then tDesc = "player:" .. tostring(t:getUsername())
+                    elseif t.getClassDisplayName ~= nil then tDesc = "obj:" .. tostring(t:getClassDisplayName())
+                    else tDesc = tostring(t) end
+                end
+            end
+            if cz.getCurrentState ~= nil then
+                local st = cz:getCurrentState()
+                if st ~= nil then stDesc = (st.getName ~= nil and st:getName() or tostring(st)) end
+            end
+            if cz.isZombiesDontAttack ~= nil then dontAttack = tostring(cz:isZombiesDontAttack()) end
+            if cz.isFakeDead ~= nil then fakeDead = tostring(cz:isFakeDead()) end
+            if cz.isAttacking ~= nil then attacking = tostring(cz:isAttacking()) end
+            if cz.isCanWalk ~= nil then canWalk = tostring(cz:isCanWalk()) end
+            if cz.isTargetVisible ~= nil then targetVis = tostring(cz:isTargetVisible()) end
+        end)
+        print("[LastHome][Pressure] ARRIVE minDist=" .. tostring(minDist) ..
+            " stop pulse. closest: target=" .. tDesc .. " state=" .. tostring(stDesc) ..
+            " dontAttack=" .. dontAttack .. " fakeDead=" .. fakeDead ..
+            " attacking=" .. attacking .. " canWalk=" .. canWalk .. " targetVis=" .. targetVis)
+        Server.nextPressurePulseAt = nil
     end
 end
 
@@ -628,6 +712,9 @@ local function tagSpawnedZombies(spawned, wave)
             if zombie ~= nil then
                 scaleZombieStats(zombie, wave)
                 added = added + 1
+                print("[LastHome][Spawn] zombie tagge wave=" .. tostring(wave) ..
+                    " coords=(" .. tostring(round(zombie:getX())) .. "," .. tostring(round(zombie:getY())) ..
+                    "," .. tostring(round(zombie:getZ())) .. ")")
             end
         end
     end
@@ -958,6 +1045,29 @@ local function onZombieDead(zombie)
     end
 
     modData.LH_countedDead = true
+
+    local targetDesc = "none"
+    local chasingDesc = "n/a"
+    pcall(function()
+        if zombie.getTarget ~= nil then
+            local t = zombie:getTarget()
+            if t ~= nil then
+                if t.getUsername ~= nil then
+                    targetDesc = "player:" .. tostring(t:getUsername())
+                elseif t.getClassDisplayName ~= nil then
+                    targetDesc = "obj:" .. tostring(t:getClassDisplayName())
+                else
+                    targetDesc = tostring(t)
+                end
+            end
+        end
+        if zombie.isChasing ~= nil then
+            chasingDesc = tostring(zombie:isChasing())
+        end
+    end)
+    print("[LastHome][ZombieDead] waveZ mort coords=(" .. tostring(round(zombie:getX())) .. "," ..
+        tostring(round(zombie:getY())) .. "," .. tostring(round(zombie:getZ())) .. ") target=" .. targetDesc ..
+        " chasing=" .. chasingDesc .. " restants(avant)=" .. tostring(Server.zombieCount))
 
     if Server.zombieCount > 0 then
         Server.zombieCount = Server.zombieCount - 1
