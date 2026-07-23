@@ -43,6 +43,16 @@ local HOUSE_DEFS = {
             minY = 2830,
             maxY = 2858,
         },
+        forcedDirections = {"S"},
+        ambientCleanupRadius = 120,
+        alarm = {
+            x = 13532,
+            y = 2842,
+            z = 0,
+            radius = 220,
+            volume = 220,
+            pulseSeconds = 3,
+        },
         spawn = {
             type = "box",
             minX = 13532,
