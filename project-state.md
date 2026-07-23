@@ -4,21 +4,19 @@
 
 - Projet : **Last Home**
 - Repo : `/Users/kim/Documents/Zomboid/last-home`
-- Branche de travail actuelle : `feat/lh-08-role-equipement`
+- Branche de référence : `main`
+- Branche source du ticket livré : `feat/lh-10-timers-skip`
 - Référence utilisée : `/Users/kim/Documents/Zomboid/EscapadeExpress`
 
 ## État actuel
 
-- ✅ Les specs **LH-01** à **LH-07** sont rédigées et validées
-- ✅ **LH-02** est implémenté et corrigé après review
-- ✅ **LH-03** est implémenté et corrigé après review
-- ✅ **LH-04** est implémenté et corrigé après review
-- ✅ **LH-05** est implémenté et corrigé après review
-- ✅ **LH-06** est implémenté et corrigé après review
-- ✅ **LH-07** est implémenté et corrigé après debug en jeu
+- ✅ Les specs versionnées **LH-01** à **LH-08** et **LH-10** sont rédigées et validées
+- ✅ **LH-02** à **LH-08** sont implémentés et corrigés après review / debug
+- ✅ **LH-10** est implémenté : timers raccourcis, skip de vague, HUD de skip, debounce client
 - ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
-- ⏳ **LH-08** est en cours sur branche dédiée : répartition inventaire/sac, armes 2 mains auto-détectées, munitions préchargées, profil de charge partagé client/serveur
-- ⏳ Le prochain ticket recommandé reste la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05, le HUD LH-06, le fix solo LH-07 et LH-08
+- ✅ Les challenges Last Home désactivent désormais la pop vanilla (`SandboxVars.Zombies = 6` + multipliers à 0) et nettoient les zombies ambiants autour de la base
+- ✅ La Villa est fiabilisée : vagues forcées au **Sud**, spawns au sol, attraction des vagues recentrée sur des impulsions sonores type alarme vers la base
+- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs et le pacing LH-10
 
 ## Terminé
 
@@ -30,6 +28,8 @@
 - [x] LH-05 — Zone de confinement
 - [x] LH-06 — Refonte HUD et position
 - [x] LH-07 — Fix sync solo state via OnTick dédié
+- [x] LH-08 — Équipement des rôles
+- [x] LH-10 — Timers réduits et skip de vague
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -131,6 +131,42 @@
     - warning local client « Hors zone ! Retournez vers la base » ajouté en fallback visuel
     - spam de logs périodiques des coordonnées joueur retiré après validation
 
+- [x] LH-08 — Équipement des rôles
+  - `media/lua/shared/LastHomeShared.lua`
+  - `media/lua/client/LastHomeClient.lua`
+  - `media/lua/server/LastHomeServer.lua`
+  - `specs/LH-08-equipement-roles.md`
+  - Fonctionnalités implémentées :
+    - répartition de l'inventaire, du sac et des objets équipés plus robuste selon le rôle
+    - détection automatique des armes 2 mains
+    - munitions préchargées au spawn
+    - helpers partagés `applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`
+  - Correctifs appliqués :
+    - duplication client/serveur réduite pour l'équipement et la charge
+    - compatibilité conservée avec les rôles existants et le refill Builder
+
+- [x] LH-10 — Timers réduits, skip de vague et fiabilisation Villa
+  - `media/lua/server/LastHomeWaves.lua`
+  - `media/lua/client/LastHomeClient.lua`
+  - `media/lua/shared/LastHomeShared.lua`
+  - `media/lua/client/LastStand/LastHomeHospital.lua`
+  - `media/lua/client/LastStand/LastHomePrison.lua`
+  - `media/lua/client/LastStand/LastHomeSchool.lua`
+  - `media/lua/client/LastStand/LastHomeVilla.lua`
+  - `specs/LH-10-timers-skip.md`
+  - Fonctionnalités implémentées :
+    - prep vague 1 = `2 * 60`, prep vagues suivantes = `5 * 60`, vague = `5 * 60`
+    - skip de la prep via touche `N`, solo direct ou commande réseau selon le runtime
+    - HUD de skip + debounce client pour éviter les doubles demandes
+    - spawns de vagues au sol pour la Villa
+    - désactivation des zombies vanilla dans les 4 challenges (`SandboxVars.Zombies = 6`, multipliers/respawn/rally à 0)
+    - nettoyage des zombies ambiants autour de la base au début de la prep et au démarrage de vague
+    - Villa forcée au **Sud** et attraction des vagues recentrée sur des impulsions sonores type alarme vers la base
+  - Commits associés :
+    - `9da0397` — `LH-10: ajouter le skip de vague et réduire les timers`
+    - `5e0335d` — `LH-10: debounce la demande de skip de vague`
+    - `b3dc132` — `fix: aggro des vagues et zombies vanilla des challenges`
+
 - [x] Challenges PZ (menu Challenges)
   - `media/lua/client/LastStand/LastHomeHospital.lua`
   - `media/lua/client/LastStand/LastHomeVilla.lua`
@@ -164,8 +200,9 @@
 ## Backlog
 
 ### Priorité haute
-- [ ] Vérification en jeu solo/LAN de LH-03 + LH-04 + LH-05 + LH-06 + LH-07 (timer réel, spectateurs, score, spawn maison, stock partagé, confinement, HUD, sync solo)
-- [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn, du refill Builder/maison et du confinement serveur
+- [ ] Vérification en jeu solo/LAN de LH-03 à LH-10 (timers réels, skip, spectateurs, score, spawn maison, stock partagé, confinement, HUD, sync solo)
+- [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn, du refill Builder/maison, du confinement serveur et du skip de vague
+- [ ] Valider en jeu la pression zombie sur la Villa avec l'attraction par impulsions sonores (portée, fréquence, sensation de horde)
 
 ### Plus tard
 - [ ] Loot structuré dans les environs des maisons si nécessaire
@@ -184,6 +221,9 @@
 - LH-05 ajoute un `boundary` rectangulaire par maison et un confinement **autoritatif côté serveur**, avec affichage HUD côté client
 - LH-07 déplace la sync solo sur `Events.OnTick`, corrige la détection `isInsideBoundary()` pour les objets joueur PZ et ajoute un indicateur HUD local `Zone: IN/OUT`
 - LH-08 extrait la logique commune d'équipement/charge dans `LastHomeShared.lua` (`applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`) pour réduire la duplication client/serveur
+- LH-10 réduit les timers de vague et ajoute le skip de prep via `N`, en conservant `pendingDirections` grâce à `startWave(false)` lors du skip
+- Pour la Villa, les vagues sont actuellement forcées au **Sud** et l'attraction repose sur des impulsions sonores centrées sur la base plutôt que sur un ciblage d'aggro zombie par zombie
+- Les challenges Last Home utilisent désormais `SandboxVars.Zombies = 6` pour couper la pop vanilla ; `5` correspond seulement à une population faible dans PZ
 - Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
 - La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé

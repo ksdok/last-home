@@ -32,7 +32,7 @@ end
 LastHomeVilla.setSandBoxVars = function()
     if SandboxVars == nil then return end
 
-    SandboxVars.Zombies = 5
+    SandboxVars.Zombies = 6
     SandboxVars.Distribution = 1
     SandboxVars.MetaEvent = 1
     SandboxVars.SurvivorHouseChance = 1

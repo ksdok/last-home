@@ -159,6 +159,20 @@ local function getAggroTarget(x, y)
     }
 end
 
+local function getAlarmProfile()
+    local house = Server.house or {}
+    local alarm = house.alarm or {}
+
+    return {
+        x = round(alarm.x or house.centerX or 0),
+        y = round(alarm.y or house.centerY or 0),
+        z = round(alarm.z or 0),
+        radius = round(alarm.radius or 160),
+        volume = round(alarm.volume or 200),
+        pulseSeconds = math.max(1, round(alarm.pulseSeconds or PRESSURE_PULSE_SECONDS)),
+    }
+end
+
 local function joinLabels(labels)
     if labels == nil or #labels == 0 then return "" end
     if #labels == 1 then return labels[1] end
@@ -185,6 +199,14 @@ local function formatDirections(directions)
     end
 
     return joinLabels(labels)
+end
+
+local function cloneDirections(directions)
+    local result = {}
+    for _, direction in ipairs(directions or {}) do
+        result[#result + 1] = direction
+    end
+    return result
 end
 
 local function getSpeedMultiplier(wave)
@@ -450,6 +472,10 @@ local function calculateZombieCount(wave, alivePlayers)
 end
 
 local function calculateDirections(wave)
+    if Server.house ~= nil and Server.house.forcedDirections ~= nil and #Server.house.forcedDirections > 0 then
+        return cloneDirections(Server.house.forcedDirections)
+    end
+
     if wave <= 3 then
         return {CARDINALS[ZombRand(#CARDINALS) + 1]}
     end
@@ -538,55 +564,14 @@ local function getSpawnPoints(directions)
     return points
 end
 
-local function applyZombieAggro(zombie, wave, targetData)
-    if zombie == nil or targetData == nil or targetData.player == nil then return end
-
-    local aggression = getAggression(wave)
-
-    if zombie.setTurnAlertedValues ~= nil then
-        zombie:setTurnAlertedValues(targetData.x, targetData.y)
-    end
-
-    if zombie.pathToCharacter ~= nil then
-        pcall(function()
-            zombie:pathToCharacter(targetData.player)
-        end)
-    end
-
-    if zombie.addAggro ~= nil then
-        zombie:addAggro(targetData.player, aggression * 100)
-    end
-
-    if zombie.spotted ~= nil then
-        pcall(function()
-            zombie:spotted(targetData.player, true)
-        end)
-    end
-end
-
 local function refreshZombiePressure()
     if Server.house == nil or not Server.waveActive then return end
 
     local targetData = getAggroTarget(Server.house.centerX, Server.house.centerY)
-    if targetData == nil then return end
+    if targetData == nil or targetData.player == nil then return end
 
-    addSound(targetData.player, targetData.x, targetData.y, targetData.z or 0, 100, round(getDetectionRange(Server.currentWave) + 20))
-
-    local cell = getCell()
-    if cell == nil or cell.getZombieList == nil then return end
-
-    local zombies = cell:getZombieList()
-    if zombies == nil then return end
-
-    for i = zombies:size() - 1, 0, -1 do
-        local zombie = zombies:get(i)
-        if zombie ~= nil then
-            local modData = zombie:getModData()
-            if modData ~= nil and modData.LH_waveZombie and not modData.LH_countedDead then
-                applyZombieAggro(zombie, modData.LH_waveNumber or Server.currentWave, targetData)
-            end
-        end
-    end
+    local alarm = getAlarmProfile()
+    addSound(targetData.player, alarm.x, alarm.y, alarm.z, alarm.radius, alarm.volume)
 end
 
 local function scaleZombieStats(zombie, wave)
@@ -608,8 +593,6 @@ local function scaleZombieStats(zombie, wave)
     if zombie.setCanWalk ~= nil then
         zombie:setCanWalk(true)
     end
-
-    applyZombieAggro(zombie, wave, getAggroTarget(zombie:getX(), zombie:getY()))
 end
 
 local function tagSpawnedZombies(spawned, wave)
@@ -642,7 +625,7 @@ local function clearAmbientZombiesNearHouse()
         return 0
     end
 
-    local radius = SPAWN_DISTANCE + 30
+    local radius = Server.house.ambientCleanupRadius or (SPAWN_DISTANCE + 30)
     local radiusSquared = radius * radius
     local centerX = Server.house.centerX
     local centerY = Server.house.centerY
@@ -785,9 +768,10 @@ local function startWave(immediate)
     Server.directions = immediate and calculateDirections(Server.currentWave) or Server.pendingDirections
     Server.pendingDirections = {}
     Server.pendingEstimate = 0
-    Server.nextPressurePulseAt = getNowSeconds() + PRESSURE_PULSE_SECONDS
+    Server.nextPressurePulseAt = getNowSeconds() + getAlarmProfile().pulseSeconds
 
     resetSpectatorWaveUsage()
+    clearAmbientZombiesNearHouse()
     print("[LastHome] VAGUE " .. tostring(Server.currentWave) .. " demarree - " .. tostring(getAlivePlayerCount()) .. " joueurs, direction(s): " .. formatDirections(Server.directions))
     spawnWaveZombies(calculateZombieCount(Server.currentWave, getAlivePlayerCount()))
     syncWaveState()
@@ -1074,7 +1058,7 @@ local function updatePhaseState(now)
     if Server.phase == "wave" then
         if Server.nextPressurePulseAt ~= nil and now >= Server.nextPressurePulseAt then
             refreshZombiePressure()
-            Server.nextPressurePulseAt = now + PRESSURE_PULSE_SECONDS
+            Server.nextPressurePulseAt = now + getAlarmProfile().pulseSeconds
         end
 
         if remaining <= 0 then

@@ -5,9 +5,9 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 ## Concept
 
 - **Coop** jusqu'à 8 joueurs (doublons de rôles autorisés)
-- **Vagues** toutes les 10 minutes, de plus en plus dangereuses
-- **Bâtiment aléatoire** parmi 4 (Hôpital, Villa, Prison, École élémentaire)
-- **Direction croissante** des hordes : 1 direction au début, puis 2, 3, jusqu'à 360°
+- **Vagues** en temps réel : prep 2 min pour la vague 1, puis 5 min ; chaque vague dure 5 min
+- **Bâtiment aléatoire** parmi 4 (Hôpital, Villa, Prison, École élémentaire), ou forcé par challenge
+- **Direction croissante** des hordes : 1 direction au début, puis 2, 3, jusqu'à 360° — avec exceptions de gameplay par lieu si nécessaire
 - **Permadeath** : le joueur mort devient spectateur et peut faire spawner 1 zombie pendant les vagues suivantes
 - **17 rôles** repris d'Escapade Express (sans Mécanicien, avec Builder)
 - **Survie illimitée** : le score = nombre de vagues survécues
@@ -23,13 +23,18 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 | [LH-05](specs/LH-05-zone-confinement.md) | Zone de confinement autour de la maison | ✅ |
 | [LH-06](specs/LH-06-hud.md) | Refonte HUD et position | ✅ |
 | [LH-07](specs/LH-07-fix-sync-solo.md) | Fix sync solo / confinement | ✅ |
+| [LH-08](specs/LH-08-equipement-roles.md) | Équipement des rôles et helpers partagés | ✅ |
+| [LH-10](specs/LH-10-timers-skip.md) | Timers réduits + skip de vague | ✅ |
 
 ## État
 
-- ✅ Spécifications complètes (LH-01 à LH-07)
-- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04**, **LH-05**, **LH-06**, **LH-07** terminée
+- ✅ Specs versionnées complètes pour **LH-01** à **LH-08** et **LH-10**
+- ✅ Implémentation de **LH-02** à **LH-08** et **LH-10** terminée
 - ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
+- ✅ Timers LH-10 : prep vague 1 = 2 min, prep suivantes = 5 min, vague = 5 min, skip via touche `N`
+- ✅ Challenges Last Home : zombies vanilla désactivés, nettoyage ambiant autour de la base, Villa forcée au **Sud**
+- ✅ Attraction des vagues recentrée sur des impulsions sonores type alarme vers la base pour fiabiliser la pression zombie
 - 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
 
 ## Structure du mod
@@ -65,6 +70,8 @@ last-home/
     LH-05-zone-confinement.md
     LH-06-hud.md
     LH-07-fix-sync-solo.md
+    LH-08-equipement-roles.md
+    LH-10-timers-skip.md
 ```
 
 ## Dépendances
