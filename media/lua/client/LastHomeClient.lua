@@ -9,7 +9,9 @@ print("[LastHome] LastHomeClient charge")
 local roleRequestSent = false
 local soloPickerFallbackAt = nil
 local soloFallbackTickRegistered = false
+local soloStateLastSyncSecond = nil
 local getNowSeconds = LastHomeShared.getNowSeconds
+local DEBUG_ENABLED = LastHomeShared.DEBUG == true
 
 local showRoleAssigned -- forward declaration (définie plus bas)
 
@@ -25,6 +27,7 @@ local function isSinglePlayerRuntime()
 end
 
 local function logClient(message)
+    if not DEBUG_ENABLED then return end
     print("[LastHome][Client] " .. tostring(message))
 end
 
@@ -265,6 +268,7 @@ local function applyPerkLevel(player, perk, level)
     xp:setXPToLevel(perk, level)
 end
 
+-- Fallback legacy solo: conserve pour debug/secours si le flux serveur solo doit etre re-active.
 function LastHomeClient.applyRoleLocally(player, roleKey)
     if player == nil or roleKey == nil then return false end
 
@@ -374,7 +378,8 @@ local function resetBoundaryState()
 end
 
 local function updateBoundaryState(data)
-    if data == nil or not isLocalUser(data) then return end
+    if data == nil then return end
+    if data.username ~= nil and not isLocalUser(data) then return end
 
     local previousState = LastHomeClient.boundaryState or {}
     local prevStatus = previousState.status
@@ -459,6 +464,10 @@ end
 local function syncSoloState()
     if not isSinglePlayerRuntime() then return end
 
+    local now = getNowSeconds()
+    if soloStateLastSyncSecond == now then return end
+    soloStateLastSyncSecond = now
+
     local player = getPlayer()
     if player == nil then return end
     if LastHomeWaves == nil or LastHomeWaves.getClientState == nil then return end
@@ -472,7 +481,6 @@ local function syncSoloState()
     end
 
     if snapshot.boundaryState ~= nil then
-        snapshot.boundaryState.username = username
         updateBoundaryState(snapshot.boundaryState)
     end
 
@@ -508,20 +516,20 @@ local function drawWaveHud()
 
     local state = LastHomeClient.waveState or {}
     local shouldDraw = state.phase ~= "idle" or LastHomeClient.isSpectator or LastHomeClient.alertText ~= nil
-    local hudTraceState = tostring(state.phase) .. "|" .. tostring(LastHomeClient.isSpectator) .. "|" .. tostring(LastHomeClient.alertText ~= nil) .. "|" .. formatHouseLabel(state.house)
     if not shouldDraw then
-        local hiddenState = "hidden|" .. hudTraceState
+        local hiddenState = "hidden|" .. tostring(state.phase) .. "|" .. tostring(LastHomeClient.isSpectator) .. "|" .. tostring(LastHomeClient.alertText ~= nil)
         if LastHomeClient._hudTraceState ~= hiddenState then
             LastHomeClient._hudTraceState = hiddenState
-            logClient("HUD masque - phase=" .. tostring(state.phase) .. ", spectator=" .. tostring(LastHomeClient.isSpectator) .. ", alert=" .. tostring(LastHomeClient.alertText ~= nil) .. ", house=" .. formatHouseLabel(state.house))
+            logClient("HUD masque - phase=" .. tostring(state.phase) .. ", spectator=" .. tostring(LastHomeClient.isSpectator) .. ", alert=" .. tostring(LastHomeClient.alertText ~= nil))
         end
         return
     end
 
-    local visibleState = "visible|" .. hudTraceState
+    local houseLabel = formatHouseLabel(state.house)
+    local visibleState = "visible|" .. tostring(state.phase) .. "|" .. tostring(LastHomeClient.isSpectator) .. "|" .. tostring(LastHomeClient.alertText ~= nil) .. "|" .. houseLabel
     if LastHomeClient._hudTraceState ~= visibleState then
         LastHomeClient._hudTraceState = visibleState
-        logClient("HUD visible - phase=" .. tostring(state.phase) .. ", spectator=" .. tostring(LastHomeClient.isSpectator) .. ", alert=" .. tostring(LastHomeClient.alertText ~= nil) .. ", house=" .. formatHouseLabel(state.house))
+        logClient("HUD visible - phase=" .. tostring(state.phase) .. ", spectator=" .. tostring(LastHomeClient.isSpectator) .. ", alert=" .. tostring(LastHomeClient.alertText ~= nil) .. ", house=" .. houseLabel)
     end
 
     local HUD_WIDTH = 280

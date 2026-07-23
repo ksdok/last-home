@@ -24,8 +24,10 @@ local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
 local getRandomHouse = LastHomeShared.getRandomHouse
 local getHouseSpawnCandidates = LastHomeShared.getHouseSpawnCandidates
+local DEBUG_ENABLED = LastHomeShared.DEBUG == true
 
 local function logServer(message)
+    if not DEBUG_ENABLED then return end
     print("[LastHome][Server] " .. tostring(message))
 end
 

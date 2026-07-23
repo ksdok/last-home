@@ -1,12 +1,16 @@
 require "ISUI/ISPanel"
 require "ISUI/ISButton"
 require "LastHomeRoles"
+require "LastHomeShared"
 
 LastHomeRolePicker = LastHomeRolePicker or {}
 
 print("[LastHome] LastHomeRolePicker charge")
 
+local DEBUG_ENABLED = LastHomeShared.DEBUG == true
+
 local function logRolePicker(message)
+    if not DEBUG_ENABLED then return end
     print("[LastHome][RolePicker] " .. tostring(message))
 end
 

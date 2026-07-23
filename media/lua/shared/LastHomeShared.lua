@@ -1,5 +1,9 @@
 LastHomeShared = LastHomeShared or {}
 
+if LastHomeShared.DEBUG == nil then
+    LastHomeShared.DEBUG = false
+end
+
 local NOW_SOURCE = nil
 
 print("[LastHome] LastHomeShared charge, maisons: " .. tostring(4))
