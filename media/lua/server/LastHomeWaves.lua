@@ -6,8 +6,9 @@ print("[LastHome] LastHomeWaves charge")
 
 local Server = LastHomeWaves
 
-local PREP_DURATION_SECONDS = 10 * 60
-local WAVE_DURATION_SECONDS = 10 * 60
+local FIRST_PREP_DURATION_SECONDS = 2 * 60
+local PREP_DURATION_SECONDS = 5 * 60
+local WAVE_DURATION_SECONDS = 5 * 60
 local ONE_MINUTE_WARNING_SECONDS = 60
 local PRESSURE_PULSE_SECONDS = 15
 local SPAWN_DISTANCE = 40
@@ -31,6 +32,21 @@ local ADJACENT_DIRECTION_SETS = {
     {"S", "W"},
     {"W", "N"},
 }
+
+local function getPrepDurationSeconds(nextWave)
+    if (nextWave or 1) <= 1 then
+        return FIRST_PREP_DURATION_SECONDS
+    end
+    return PREP_DURATION_SECONDS
+end
+
+local function formatDurationLabel(durationSeconds)
+    local totalSeconds = math.max(0, math.floor(durationSeconds or 0))
+    if totalSeconds > 0 and totalSeconds % 60 == 0 then
+        return tostring(math.floor(totalSeconds / 60)) .. " min"
+    end
+    return tostring(totalSeconds) .. " s"
+end
 
 local round = LastHomeShared.round
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
@@ -642,28 +658,31 @@ local function startPrepPhase()
     end
     if not ensureHouse() then return false end
 
+    local nextWave = Server.currentWave + 1
+    local prepDurationSeconds = getPrepDurationSeconds(nextWave)
+
     Server.started = true
     Server.waveActive = false
     Server.phase = "prep"
-    Server.phaseDurationSeconds = PREP_DURATION_SECONDS
-    Server.phaseEndsAt = getNowSeconds() + PREP_DURATION_SECONDS
+    Server.phaseDurationSeconds = prepDurationSeconds
+    Server.phaseEndsAt = getNowSeconds() + prepDurationSeconds
     Server.oneMinuteWarningSent = false
-    Server.pendingDirections = calculateDirections(Server.currentWave + 1)
-    Server.pendingEstimate = calculateZombieCount(Server.currentWave + 1, getAlivePlayerCount())
+    Server.pendingDirections = calculateDirections(nextWave)
+    Server.pendingEstimate = calculateZombieCount(nextWave, getAlivePlayerCount())
     Server.zombieCount = 0
     Server.nextPressurePulseAt = nil
 
     resetSpectatorWaveUsage()
     syncWaveState()
 
-    print("[LastHome] Phase PREP - vague " .. tostring(Server.currentWave + 1) .. ", " .. tostring(getAlivePlayerCount()) .. " joueurs, " .. tostring(Server.pendingEstimate) .. " zombies estimes, direction(s): " .. formatDirections(Server.pendingDirections))
+    print("[LastHome] Phase PREP - vague " .. tostring(nextWave) .. ", " .. tostring(getAlivePlayerCount()) .. " joueurs, " .. tostring(Server.pendingEstimate) .. " zombies estimes, direction(s): " .. formatDirections(Server.pendingDirections) .. ", duree=" .. tostring(prepDurationSeconds) .. "s")
 
     local houseLabel = ""
     if Server.house ~= nil and Server.house.name ~= nil then
         houseLabel = "\nBase: " .. tostring(Server.house.name)
     end
 
-    broadcastAlert(string.format("[Last Home] Vague %d dans 10 min%s\nDirection: %s\nTaille estimee: ~%d zombies", Server.currentWave + 1, houseLabel, formatDirections(Server.pendingDirections), Server.pendingEstimate), "info")
+    broadcastAlert(string.format("[Last Home] Vague %d dans %s%s\nDirection: %s\nTaille estimee: ~%d zombies", nextWave, formatDurationLabel(prepDurationSeconds), houseLabel, formatDirections(Server.pendingDirections), Server.pendingEstimate), "info")
     return true
 end
 
@@ -707,7 +726,7 @@ local function endWaveCleared()
     Server.zombieCount = 0
     Server.wavesSurvived = Server.currentWave
     print("[LastHome] Vague " .. tostring(Server.currentWave) .. " eliminee - " .. tostring(Server.wavesSurvived) .. " vagues survecces")
-    broadcastAlert(string.format("[Last Home] Vague %d eliminee! Prochaine vague dans 10 min.", Server.currentWave), "success")
+    broadcastAlert(string.format("[Last Home] Vague %d eliminee! Prochaine vague dans %s.", Server.currentWave, formatDurationLabel(getPrepDurationSeconds(Server.currentWave + 1))), "success")
     startPrepPhase()
 end
 
@@ -720,6 +739,21 @@ function LastHomeWaves.ensureScenarioStarted()
         return false
     end
     return startPrepPhase()
+end
+
+function LastHomeWaves.skipToNextWave(player)
+    if Server.gameOver or not Server.started or Server.phase ~= "prep" then
+        return false
+    end
+
+    local username = "solo"
+    if player ~= nil and player.getUsername ~= nil then
+        username = player:getUsername() or username
+    end
+
+    print("[LastHome] SkipToNextWave - demande par " .. tostring(username) .. " pour la vague " .. tostring(Server.currentWave + 1))
+    broadcastAlert("[Last Home] La prochaine vague est lancee immediatement!", "warning")
+    return startWave(false)
 end
 
 local function handlePlayerDeath(player, x, y, z)
@@ -1005,6 +1039,11 @@ local function onClientCommand(module, command, player, data)
 
     if command == "PlayerDied" then
         handlePlayerDeath(player, data and data.x or nil, data and data.y or nil, data and data.z or nil)
+        return
+    end
+
+    if command == "SkipToNextWave" then
+        LastHomeWaves.skipToNextWave(player)
         return
     end
 

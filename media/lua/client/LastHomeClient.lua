@@ -16,6 +16,7 @@ local applyCarryProfile = LastHomeShared.applyCarryProfile
 local primeRoleLoadout = LastHomeShared.primeRoleLoadout
 local equipRoleItems = LastHomeShared.equipRoleItems
 local DEBUG_ENABLED = LastHomeShared.DEBUG == true
+local SKIP_WAVE_KEY = Keyboard ~= nil and Keyboard.KEY_N or nil
 
 local showRoleAssigned -- forward declaration (définie plus bas)
 
@@ -418,6 +419,7 @@ local function updateWaveState(data)
         zombieCount = data.zombieCount or 0,
         score = data.score or 0,
         house = data.house,
+        canSkipToNextWave = data.phase == "prep",
     }
 
     if previousPhase ~= newPhase
@@ -592,6 +594,8 @@ local function drawWaveHud()
         y = y + 16
         drawLine(x, y, "Taille estimee: ~" .. tostring(state.estimatedCount or 0) .. " zombies", ALERT_COLORS.info)
         y = y + 16
+        drawLine(x, y, "[N] Lancer la prochaine vague", ALERT_COLORS.warning)
+        y = y + 16
     elseif state.phase == "wave" then
         drawLine(x, y, string.format("Vague %d active - %s restantes", state.currentWave or 0, formatClock(remainingSeconds)), ALERT_COLORS.warning)
         y = y + 16
@@ -656,6 +660,36 @@ local function drawWaveHud()
     end
 end
 Events.OnPostUIDraw.Add(drawWaveHud)
+
+local function canSkipToNextWave()
+    local state = LastHomeClient.waveState or {}
+    return state.phase == "prep" and state.canSkipToNextWave ~= false
+end
+
+local function requestSkipToNextWave()
+    if not canSkipToNextWave() then return false end
+
+    local player = getPlayer()
+    if player == nil then return false end
+
+    if isSinglePlayerRuntime() then
+        if LastHomeWaves ~= nil and LastHomeWaves.skipToNextWave ~= nil then
+            logClient("SkipToNextWave local (solo)")
+            return LastHomeWaves.skipToNextWave(player)
+        end
+        return false
+    end
+
+    logClient("SkipToNextWave -> serveur")
+    sendClientCommand("LastHome", "SkipToNextWave", {})
+    return true
+end
+
+local function onKeyPressed(key)
+    if SKIP_WAVE_KEY == nil or key ~= SKIP_WAVE_KEY then return end
+    requestSkipToNextWave()
+end
+Events.OnKeyPressed.Add(onKeyPressed)
 
 local function getContextSquare(worldobjects)
     if worldobjects == nil then return nil end
@@ -784,4 +818,4 @@ local function onServerCommand(module, command, data)
     end
 end
 Events.OnServerCommand.Add(onServerCommand)
-print("[LastHome] LastHomeClient pret - handlers: OnCreatePlayer, OnGameStart, OnTick(sync solo), OnPostUIDraw, OnFillWorldObjectContextMenu, OnPlayerDeath, OnServerCommand")
+print("[LastHome] LastHomeClient pret - handlers: OnCreatePlayer, OnGameStart, OnTick(sync solo), OnPostUIDraw, OnKeyPressed, OnFillWorldObjectContextMenu, OnPlayerDeath, OnServerCommand")
