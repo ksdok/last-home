@@ -104,6 +104,9 @@ function RolePickerPanel:onChooseRole(button)
         local applied = LastHomeClient.applyRoleLocally(player, roleKey)
         if applied then
             LastHomeRolePicker.close()
+            sendClientCommand("LastHome", "ChooseRole", {
+                roleKey = roleKey,
+            })
         end
         return
     end
