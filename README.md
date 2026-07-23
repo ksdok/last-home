@@ -22,11 +22,13 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 | [LH-04](specs/LH-04-maison.md) | Bâtiment, réparations, défense | ✅ |
 | [LH-05](specs/LH-05-zone-confinement.md) | Zone de confinement autour de la maison | ✅ |
 | [LH-06](specs/LH-06-hud.md) | Refonte HUD et position | ✅ |
+| [LH-07](specs/LH-07-fix-sync-solo.md) | Fix sync solo / confinement | ✅ |
 
 ## État
 
-- ✅ Spécifications complètes (LH-01 à LH-05)
-- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04**, **LH-05**, **LH-06** terminée
+- ✅ Spécifications complètes (LH-01 à LH-07)
+- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04**, **LH-05**, **LH-06**, **LH-07** terminée
+- ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
 - 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
 
@@ -50,17 +52,19 @@ last-home/
           LastHomePrison.lua    -- challenge Prison
           LastHomeSchool.lua    -- challenge École
           *.png                 -- images de preview (200x200)
-        LastHomeClient.lua      -- bootstrap client / ouverture du picker
+        LastHomeClient.lua      -- bootstrap client / HUD / sync solo
         LastHomeRolePicker.lua  -- picker de rôles
       shared/
         LastHomeRoles.lua       -- définitions des 17 rôles
-        LastHomeShared.lua      -- helpers partagés (maisons, coords, timers)
+        LastHomeShared.lua      -- helpers partagés (maisons, coords, timers, boundary)
   specs/
     LH-01-concept.md
     LH-02-roles.md
     LH-03-vagues.md
     LH-04-maison.md
     LH-05-zone-confinement.md
+    LH-06-hud.md
+    LH-07-fix-sync-solo.md
 ```
 
 ## Dépendances

@@ -240,8 +240,7 @@ function LastHomeShared.isInsideBoundary(playerOrX, house, y, z)
     if house == nil then return true end
 
     local x = playerOrX
-    if type(playerOrX) == "table" then
-        if playerOrX.getX == nil or playerOrX.getY == nil then return true end
+    if playerOrX ~= nil and playerOrX.getX ~= nil and playerOrX.getY ~= nil then
         x = playerOrX:getX()
         y = playerOrX:getY()
         z = playerOrX.getZ ~= nil and playerOrX:getZ() or z
