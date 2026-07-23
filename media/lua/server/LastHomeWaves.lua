@@ -338,6 +338,41 @@ function LastHomeWaves.getHouse()
     return Server.house
 end
 
+function LastHomeWaves.getClientState(username)
+    local now = getNowSeconds()
+    local spectator = username ~= nil and Server.spectators[username] or nil
+    local boundary = username ~= nil and Server.boundaryStates[username] or nil
+
+    return {
+        waveState = {
+            started = Server.started,
+            phase = Server.phase,
+            currentWave = Server.currentWave,
+            nextWave = Server.waveActive and Server.currentWave or (Server.currentWave + 1),
+            waveActive = Server.waveActive,
+            remainingSeconds = getPhaseRemainingSeconds(now),
+            phaseEndsAt = Server.phaseEndsAt,
+            durationSeconds = Server.phaseDurationSeconds,
+            directions = Server.waveActive and Server.directions or Server.pendingDirections,
+            directionsText = formatDirections(Server.waveActive and Server.directions or Server.pendingDirections),
+            estimatedCount = Server.pendingEstimate,
+            zombieCount = Server.zombieCount,
+            score = getDisplayedScore(),
+            house = Server.house,
+        },
+        boundaryState = {
+            status = boundary ~= nil and boundary.status or "inside",
+            countdownEndsAt = boundary ~= nil and boundary.countdownEndsAt or 0,
+        },
+        spectatorState = {
+            isSpectator = spectator ~= nil,
+            canSpawn = spectator ~= nil and Server.waveActive and not spectator.spawnedThisWave,
+            spawnedThisWave = spectator ~= nil and spectator.spawnedThisWave or false,
+            waveActive = Server.waveActive,
+        },
+    }
+end
+
 local function calculateZombieCount(wave, alivePlayers)
     local baseCount = 10 + (wave * 5)
     local scaledByPlayers = baseCount * ((alivePlayers or 0) / 4)

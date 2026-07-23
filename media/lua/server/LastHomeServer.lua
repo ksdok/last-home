@@ -25,6 +25,26 @@ local getNowSeconds = LastHomeShared.getNowSeconds
 local getRandomHouse = LastHomeShared.getRandomHouse
 local getHouseSpawnCandidates = LastHomeShared.getHouseSpawnCandidates
 
+local function logServer(message)
+    print("[LastHome][Server] " .. tostring(message))
+end
+
+local function formatCoords(x, y, z)
+    return "(" .. tostring(x) .. ", " .. tostring(y) .. ", " .. tostring(z or 0) .. ")"
+end
+
+local function formatHouseLabel(house)
+    if house == nil then return "nil" end
+    return tostring(house.name or house.id or "?") .. "@" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
+end
+
+local function formatPlayerCoords(player)
+    if player == nil or player.getX == nil or player.getY == nil then
+        return "(?, ?, ?)"
+    end
+    return formatCoords(player:getX(), player:getY(), player.getZ ~= nil and player:getZ() or 0)
+end
+
 local function syncSelectedHouse()
     if Server.selectedHouse == nil then return end
 
@@ -74,52 +94,60 @@ local function pickHouseSpawnPoint(house)
     if house == nil then return nil, nil, nil end
 
     local candidates = getHouseSpawnCandidates ~= nil and getHouseSpawnCandidates(house) or nil
-    if candidates == nil or #candidates == 0 then
+    local candidateCount = candidates ~= nil and #candidates or 0
+    if candidates == nil or candidateCount == 0 then
+        logServer("pickHouseSpawnPoint fallback centre pour " .. formatHouseLabel(house))
         return house.centerX, house.centerY, house.centerZ or 0
     end
 
     local startIndex = 1
     if ZombRand ~= nil then
-        startIndex = ZombRand(#candidates) + 1
+        startIndex = ZombRand(candidateCount) + 1
     elseif math ~= nil and math.random ~= nil then
-        startIndex = math.random(#candidates)
+        startIndex = math.random(candidateCount)
     end
 
     local cell = getCell ~= nil and getCell() or nil
     if cell == nil then
         local fallback = candidates[startIndex]
+        logServer("pickHouseSpawnPoint sans cell -> fallback candidat #" .. tostring(startIndex) .. "/" .. tostring(candidateCount) .. " pour " .. formatHouseLabel(house) .. " => " .. formatCoords(fallback.x, fallback.y, fallback.z or house.centerZ or 0))
         return fallback.x, fallback.y, fallback.z or house.centerZ or 0
     end
 
-    for offset = 0, #candidates - 1 do
-        local index = ((startIndex + offset - 1) % #candidates) + 1
+    for offset = 0, candidateCount - 1 do
+        local index = ((startIndex + offset - 1) % candidateCount) + 1
         local candidate = candidates[index]
         local square = cell:getGridSquare(candidate.x, candidate.y, candidate.z or house.centerZ or 0)
         if isUsableSpawnSquare(square) then
+            logServer("pickHouseSpawnPoint selectionne candidat #" .. tostring(index) .. "/" .. tostring(candidateCount) .. " pour " .. formatHouseLabel(house) .. " => " .. formatCoords(square:getX(), square:getY(), square:getZ()))
             return square:getX(), square:getY(), square:getZ()
         end
     end
 
+    logServer("pickHouseSpawnPoint n'a trouve aucun square utilisable pour " .. formatHouseLabel(house) .. " (candidats=" .. tostring(candidateCount) .. ")")
     return nil, nil, nil
 end
 
 local function teleportPlayerToHouse(player)
     if player == nil then return false end
 
+    local username = player:getUsername() or "?"
     local modData = player:getModData()
     if modData ~= nil and (modData.LH_dead or modData.LH_spectator) then
+        logServer("teleport ignore pour " .. tostring(username) .. " (dead=" .. tostring(modData.LH_dead) .. ", spectator=" .. tostring(modData.LH_spectator) .. ")")
         return false
     end
 
     local house = ensureSelectedHouse()
     if house == nil then return false end
     if modData ~= nil and modData.LH_houseSpawnId == house.id then
+        logServer("teleport ignore pour " .. tostring(username) .. " - deja spawne sur " .. formatHouseLabel(house) .. " depuis " .. formatPlayerCoords(player))
         return false
     end
 
+    local beforeCoords = formatPlayerCoords(player)
     local x, y, z = pickHouseSpawnPoint(house)
     if x == nil or y == nil or z == nil then
-        local username = player:getUsername() or "?"
         print("[LastHome] WARN: pickHouseSpawnPoint a echoue pour " .. tostring(username) .. " (maison=" .. tostring(house.name or house.id or "?") .. ", candidats=" .. tostring(getHouseSpawnCandidates ~= nil and #(getHouseSpawnCandidates(house) or {}) or 0) .. ")")
         return false
     end
@@ -132,6 +160,7 @@ local function teleportPlayerToHouse(player)
         modData.LH_houseSpawnId = house.id
     end
 
+    logServer("teleport joueur " .. tostring(username) .. " : " .. beforeCoords .. " -> " .. formatCoords(x, y, z) .. " pour " .. formatHouseLabel(house))
     return true
 end
 
@@ -567,6 +596,7 @@ local function onClientCommand(module, command, player, data)
 
     if command == "SetHouse" then
         local houseId = data and data.houseId or nil
+        logServer("Commande SetHouse recue de " .. tostring(username) .. " -> " .. tostring(houseId))
         if houseId == nil then return end
 
         local wavesStarted = LastHomeWaves ~= nil
@@ -619,6 +649,7 @@ local function onClientCommand(module, command, player, data)
     end
 
     if command == "RolePickerReady" then
+        logServer("Commande RolePickerReady recue de " .. tostring(username) .. " depuis " .. formatPlayerCoords(player))
         ensureSelectedHouse()
 
         local roleKey = restoreAssignedRole(player)
@@ -635,6 +666,8 @@ local function onClientCommand(module, command, player, data)
     end
 
     if command ~= "ChooseRole" then return end
+
+    logServer("Commande ChooseRole recue de " .. tostring(username) .. " -> " .. tostring(data and data.roleKey or "nil") .. " depuis " .. formatPlayerCoords(player))
 
     local existingRole = restoreAssignedRole(player)
     if existingRole ~= nil then

@@ -41,7 +41,7 @@ local HOUSE_DEFS = {
         },
         spawn = {
             type = "box",
-            minX = 13352,
+            minX = 13532,
             maxX = 13533,
             minY = 2839,
             maxY = 2843,

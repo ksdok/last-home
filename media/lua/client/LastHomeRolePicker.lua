@@ -6,6 +6,10 @@ LastHomeRolePicker = LastHomeRolePicker or {}
 
 print("[LastHome] LastHomeRolePicker charge")
 
+local function logRolePicker(message)
+    print("[LastHome][RolePicker] " .. tostring(message))
+end
+
 local RolePickerPanel = ISPanel:derive("LastHomeRolePickerPanel")
 
 local ROLE_ORDER = LastHomeRoles.ROLE_ORDER
@@ -99,15 +103,18 @@ function RolePickerPanel:onChooseRole(button)
     if LastHomeRolePicker.mode == "solo" then
         local player = getPlayer()
         if player == nil then return end
-        if LastHomeClient == nil or LastHomeClient.applyRoleLocally == nil then return end
 
-        local applied = LastHomeClient.applyRoleLocally(player, roleKey)
-        if applied then
-            LastHomeRolePicker.close()
-            sendClientCommand("LastHome", "ChooseRole", {
-                roleKey = roleKey,
-            })
-        end
+        logRolePicker("Choix solo demande: " .. tostring(roleKey))
+        LastHomeRolePicker.pendingRole = roleKey
+        LastHomeRolePicker.statusText = "Validation du role en cours..."
+        LastHomeRolePicker.statusColor = COLOR_PENDING
+        self:updateButtons()
+
+        logRolePicker("Mode solo: envoi ChooseRole au serveur sans apply local pour eviter les doublons")
+        LastHomeRolePicker.close()
+        sendClientCommand("LastHome", "ChooseRole", {
+            roleKey = roleKey,
+        })
         return
     end
 
@@ -116,6 +123,7 @@ function RolePickerPanel:onChooseRole(button)
     LastHomeRolePicker.statusColor = COLOR_PENDING
     self:updateButtons()
 
+    logRolePicker("Choix reseau demande: " .. tostring(roleKey))
     sendClientCommand("LastHome", "ChooseRole", {
         roleKey = roleKey,
     })
@@ -201,6 +209,8 @@ function LastHomeRolePicker.open(mode)
     LastHomeRolePicker.statusText = nil
     LastHomeRolePicker.statusColor = COLOR_WHITE
 
+    logRolePicker("Ouverture du picker (mode=" .. tostring(LastHomeRolePicker.mode) .. ")")
+
     if LastHomeRolePicker.panel ~= nil then
         LastHomeRolePicker.panel:updateButtons()
         return LastHomeRolePicker.panel
@@ -229,6 +239,7 @@ function LastHomeRolePicker.openLocal()
 end
 
 function LastHomeRolePicker.close()
+    logRolePicker("Fermeture du picker")
     LastHomeRolePicker.pendingRole = nil
     if LastHomeRolePicker.panel ~= nil then
         LastHomeRolePicker.panel:removeFromUIManager()
@@ -246,6 +257,7 @@ local function onServerCommand(module, command, data)
 
     if command == "OpenRolePicker" then
         if isLocalUser(data) then
+            logRolePicker("Commande OpenRolePicker recue")
             local player = getPlayer()
             if player ~= nil and player:getModData().LH_role == nil then
                 LastHomeRolePicker.open()
@@ -253,6 +265,7 @@ local function onServerCommand(module, command, data)
         end
     elseif command == "RoleAssigned" then
         if isLocalUser(data) then
+            logRolePicker("Commande RoleAssigned recue: " .. tostring(data and data.role or "?"))
             local player = getPlayer()
             if player ~= nil then
                 player:getModData().LH_role = data.role
@@ -261,11 +274,13 @@ local function onServerCommand(module, command, data)
         end
     elseif command == "RoleUnavailable" then
         if isLocalUser(data) then
+            logRolePicker("Commande RoleUnavailable recue: " .. tostring(data and data.text or "?"))
             LastHomeRolePicker.pendingRole = nil
             LastHomeRolePicker.setStatus(data.text or "Role indisponible.", COLOR_RED)
         end
     elseif command == "RoleDenied" then
         if isLocalUser(data) then
+            logRolePicker("Commande RoleDenied recue: " .. tostring(data and data.text or "?"))
             LastHomeRolePicker.pendingRole = nil
             LastHomeRolePicker.setStatus(data.text or "Choix refuse.", COLOR_RED)
         end

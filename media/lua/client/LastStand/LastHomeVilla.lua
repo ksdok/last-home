@@ -12,6 +12,7 @@ end
 LastHomeVilla.SendHouseSelection = function()
     if LastHomeVilla._houseSelectionSent then return end
 
+    print("[LastHome][ChallengeVilla] Envoi SetHouse(villa)")
     LastHomeVilla._houseSelectionSent = true
     sendClientCommand("LastHome", "SetHouse", { houseId = "villa" })
 end
@@ -21,6 +22,7 @@ LastHomeVilla.OnGameStart = function()
 end
 
 LastHomeVilla.OnInitWorld = function()
+    print("[LastHome][ChallengeVilla] OnInitWorld")
     LastHomeVilla._houseSelectionSent = false
 
     if not LastHomeVilla._gameStartRegistered then

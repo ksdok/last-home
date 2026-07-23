@@ -24,6 +24,26 @@ local function isSinglePlayerRuntime()
     return true
 end
 
+local function logClient(message)
+    print("[LastHome][Client] " .. tostring(message))
+end
+
+local function formatCoords(x, y, z)
+    return "(" .. tostring(x) .. ", " .. tostring(y) .. ", " .. tostring(z or 0) .. ")"
+end
+
+local function formatPlayerCoords(player)
+    if player == nil or player.getX == nil or player.getY == nil then
+        return "(?, ?, ?)"
+    end
+    return formatCoords(player:getX(), player:getY(), player.getZ ~= nil and player:getZ() or 0)
+end
+
+local function formatHouseLabel(house)
+    if house == nil then return "nil" end
+    return tostring(house.name or house.id or "?") .. "@" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
+end
+
 LastHomeClient.waveState = LastHomeClient.waveState or {
     phase = "idle",
     currentWave = 0,
@@ -58,12 +78,14 @@ local ALERT_COLORS = {
 
 local function ensureSoloFallbackTickRegistered()
     if soloFallbackTickRegistered then return end
+    logClient("Activation du tick de fallback solo pour le role picker")
     Events.OnTick.Add(LastHomeClient.TickRolePickerFallback)
     soloFallbackTickRegistered = true
 end
 
 local function unregisterSoloFallbackTick()
     if not soloFallbackTickRegistered then return end
+    logClient("Desactivation du tick de fallback solo pour le role picker")
     Events.OnTick.Remove(LastHomeClient.TickRolePickerFallback)
     soloFallbackTickRegistered = false
 end
@@ -75,6 +97,7 @@ LastHomeClient.TickRolePickerFallback = function()
     end
 
     if not isSinglePlayerRuntime() then
+        logClient("Fallback solo annule: runtime reseau detecte")
         soloPickerFallbackAt = nil
         unregisterSoloFallbackTick()
         return
@@ -95,6 +118,7 @@ LastHomeClient.TickRolePickerFallback = function()
     end
 
     if getNowSeconds() >= soloPickerFallbackAt then
+        logClient("Fallback solo declenche -> ouverture locale du role picker")
         soloPickerFallbackAt = nil
         unregisterSoloFallbackTick()
         LastHomeRolePicker.openLocal()
@@ -250,6 +274,8 @@ function LastHomeClient.applyRoleLocally(player, roleKey)
     local modData = player:getModData()
     if modData.LH_role ~= nil then return false end
 
+    logClient("applyRoleLocally start - role=" .. tostring(roleKey) .. ", joueur=" .. tostring(player:getUsername() or "?") .. ", coords=" .. formatPlayerCoords(player))
+
     local inv = player:getInventory()
     local roleBag = nil
 
@@ -277,6 +303,7 @@ function LastHomeClient.applyRoleLocally(player, roleKey)
     showRoleAssigned(roleName)
 
     print("[LastHome] Role applique localement (solo): " .. tostring(roleKey))
+    logClient("applyRoleLocally termine - role=" .. tostring(roleKey) .. ", coords=" .. formatPlayerCoords(player))
     return true
 end
 
@@ -285,27 +312,34 @@ local function requestRolePicker()
     if player == nil then return end
 
     local modData = player:getModData()
-    if modData.LH_role ~= nil then return end
+    if modData.LH_role ~= nil then
+        logClient("requestRolePicker ignore - role deja choisi: " .. tostring(modData.LH_role))
+        return
+    end
     if roleRequestSent then return end
 
     roleRequestSent = true
 
     if isSinglePlayerRuntime() and soloPickerFallbackAt == nil then
         soloPickerFallbackAt = getNowSeconds() + 3
+        logClient("requestRolePicker - fallback solo arme pour t=" .. tostring(soloPickerFallbackAt))
         ensureSoloFallbackTickRegistered()
     end
 
+    logClient("requestRolePicker -> RolePickerReady (solo=" .. tostring(isSinglePlayerRuntime()) .. ", joueur=" .. tostring(player:getUsername() or "?") .. ", coords=" .. formatPlayerCoords(player) .. ")")
     sendClientCommand("LastHome", "RolePickerReady", {
         username = player:getUsername(),
     })
 end
 
 local function onCreatePlayer()
+    logClient("OnCreatePlayer")
     requestRolePicker()
 end
 Events.OnCreatePlayer.Add(onCreatePlayer)
 
 local function onGameStart()
+    logClient("OnGameStart")
     roleRequestSent = false
     requestRolePicker()
 end
@@ -342,13 +376,20 @@ end
 local function updateBoundaryState(data)
     if data == nil or not isLocalUser(data) then return end
 
-    local prevStatus = LastHomeClient.boundaryState.status
+    local previousState = LastHomeClient.boundaryState or {}
+    local prevStatus = previousState.status
+    local prevCountdownEndsAt = previousState.countdownEndsAt or 0
     local newStatus = data.status or "inside"
+    local newCountdownEndsAt = data.countdownEndsAt or 0
 
     LastHomeClient.boundaryState = {
         status = newStatus,
-        countdownEndsAt = data.countdownEndsAt or 0,
+        countdownEndsAt = newCountdownEndsAt,
     }
+
+    if prevStatus ~= newStatus or prevCountdownEndsAt ~= newCountdownEndsAt then
+        logClient("BoundaryState recu - " .. tostring(prevStatus) .. " -> " .. tostring(newStatus) .. ", fin=" .. tostring(newCountdownEndsAt))
+    end
 
     if newStatus == "inside" and (prevStatus == "countdown" or prevStatus == "damaging") then
         LastHomeClient.boundaryReturnedAt = getNowSeconds() + 3
@@ -358,8 +399,14 @@ end
 local function updateWaveState(data)
     if data == nil then return end
 
+    local previousState = LastHomeClient.waveState or {}
+    local previousPhase = previousState.phase or "nil"
+    local newPhase = data.phase or "idle"
+    local previousHouseLabel = formatHouseLabel(previousState.house)
+    local newHouseLabel = formatHouseLabel(data.house)
+
     LastHomeClient.waveState = {
-        phase = data.phase or "idle",
+        phase = newPhase,
         currentWave = data.currentWave or 0,
         nextWave = data.nextWave or 1,
         waveActive = data.waveActive == true,
@@ -373,8 +420,17 @@ local function updateWaveState(data)
         house = data.house,
     }
 
+    if previousPhase ~= newPhase
+        or (previousState.currentWave or 0) ~= (data.currentWave or 0)
+        or (previousState.nextWave or 0) ~= (data.nextWave or 0)
+        or (previousState.waveActive == true) ~= (data.waveActive == true)
+        or (previousState.zombieCount or 0) ~= (data.zombieCount or 0)
+        or previousHouseLabel ~= newHouseLabel then
+        logClient("WaveState recu - phase=" .. tostring(previousPhase) .. " -> " .. tostring(newPhase) .. ", wave=" .. tostring(data.currentWave or 0) .. ", next=" .. tostring(data.nextWave or 1) .. ", house=" .. newHouseLabel)
+    end
+
     local hasBoundary = data.house ~= nil and (data.house.boundary ~= nil or (data.house.boundaryRadius or 0) > 0)
-    if data.phase == "idle" or data.phase == "gameover" or not hasBoundary then
+    if newPhase == "idle" or newPhase == "gameover" or not hasBoundary then
         resetBoundaryState()
     end
 end
@@ -400,9 +456,50 @@ local function getRemainingSeconds(state)
     return math.max(0, state.remainingSeconds or 0)
 end
 
+local function syncSoloState()
+    if not isSinglePlayerRuntime() then return end
+
+    local player = getPlayer()
+    if player == nil then return end
+    if LastHomeWaves == nil or LastHomeWaves.getClientState == nil then return end
+
+    local username = player:getUsername()
+    local snapshot = LastHomeWaves.getClientState(username)
+    if snapshot == nil then return end
+
+    if snapshot.waveState ~= nil then
+        updateWaveState(snapshot.waveState)
+    end
+
+    if snapshot.boundaryState ~= nil then
+        snapshot.boundaryState.username = username
+        updateBoundaryState(snapshot.boundaryState)
+    end
+
+    if snapshot.spectatorState ~= nil then
+        local isSpectator = snapshot.spectatorState.isSpectator == true
+        local spawnedThisWave = snapshot.spectatorState.spawnedThisWave == true
+
+        if LastHomeClient.isSpectator ~= isSpectator or LastHomeClient.spectatorSpawnUsed ~= spawnedThisWave then
+            logClient("Solo spectator sync - isSpectator=" .. tostring(isSpectator) .. ", spawnUsed=" .. tostring(spawnedThisWave))
+        end
+
+        LastHomeClient.isSpectator = isSpectator
+        LastHomeClient.spectatorSpawnUsed = spawnedThisWave
+
+        local modData = player:getModData()
+        if modData ~= nil then
+            modData.LH_spectator = isSpectator
+            modData.LH_dead = isSpectator
+        end
+    end
+end
+
 local function drawWaveHud()
     local player = getPlayer()
     if player == nil then return end
+
+    syncSoloState()
 
     if LastHomeClient.alertExpiresAt ~= nil and getNowSeconds() >= LastHomeClient.alertExpiresAt then
         LastHomeClient.alertText = nil
@@ -411,7 +508,21 @@ local function drawWaveHud()
 
     local state = LastHomeClient.waveState or {}
     local shouldDraw = state.phase ~= "idle" or LastHomeClient.isSpectator or LastHomeClient.alertText ~= nil
-    if not shouldDraw then return end
+    local hudTraceState = tostring(state.phase) .. "|" .. tostring(LastHomeClient.isSpectator) .. "|" .. tostring(LastHomeClient.alertText ~= nil) .. "|" .. formatHouseLabel(state.house)
+    if not shouldDraw then
+        local hiddenState = "hidden|" .. hudTraceState
+        if LastHomeClient._hudTraceState ~= hiddenState then
+            LastHomeClient._hudTraceState = hiddenState
+            logClient("HUD masque - phase=" .. tostring(state.phase) .. ", spectator=" .. tostring(LastHomeClient.isSpectator) .. ", alert=" .. tostring(LastHomeClient.alertText ~= nil) .. ", house=" .. formatHouseLabel(state.house))
+        end
+        return
+    end
+
+    local visibleState = "visible|" .. hudTraceState
+    if LastHomeClient._hudTraceState ~= visibleState then
+        LastHomeClient._hudTraceState = visibleState
+        logClient("HUD visible - phase=" .. tostring(state.phase) .. ", spectator=" .. tostring(LastHomeClient.isSpectator) .. ", alert=" .. tostring(LastHomeClient.alertText ~= nil) .. ", house=" .. formatHouseLabel(state.house))
+    end
 
     local HUD_WIDTH = 280
     local screenW = getCore():getScreenWidth()
@@ -566,6 +677,8 @@ Events.OnPlayerDeath.Add(onPlayerDeath)
 
 local function onServerCommand(module, command, data)
     if module ~= "LastHome" then return end
+
+    logClient("OnServerCommand - " .. tostring(command) .. ", username=" .. tostring(data and data.username or "broadcast"))
 
     if command == "OpenRolePicker" then
         roleRequestSent = false
