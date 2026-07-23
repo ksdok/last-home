@@ -43,6 +43,10 @@ LastHomeClient.alertType = "info"
 LastHomeClient.alertExpiresAt = nil
 LastHomeClient.isSpectator = false
 LastHomeClient.spectatorSpawnUsed = false
+LastHomeClient.boundaryState = LastHomeClient.boundaryState or {
+    status = "inside",
+    countdownEndsAt = 0,
+}
 
 local ALERT_COLORS = {
     info = {r = 0.9, g = 0.9, b = 0.9, a = 1},
@@ -326,6 +330,22 @@ local function showAlert(data)
     LastHomeClient.alertExpiresAt = getNowSeconds() + (data.durationSeconds or 8)
 end
 
+local function resetBoundaryState()
+    LastHomeClient.boundaryState = {
+        status = "inside",
+        countdownEndsAt = 0,
+    }
+end
+
+local function updateBoundaryState(data)
+    if data == nil or not isLocalUser(data) then return end
+
+    LastHomeClient.boundaryState = {
+        status = data.status or "inside",
+        countdownEndsAt = data.countdownEndsAt or 0,
+    }
+end
+
 local function updateWaveState(data)
     if data == nil then return end
 
@@ -343,6 +363,11 @@ local function updateWaveState(data)
         score = data.score or 0,
         house = data.house,
     }
+
+    local hasBoundary = data.house ~= nil and (data.house.boundary ~= nil or (data.house.boundaryRadius or 0) > 0)
+    if data.phase == "idle" or data.phase == "gameover" or not hasBoundary then
+        resetBoundaryState()
+    end
 end
 
 local function drawLine(x, y, text, color)
@@ -420,6 +445,16 @@ local function drawWaveHud()
             y = y + 16
         else
             drawLine(x, y, "Le spawn spectateur revient a la prochaine vague", ALERT_COLORS.info)
+            y = y + 16
+        end
+    else
+        local boundaryState = LastHomeClient.boundaryState or {}
+        if boundaryState.status == "countdown" then
+            local boundaryRemaining = math.max(0, (boundaryState.countdownEndsAt or 0) - getNowSeconds())
+            drawLine(x, y, string.format("Hors zone ! Revenez dans %ds", boundaryRemaining), ALERT_COLORS.danger)
+            y = y + 16
+        elseif boundaryState.status == "damaging" then
+            drawLine(x, y, "Hors zone ! Degats actifs", ALERT_COLORS.danger)
             y = y + 16
         end
     end
@@ -524,6 +559,8 @@ local function onServerCommand(module, command, data)
         print("[LastHome] Client: role refuse/indisponible - " .. tostring(data and data.text or "?"))
     elseif command == "WaveState" then
         updateWaveState(data)
+    elseif command == "BoundaryState" then
+        updateBoundaryState(data)
     elseif command == "AlertMessage" then
         showAlert(data)
     elseif command == "SpectatorState" then
@@ -537,12 +574,16 @@ local function onServerCommand(module, command, data)
                 modData.LH_spectator = LastHomeClient.isSpectator
                 modData.LH_dead = LastHomeClient.isSpectator
             end
+            if LastHomeClient.isSpectator then
+                resetBoundaryState()
+            end
             print("[LastHome] Client: SpectatorState - isSpectator=" .. tostring(LastHomeClient.isSpectator) .. ", spawnUsed=" .. tostring(LastHomeClient.spectatorSpawnUsed))
         end
     elseif command == "GameOver" then
         if LastHomeClient.waveState ~= nil then
             LastHomeClient.waveState.phase = "gameover"
             LastHomeClient.waveState.score = data and data.score or LastHomeClient.waveState.score
+            resetBoundaryState()
             print("[LastHome] Client: GameOver recu - score=" .. tostring(LastHomeClient.waveState.score))
         end
     end

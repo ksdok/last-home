@@ -20,11 +20,12 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 | [LH-02](specs/LH-02-roles.md) | 17 rôles réajustés | ✅ |
 | [LH-03](specs/LH-03-vagues.md) | Vagues, scaling, directions, spectateur | ✅ |
 | [LH-04](specs/LH-04-maison.md) | Bâtiment, réparations, défense | ✅ |
+| [LH-05](specs/LH-05-zone-confinement.md) | Zone de confinement autour de la maison | ✅ |
 
 ## État
 
-- ✅ Spécifications complètes (LH-01 à LH-04)
-- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04** terminée
+- ✅ Spécifications complètes (LH-01 à LH-05)
+- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04**, **LH-05** terminée
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
 - 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
 
@@ -40,7 +41,7 @@ last-home/
     lua/
       server/
         LastHomeServer.lua      -- rôles, attribution, refill Builder, SetHouse
-        LastHomeWaves.lua       -- vagues, scaling, directions, spectateur
+        LastHomeWaves.lua       -- vagues, scaling, directions, spectateur, confinement
       client/
         LastStand/
           LastHomeHospital.lua  -- challenge Hôpital
@@ -58,6 +59,7 @@ last-home/
     LH-02-roles.md
     LH-03-vagues.md
     LH-04-maison.md
+    LH-05-zone-confinement.md
 ```
 
 ## Dépendances

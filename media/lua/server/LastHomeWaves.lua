@@ -12,6 +12,8 @@ local ONE_MINUTE_WARNING_SECONDS = 60
 local PRESSURE_PULSE_SECONDS = 15
 local SPAWN_DISTANCE = 40
 local SPAWN_SPREAD = 8
+local BOUNDARY_COUNTDOWN_SECONDS = 10
+local BOUNDARY_DAMAGE_AMOUNT = 5
 local ZOMBIE_MODULE = "LastHome"
 
 local CARDINALS = {"N", "E", "S", "W"}
@@ -34,6 +36,8 @@ local round = LastHomeShared.round
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
 local getHouseBounds = LastHomeShared.getHouseBounds
+local hasBoundary = LastHomeShared.hasBoundary
+local isInsideBoundary = LastHomeShared.isInsideBoundary
 local getRandomHouse = LastHomeShared.getRandomHouse
 local cloneHouse = LastHomeShared.cloneHouse
 
@@ -163,6 +167,7 @@ local function resetState()
     Server.directions = {}
     Server.zombieCount = 0
     Server.spectators = {}
+    Server.boundaryStates = {}
     Server.house = nil
     Server.lastTickSecond = nil
     Server.nextPressurePulseAt = nil
@@ -203,21 +208,75 @@ local function syncSpectatorState(username)
     })
 end
 
-local function sendAlert(text, alertType, username)
+local function sendAlert(text, alertType, username, durationSeconds)
     sendServerCommand(ZOMBIE_MODULE, "AlertMessage", {
         text = text,
         type = alertType,
         username = username,
+        durationSeconds = durationSeconds,
     })
 end
 
-local function broadcastAlert(text, alertType)
-    sendAlert(text, alertType, nil)
+local function broadcastAlert(text, alertType, durationSeconds)
+    sendAlert(text, alertType, nil, durationSeconds)
 end
 
-local function notifyPlayer(username, text, alertType)
+local function notifyPlayer(username, text, alertType, durationSeconds)
     if username == nil then return end
-    sendAlert(text, alertType or "warning", username)
+    sendAlert(text, alertType or "warning", username, durationSeconds)
+end
+
+local function syncBoundaryState(username)
+    if username == nil then return end
+
+    local state = Server.boundaryStates[username]
+    sendServerCommand(ZOMBIE_MODULE, "BoundaryState", {
+        username = username,
+        status = state ~= nil and state.status or "inside",
+        countdownEndsAt = state ~= nil and state.countdownEndsAt or 0,
+    })
+end
+
+local function resetBoundaryState(username)
+    if username == nil then return false end
+
+    local state = Server.boundaryStates[username]
+    if state == nil then return false end
+
+    Server.boundaryStates[username] = nil
+    syncBoundaryState(username)
+    return true
+end
+
+local function resetAllBoundaryStates()
+    if Server.boundaryStates == nil then return end
+
+    local usernames = {}
+    for username, _ in pairs(Server.boundaryStates) do
+        usernames[#usernames + 1] = username
+    end
+
+    if #usernames <= 0 then return end
+
+    Server.boundaryStates = {}
+    for _, username in ipairs(usernames) do
+        syncBoundaryState(username)
+    end
+end
+
+local function getOrCreateBoundaryState(username)
+    if username == nil then return nil end
+
+    local state = Server.boundaryStates[username]
+    if state == nil then
+        state = {
+            status = "inside",
+            countdownEndsAt = 0,
+            lastDamageAt = 0,
+        }
+        Server.boundaryStates[username] = state
+    end
+    return state
 end
 
 local function normalizeHouseData(houseOrX, centerY, centerZ, bounds)
@@ -603,6 +662,7 @@ local function handlePlayerDeath(player, x, y, z)
 
     Server.spectators[username] = Server.spectators[username] or {}
     Server.spectators[username].spawnedThisWave = not Server.waveActive
+    resetBoundaryState(username)
 
     print("[LastHome] Joueur mort: " .. tostring(username) .. " -> spectateur (vague active=" .. tostring(Server.waveActive) .. ", spawns cette vague=" .. tostring(Server.spectators[username].spawnedThisWave) .. ")")
 
@@ -715,6 +775,71 @@ local function onZombieDead(zombie)
     end
 end
 
+local function applyBoundaryDamage(player)
+    if player == nil then return end
+
+    local bodyDamage = player.getBodyDamage ~= nil and player:getBodyDamage() or nil
+    if bodyDamage ~= nil and bodyDamage.ReduceGeneralHealth ~= nil then
+        bodyDamage:ReduceGeneralHealth(BOUNDARY_DAMAGE_AMOUNT)
+        return
+    end
+
+    if player.getHealth ~= nil and player.setHealth ~= nil then
+        player:setHealth(math.max(0, player:getHealth() - 0.05))
+    end
+end
+
+local function updateBoundaryStates(now)
+    local boundaryEnabled = Server.started and not Server.gameOver and Server.phase ~= "idle" and Server.phase ~= "gameover" and Server.house ~= nil and hasBoundary ~= nil and hasBoundary(Server.house)
+
+    if not boundaryEnabled then
+        resetAllBoundaryStates()
+        return
+    end
+
+    for _, player in ipairs(getScenarioPlayers()) do
+        if player ~= nil then
+            local username = player:getUsername()
+            if username ~= nil then
+                local modData = player:getModData()
+                local shouldCheck = modData ~= nil and modData.LH_role ~= nil and not modData.LH_dead and not modData.LH_spectator and isPlayerAlive(player)
+
+                if not shouldCheck then
+                    resetBoundaryState(username)
+                else
+                    local insideBoundary = isInsideBoundary == nil or isInsideBoundary(player, Server.house)
+                    local state = Server.boundaryStates[username]
+
+                    if insideBoundary then
+                        if resetBoundaryState(username) then
+                            notifyPlayer(username, "[Last Home] De retour dans la zone.", "success", 4)
+                        end
+                    else
+                        if state == nil then
+                            state = getOrCreateBoundaryState(username)
+                            state.status = "countdown"
+                            state.countdownEndsAt = now + BOUNDARY_COUNTDOWN_SECONDS
+                            state.lastDamageAt = 0
+                            syncBoundaryState(username)
+                            notifyPlayer(username, "[Last Home] Hors zone ! Revenez dans 10s.", "danger", 4)
+                        elseif state.status == "countdown" and now >= (state.countdownEndsAt or 0) then
+                            state.status = "damaging"
+                            state.lastDamageAt = 0
+                            syncBoundaryState(username)
+                            notifyPlayer(username, "[Last Home] Hors zone ! Degats actifs.", "danger", 4)
+                        end
+
+                        if state.status == "damaging" and (state.lastDamageAt == nil or now > state.lastDamageAt) then
+                            state.lastDamageAt = now
+                            applyBoundaryDamage(player)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function updatePhaseState(now)
     if not Server.started or Server.gameOver then return end
 
@@ -753,6 +878,7 @@ local function onTick()
     Server.lastTickSecond = now
 
     checkDeadPlayers()
+    updateBoundaryStates(now)
     updatePhaseState(now)
 end
 
@@ -774,6 +900,7 @@ local function onClientCommand(module, command, player, data)
             local username = player:getUsername()
             if username ~= nil then
                 syncSpectatorState(username)
+                syncBoundaryState(username)
             end
         end
         return

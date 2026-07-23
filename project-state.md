@@ -4,17 +4,18 @@
 
 - Projet : **Last Home**
 - Repo : `/Users/kim/Documents/Zomboid/last-home`
-- Branche de travail actuelle : `main`
+- Branche de travail actuelle : `feat/lh-05-zone-confinement`
 - Référence utilisée : `/Users/kim/Documents/Zomboid/EscapadeExpress`
 
 ## État actuel
 
-- ✅ Les specs **LH-01** à **LH-04** sont rédigées et validées
+- ✅ Les specs **LH-01** à **LH-05** sont rédigées et validées
 - ✅ **LH-02** est implémenté et corrigé après review
 - ✅ **LH-03** est implémenté et corrigé après review
 - ✅ **LH-04** est implémenté et corrigé après review
+- ✅ **LH-05** est implémenté
 - ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
-- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur)
+- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05
 
 ## Terminé
 
@@ -23,6 +24,7 @@
 - [x] LH-02 — Rôles réajustés
 - [x] LH-03 — Vagues
 - [x] LH-04 — Maison, réparations et défense
+- [x] LH-05 — Zone de confinement
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -77,6 +79,23 @@
     - warning serveur si un téléport de joueur vers la maison échoue
     - `version=0.3.0` ajoutée à `mod.info`
 
+- [x] LH-05 — Zone de confinement autour de la maison
+  - `media/lua/shared/LastHomeShared.lua`
+  - `media/lua/server/LastHomeWaves.lua`
+  - `media/lua/client/LastHomeClient.lua`
+  - `specs/LH-05-zone-confinement.md`
+  - `README.md`
+  - `mod.info`
+  - Fonctionnalités implémentées :
+    - `boundary` rectangulaire 2D configurable par maison (coordonnées validées en jeu)
+    - détection serveur des sorties de zone pour les joueurs vivants avec rôle
+    - compte à rebours de 10s synchronisé au HUD client via `BoundaryState`
+    - dégâts progressifs autoritatifs côté serveur après expiration du compte à rebours
+    - exemption des spectateurs et arrêt immédiat du confinement au retour dans la zone
+  - Notes :
+    - l'architecture de la spec a été corrigée vers un modèle **serveur autoritatif** pour le multijoueur
+    - `version=0.5.0` ajoutée à `mod.info`
+
 - [x] Challenges PZ (menu Challenges)
   - `media/lua/client/LastStand/LastHomeHospital.lua`
   - `media/lua/client/LastStand/LastHomeVilla.lua`
@@ -110,8 +129,8 @@
 ## Backlog
 
 ### Priorité haute
-- [ ] Vérification en jeu solo/LAN de LH-03 + LH-04 (timer réel, spectateurs, score, spawn maison, stock partagé)
-- [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn et du refill Builder/maison
+- [ ] Vérification en jeu solo/LAN de LH-03 + LH-04 + LH-05 (timer réel, spectateurs, score, spawn maison, stock partagé, confinement)
+- [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn, du refill Builder/maison et du confinement serveur
 
 ### Plus tard
 - [ ] Loot structuré dans les environs des maisons si nécessaire
@@ -127,6 +146,7 @@
 - Le `builder` conserve `setUnlimitedCarry` et son refill toutes les 10 minutes en temps réel
 - LH-03 introduit `LastHomeShared.lua` pour mutualiser `round()`, `getScenarioPlayers()` et `getNowSeconds()`
 - LH-04 étend `LastHomeShared.lua` avec la définition des 4 maisons, leurs zones de spawn et leurs conteneurs de stock dédiés
+- LH-05 ajoute un `boundary` rectangulaire par maison et un confinement **autoritatif côté serveur**, avec affichage HUD côté client
 - Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
 - La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé

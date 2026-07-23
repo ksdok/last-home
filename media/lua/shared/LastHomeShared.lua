@@ -11,6 +11,12 @@ local HOUSE_DEFS = {
         centerX = 12380,
         centerY = 3682,
         centerZ = 0,
+        boundary = {
+            minX = 12345,
+            maxX = 12474,
+            minY = 3597,
+            maxY = 3724,
+        },
         spawn = {
             type = "radius",
             radius = 4,
@@ -27,6 +33,12 @@ local HOUSE_DEFS = {
         centerX = 13532,
         centerY = 2842,
         centerZ = 1,
+        boundary = {
+            minX = 13524,
+            maxX = 13545,
+            minY = 2830,
+            maxY = 2858,
+        },
         spawn = {
             type = "box",
             minX = 13352,
@@ -47,6 +59,12 @@ local HOUSE_DEFS = {
         centerX = 7683,
         centerY = 11863,
         centerZ = 0,
+        boundary = {
+            minX = 7585,
+            maxX = 7781,
+            minY = 11761,
+            maxY = 11978,
+        },
         spawn = {
             type = "radius",
             radius = 4,
@@ -63,6 +81,12 @@ local HOUSE_DEFS = {
         centerX = 10613,
         centerY = 9974,
         centerZ = 0,
+        boundary = {
+            minX = 10602,
+            maxX = 10636,
+            minY = 9949,
+            maxY = 9991,
+        },
         spawn = {
             type = "radius",
             radius = 4,
@@ -124,6 +148,35 @@ local function buildBoundsFromSpawn(house)
     }
 end
 
+local function normalizeBoundary(boundary, house)
+    if boundary == nil or house == nil then return nil end
+
+    local copy = cloneTable(boundary)
+    copy.minX = LastHomeShared.round(copy.minX or house.centerX)
+    copy.maxX = LastHomeShared.round(copy.maxX or house.centerX)
+    copy.minY = LastHomeShared.round(copy.minY or house.centerY)
+    copy.maxY = LastHomeShared.round(copy.maxY or house.centerY)
+
+    if copy.minX > copy.maxX then
+        copy.minX, copy.maxX = copy.maxX, copy.minX
+    end
+    if copy.minY > copy.maxY then
+        copy.minY, copy.maxY = copy.maxY, copy.minY
+    end
+
+    if copy.minZ ~= nil then
+        copy.minZ = LastHomeShared.round(copy.minZ)
+    end
+    if copy.maxZ ~= nil then
+        copy.maxZ = LastHomeShared.round(copy.maxZ)
+    end
+    if copy.minZ ~= nil and copy.maxZ ~= nil and copy.minZ > copy.maxZ then
+        copy.minZ, copy.maxZ = copy.maxZ, copy.minZ
+    end
+
+    return copy
+end
+
 function LastHomeShared.cloneHouse(house)
     if house == nil then return nil end
 
@@ -131,6 +184,10 @@ function LastHomeShared.cloneHouse(house)
     copy.centerX = LastHomeShared.round(copy.centerX)
     copy.centerY = LastHomeShared.round(copy.centerY)
     copy.centerZ = LastHomeShared.round(copy.centerZ or 0)
+    copy.boundary = normalizeBoundary(copy.boundary, copy)
+    if copy.boundaryRadius ~= nil then
+        copy.boundaryRadius = math.max(0, LastHomeShared.round(copy.boundaryRadius))
+    end
     if copy.supply ~= nil then
         copy.supply.x = LastHomeShared.round(copy.supply.x or copy.centerX)
         copy.supply.y = LastHomeShared.round(copy.supply.y or copy.centerY)
@@ -160,6 +217,56 @@ function LastHomeShared.getHouseBounds(house)
     end
 
     return buildBoundsFromSpawn(house)
+end
+
+function LastHomeShared.getBoundaryRadius(house)
+    if house == nil or house.boundaryRadius == nil then
+        return 0
+    end
+    return math.max(0, LastHomeShared.round(house.boundaryRadius))
+end
+
+function LastHomeShared.hasBoundary(house)
+    if house == nil then return false end
+    if house.boundary ~= nil then return true end
+    return LastHomeShared.getBoundaryRadius(house) > 0
+end
+
+function LastHomeShared.isInsideBoundary(playerOrX, house, y, z)
+    if house == nil then return true end
+
+    local x = playerOrX
+    if type(playerOrX) == "table" then
+        if playerOrX.getX == nil or playerOrX.getY == nil then return true end
+        x = playerOrX:getX()
+        y = playerOrX:getY()
+        z = playerOrX.getZ ~= nil and playerOrX:getZ() or z
+    end
+
+    if x == nil or y == nil then return true end
+
+    local boundary = normalizeBoundary(house.boundary, house)
+    if boundary ~= nil then
+        local insideXY = x >= boundary.minX and x <= boundary.maxX and y >= boundary.minY and y <= boundary.maxY
+        if not insideXY then
+            return false
+        end
+
+        if boundary.minZ ~= nil and boundary.maxZ ~= nil and z ~= nil then
+            return z >= boundary.minZ and z <= boundary.maxZ
+        end
+
+        return true
+    end
+
+    local boundaryRadius = LastHomeShared.getBoundaryRadius(house)
+    if boundaryRadius <= 0 then return true end
+
+    local centerX = LastHomeShared.round(house.centerX)
+    local centerY = LastHomeShared.round(house.centerY)
+    local dx = x - centerX
+    local dy = y - centerY
+    return (dx * dx) + (dy * dy) <= (boundaryRadius * boundaryRadius)
 end
 
 function LastHomeShared.getHouseDefinitions()
