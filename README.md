@@ -21,11 +21,12 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 | [LH-03](specs/LH-03-vagues.md) | Vagues, scaling, directions, spectateur | ✅ |
 | [LH-04](specs/LH-04-maison.md) | Bâtiment, réparations, défense | ✅ |
 | [LH-05](specs/LH-05-zone-confinement.md) | Zone de confinement autour de la maison | ✅ |
+| [LH-06](specs/LH-06-hud.md) | Refonte HUD et position | ✅ |
 
 ## État
 
 - ✅ Spécifications complètes (LH-01 à LH-05)
-- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04**, **LH-05** terminée
+- ✅ Implémentation de **LH-02**, **LH-03**, **LH-04**, **LH-05**, **LH-06** terminée
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
 - 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
 

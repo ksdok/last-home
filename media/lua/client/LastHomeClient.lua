@@ -47,6 +47,7 @@ LastHomeClient.boundaryState = LastHomeClient.boundaryState or {
     status = "inside",
     countdownEndsAt = 0,
 }
+LastHomeClient.boundaryReturnedAt = 0
 
 local ALERT_COLORS = {
     info = {r = 0.9, g = 0.9, b = 0.9, a = 1},
@@ -335,15 +336,23 @@ local function resetBoundaryState()
         status = "inside",
         countdownEndsAt = 0,
     }
+    LastHomeClient.boundaryReturnedAt = 0
 end
 
 local function updateBoundaryState(data)
     if data == nil or not isLocalUser(data) then return end
 
+    local prevStatus = LastHomeClient.boundaryState.status
+    local newStatus = data.status or "inside"
+
     LastHomeClient.boundaryState = {
-        status = data.status or "inside",
+        status = newStatus,
         countdownEndsAt = data.countdownEndsAt or 0,
     }
+
+    if newStatus == "inside" and (prevStatus == "countdown" or prevStatus == "damaging") then
+        LastHomeClient.boundaryReturnedAt = getNowSeconds() + 3
+    end
 end
 
 local function updateWaveState(data)
@@ -404,7 +413,9 @@ local function drawWaveHud()
     local shouldDraw = state.phase ~= "idle" or LastHomeClient.isSpectator or LastHomeClient.alertText ~= nil
     if not shouldDraw then return end
 
-    local x = 20
+    local HUD_WIDTH = 280
+    local screenW = getCore():getScreenWidth()
+    local x = screenW - HUD_WIDTH - 20
     local y = 120
     local remainingSeconds = getRemainingSeconds(state)
 
@@ -450,12 +461,23 @@ local function drawWaveHud()
     else
         local boundaryState = LastHomeClient.boundaryState or {}
         if boundaryState.status == "countdown" then
-            local boundaryRemaining = math.max(0, (boundaryState.countdownEndsAt or 0) - getNowSeconds())
+            local boundaryRemaining = math.ceil(math.max(0, (boundaryState.countdownEndsAt or 0) - getNowSeconds()))
             drawLine(x, y, string.format("Hors zone ! Revenez dans %ds", boundaryRemaining), ALERT_COLORS.danger)
             y = y + 16
         elseif boundaryState.status == "damaging" then
-            drawLine(x, y, "Hors zone ! Degats actifs", ALERT_COLORS.danger)
+            local blink = math.floor(getNowSeconds() * 2) % 2 == 0
+            if blink then
+                drawLine(x, y, "Hors zone ! Degats actifs", ALERT_COLORS.danger)
+            end
             y = y + 16
+        end
+
+        local now = getNowSeconds()
+        if LastHomeClient.boundaryReturnedAt > 0 and now < LastHomeClient.boundaryReturnedAt then
+            drawLine(x, y, "De retour dans la zone", ALERT_COLORS.success)
+            y = y + 16
+        elseif LastHomeClient.boundaryReturnedAt > 0 and now >= LastHomeClient.boundaryReturnedAt then
+            LastHomeClient.boundaryReturnedAt = 0
         end
     end
 

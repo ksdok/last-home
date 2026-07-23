@@ -15,7 +15,8 @@
 - ✅ **LH-04** est implémenté et corrigé après review
 - ✅ **LH-05** est implémenté et corrigé après review
 - ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
-- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05
+- ✅ **LH-06** est implémenté (branche `lh-06-hud`)
+- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05 et le HUD LH-06
 
 ## Terminé
 
@@ -25,6 +26,7 @@
 - [x] LH-03 — Vagues
 - [x] LH-04 — Maison, réparations et défense
 - [x] LH-05 — Zone de confinement
+- [x] LH-06 — Refonte HUD et position
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -97,6 +99,19 @@
     - zones de confinement rectangulaires 2D `X/Y` sans contrainte `Z` pour les 4 lieux
     - correctifs post-review : suppression de la re-normalisation inutile de `boundary` à chaque tick, alignement du fallback de dégâts sur `BOUNDARY_DAMAGE_AMOUNT`
     - `version=0.5.0` ajoutée à `mod.info`
+
+- [x] LH-06 — Refonte HUD et position
+  - `media/lua/client/LastHomeClient.lua`
+  - `specs/LH-06-hud.md`
+  - `mod.info`
+  - Fonctionnalités implémentées :
+    - HUD ancré en haut à droite avec calcul dynamique (`getCore():getScreenWidth()`)
+    - secondes du countdown de confinement affichées en entier (`math.ceil()`)
+    - clignotement de la ligne « Dégâts actifs » (alternance toutes les 0.5s)
+    - message « De retour dans la zone » (vert, disparaît après 3s) via `boundaryReturnedAt`
+  - Correctifs post-review appliqués :
+    - détection du retour en zone dans `updateBoundaryState()` (transition countdown/damaging → inside)
+    - `version=0.6.0` ajoutée à `mod.info`
 
 - [x] Challenges PZ (menu Challenges)
   - `media/lua/client/LastStand/LastHomeHospital.lua`
