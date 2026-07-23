@@ -9,14 +9,15 @@
 
 ## État actuel
 
-- ✅ Les specs **LH-01** à **LH-05** sont rédigées et validées
+- ✅ Les specs **LH-01** à **LH-07** sont rédigées et validées
 - ✅ **LH-02** est implémenté et corrigé après review
 - ✅ **LH-03** est implémenté et corrigé après review
 - ✅ **LH-04** est implémenté et corrigé après review
 - ✅ **LH-05** est implémenté et corrigé après review
+- ✅ **LH-06** est implémenté et corrigé après review
+- ✅ **LH-07** est implémenté et corrigé après debug en jeu
 - ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
-- ✅ **LH-06** est implémenté (branche `lh-06-hud`)
-- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05 et le HUD LH-06
+- ⏳ Le prochain ticket recommandé est la **vérification en jeu** (solo/LAN puis multijoueur), incluant le confinement LH-05, le HUD LH-06 et le fix solo LH-07
 
 ## Terminé
 
@@ -27,6 +28,7 @@
 - [x] LH-04 — Maison, réparations et défense
 - [x] LH-05 — Zone de confinement
 - [x] LH-06 — Refonte HUD et position
+- [x] LH-07 — Fix sync solo state via OnTick dédié
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -113,6 +115,21 @@
     - détection du retour en zone dans `updateBoundaryState()` (transition countdown/damaging → inside)
     - `version=0.6.0` ajoutée à `mod.info`
 
+- [x] LH-07 — Fix sync solo / confinement
+  - `media/lua/client/LastHomeClient.lua`
+  - `media/lua/server/LastHomeWaves.lua`
+  - `media/lua/shared/LastHomeShared.lua`
+  - `specs/LH-07-fix-sync-solo.md`
+  - Fonctionnalités implémentées :
+    - sync solo déplacée du rendu HUD vers un `Events.OnTick` dédié
+    - resynchronisation solo de `waveState` et `boundaryState` indépendante du draw UI
+    - indicateur local HUD `Zone: IN/OUT` pour visualiser l'état du confinement côté client
+    - logs ciblés serveur/client pour debugger la détection boundary en solo
+  - Correctifs post-debug appliqués :
+    - `LastHomeShared.isInsideBoundary()` corrigé pour gérer les objets joueur PZ via `getX()/getY()` au lieu d'un test `type(...) == "table"`
+    - warning local client « Hors zone ! Retournez vers la base » ajouté en fallback visuel
+    - spam de logs périodiques des coordonnées joueur retiré après validation
+
 - [x] Challenges PZ (menu Challenges)
   - `media/lua/client/LastStand/LastHomeHospital.lua`
   - `media/lua/client/LastStand/LastHomeVilla.lua`
@@ -146,7 +163,7 @@
 ## Backlog
 
 ### Priorité haute
-- [ ] Vérification en jeu solo/LAN de LH-03 + LH-04 + LH-05 (timer réel, spectateurs, score, spawn maison, stock partagé, confinement)
+- [ ] Vérification en jeu solo/LAN de LH-03 + LH-04 + LH-05 + LH-06 + LH-07 (timer réel, spectateurs, score, spawn maison, stock partagé, confinement, HUD, sync solo)
 - [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn, du refill Builder/maison et du confinement serveur
 
 ### Plus tard
@@ -164,6 +181,7 @@
 - LH-03 introduit `LastHomeShared.lua` pour mutualiser `round()`, `getScenarioPlayers()` et `getNowSeconds()`
 - LH-04 étend `LastHomeShared.lua` avec la définition des 4 maisons, leurs zones de spawn et leurs conteneurs de stock dédiés
 - LH-05 ajoute un `boundary` rectangulaire par maison et un confinement **autoritatif côté serveur**, avec affichage HUD côté client
+- LH-07 déplace la sync solo sur `Events.OnTick`, corrige la détection `isInsideBoundary()` pour les objets joueur PZ et ajoute un indicateur HUD local `Zone: IN/OUT`
 - Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
 - La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé

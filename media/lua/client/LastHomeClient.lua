@@ -11,6 +11,7 @@ local soloPickerFallbackAt = nil
 local soloFallbackTickRegistered = false
 local soloStateLastSyncSecond = nil
 local getNowSeconds = LastHomeShared.getNowSeconds
+local isInsideBoundary = LastHomeShared.isInsideBoundary
 local DEBUG_ENABLED = LastHomeShared.DEBUG == true
 
 local showRoleAssigned -- forward declaration (définie plus bas)
@@ -31,6 +32,10 @@ local function logClient(message)
     print("[LastHome][Client] " .. tostring(message))
 end
 
+local function logBoundaryClient(message)
+    print("[LastHome][Boundary][Client] " .. tostring(message))
+end
+
 local function formatCoords(x, y, z)
     return "(" .. tostring(x) .. ", " .. tostring(y) .. ", " .. tostring(z or 0) .. ")"
 end
@@ -45,6 +50,18 @@ end
 local function formatHouseLabel(house)
     if house == nil then return "nil" end
     return tostring(house.name or house.id or "?") .. "@" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
+end
+
+local function formatBoundaryLabel(house)
+    if house == nil then return "house=nil" end
+
+    if house.boundary ~= nil then
+        return tostring(house.name or house.id or "?")
+            .. " rect[x=" .. tostring(house.boundary.minX) .. ".." .. tostring(house.boundary.maxX)
+            .. ", y=" .. tostring(house.boundary.minY) .. ".." .. tostring(house.boundary.maxY) .. "]"
+    end
+
+    return tostring(house.name or house.id or "?") .. " radius=" .. tostring(house.boundaryRadius or 0) .. " center=" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
 end
 
 LastHomeClient.waveState = LastHomeClient.waveState or {
@@ -70,6 +87,7 @@ LastHomeClient.boundaryState = LastHomeClient.boundaryState or {
     status = "inside",
     countdownEndsAt = 0,
 }
+LastHomeClient.localBoundaryStatus = LastHomeClient.localBoundaryStatus or "inactive"
 LastHomeClient.boundaryReturnedAt = 0
 
 local ALERT_COLORS = {
@@ -367,6 +385,7 @@ local function showAlert(data)
     LastHomeClient.alertText = string.gsub(data.text, "\n", " | ")
     LastHomeClient.alertType = data.type or "info"
     LastHomeClient.alertExpiresAt = getNowSeconds() + (data.durationSeconds or 8)
+    logBoundaryClient("AlertMessage recu - username=" .. tostring(data.username or "broadcast") .. ", type=" .. tostring(data.type or "info") .. ", text=" .. tostring(LastHomeClient.alertText))
 end
 
 local function resetBoundaryState()
@@ -393,7 +412,9 @@ local function updateBoundaryState(data)
     }
 
     if prevStatus ~= newStatus or prevCountdownEndsAt ~= newCountdownEndsAt then
+        local player = getPlayer()
         logClient("BoundaryState recu - " .. tostring(prevStatus) .. " -> " .. tostring(newStatus) .. ", fin=" .. tostring(newCountdownEndsAt))
+        logBoundaryClient("BoundaryState recu - " .. tostring(prevStatus) .. " -> " .. tostring(newStatus) .. ", fin=" .. tostring(newCountdownEndsAt) .. ", phase=" .. tostring((LastHomeClient.waveState or {}).phase) .. ", coords=" .. formatPlayerCoords(player))
     end
 
     if newStatus == "inside" and (prevStatus == "countdown" or prevStatus == "damaging") then
@@ -461,6 +482,42 @@ local function getRemainingSeconds(state)
     return math.max(0, state.remainingSeconds or 0)
 end
 
+local function getLocalBoundaryStatus()
+    local player = getPlayer()
+    if player == nil then return "inactive", nil, nil end
+
+    local state = LastHomeClient.waveState or {}
+    local house = state.house
+    local modData = player:getModData()
+    local hasRole = modData ~= nil and modData.LH_role ~= nil
+    local isDead = modData ~= nil and modData.LH_dead == true
+    local isSpectator = LastHomeClient.isSpectator or (modData ~= nil and modData.LH_spectator == true)
+    local hasBoundary = house ~= nil and (house.boundary ~= nil or (house.boundaryRadius or 0) > 0)
+    local phaseActive = state.phase ~= "idle" and state.phase ~= "gameover"
+
+    if not hasRole or isDead or isSpectator or not hasBoundary or not phaseActive then
+        return "inactive", player, house
+    end
+
+    local inside = isInsideBoundary == nil or isInsideBoundary(player, house)
+    return inside and "inside" or "outside", player, house
+end
+
+local function updateLocalBoundaryCheck()
+    local newStatus, player, house = getLocalBoundaryStatus()
+    local previousStatus = LastHomeClient.localBoundaryStatus or "inactive"
+    local now = getNowSeconds()
+
+    if previousStatus ~= newStatus then
+        logBoundaryClient("LocalBoundary " .. tostring(previousStatus) .. " -> " .. tostring(newStatus) .. ", coords=" .. formatPlayerCoords(player) .. ", house=" .. formatBoundaryLabel(house) .. ", phase=" .. tostring((LastHomeClient.waveState or {}).phase))
+        if newStatus == "inside" and previousStatus == "outside" then
+            LastHomeClient.boundaryReturnedAt = now + 3
+        end
+    end
+
+    LastHomeClient.localBoundaryStatus = newStatus
+end
+
 local function syncSoloState()
     if not isSinglePlayerRuntime() then return end
 
@@ -500,14 +557,22 @@ local function syncSoloState()
             modData.LH_spectator = isSpectator
             modData.LH_dead = isSpectator
         end
+
+        if LastHomeClient.isSpectator then
+            resetBoundaryState()
+        end
     end
 end
+
+local function onTickSyncSoloState()
+    syncSoloState()
+    updateLocalBoundaryCheck()
+end
+Events.OnTick.Add(onTickSyncSoloState)
 
 local function drawWaveHud()
     local player = getPlayer()
     if player == nil then return end
-
-    syncSoloState()
 
     if LastHomeClient.alertExpiresAt ~= nil and getNowSeconds() >= LastHomeClient.alertExpiresAt then
         LastHomeClient.alertText = nil
@@ -579,6 +644,14 @@ local function drawWaveHud()
         end
     else
         local boundaryState = LastHomeClient.boundaryState or {}
+        if LastHomeClient.localBoundaryStatus == "inside" then
+            drawLine(x, y, "Zone: IN", ALERT_COLORS.success)
+            y = y + 16
+        elseif LastHomeClient.localBoundaryStatus == "outside" then
+            drawLine(x, y, "Zone: OUT", ALERT_COLORS.danger)
+            y = y + 16
+        end
+
         if boundaryState.status == "countdown" then
             local boundaryRemaining = math.ceil(math.max(0, (boundaryState.countdownEndsAt or 0) - getNowSeconds()))
             drawLine(x, y, string.format("Hors zone ! Revenez dans %ds", boundaryRemaining), ALERT_COLORS.danger)
@@ -588,6 +661,9 @@ local function drawWaveHud()
             if blink then
                 drawLine(x, y, "Hors zone ! Degats actifs", ALERT_COLORS.danger)
             end
+            y = y + 16
+        elseif LastHomeClient.localBoundaryStatus == "outside" then
+            drawLine(x, y, "Hors zone ! Retournez vers la base", ALERT_COLORS.danger)
             y = y + 16
         end
 
@@ -703,8 +779,10 @@ local function onServerCommand(module, command, data)
     elseif command == "WaveState" then
         updateWaveState(data)
     elseif command == "BoundaryState" then
+        logBoundaryClient("OnServerCommand BoundaryState - username=" .. tostring(data and data.username or "broadcast") .. ", status=" .. tostring(data and data.status or "nil") .. ", fin=" .. tostring(data and data.countdownEndsAt or 0))
         updateBoundaryState(data)
     elseif command == "AlertMessage" then
+        logBoundaryClient("OnServerCommand AlertMessage - username=" .. tostring(data and data.username or "broadcast") .. ", type=" .. tostring(data and data.type or "info") .. ", text=" .. tostring(data and data.text or "nil"))
         showAlert(data)
     elseif command == "SpectatorState" then
         if isLocalUser(data) then
@@ -732,4 +810,4 @@ local function onServerCommand(module, command, data)
     end
 end
 Events.OnServerCommand.Add(onServerCommand)
-print("[LastHome] LastHomeClient pret - handlers: OnCreatePlayer, OnGameStart, OnPostUIDraw, OnFillWorldObjectContextMenu, OnPlayerDeath, OnServerCommand")
+print("[LastHome] LastHomeClient pret - handlers: OnCreatePlayer, OnGameStart, OnTick(sync solo), OnPostUIDraw, OnFillWorldObjectContextMenu, OnPlayerDeath, OnServerCommand")
