@@ -29,7 +29,28 @@ LastHomePrison.OnInitWorld = function()
     end
 end
 
-LastHomePrison.setSandBoxVars = function() end
+LastHomePrison.setSandBoxVars = function()
+    if SandboxVars == nil then return end
+
+    SandboxVars.Zombies = 5
+    SandboxVars.Distribution = 1
+    SandboxVars.MetaEvent = 1
+    SandboxVars.SurvivorHouseChance = 1
+    SandboxVars.ZoneStoryChance = 1
+    SandboxVars.VehicleStoryChance = 1
+
+    local zombieConfig = ZombieConfig or SandboxVars.ZombieConfig
+    if zombieConfig ~= nil then
+        zombieConfig.PopulationMultiplier = 0
+        zombieConfig.PopulationStartMultiplier = 0
+        zombieConfig.PopulationPeakMultiplier = 0
+        zombieConfig.RespawnHours = 0
+        zombieConfig.RespawnUnseenHours = 0
+        zombieConfig.RespawnMultiplier = 0
+        zombieConfig.RedistributeHours = 0
+        zombieConfig.RallyGroupSize = 0
+    end
+end
 LastHomePrison.RemovePlayer = function(p) end
 LastHomePrison.AddPlayer = function(p) end
 LastHomePrison.Render = function() end

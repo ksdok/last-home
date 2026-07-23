@@ -147,6 +147,18 @@ local function getClosestAlivePlayer(x, y)
     return bestPlayer
 end
 
+local function getAggroTarget(x, y)
+    local target = getClosestAlivePlayer(x, y)
+    if target == nil then return nil end
+
+    return {
+        player = target,
+        x = target:getX(),
+        y = target:getY(),
+        z = target:getZ(),
+    }
+end
+
 local function joinLabels(labels)
     if labels == nil or #labels == 0 then return "" end
     if #labels == 1 then return labels[1] end
@@ -497,7 +509,7 @@ local function getSpawnPoints(directions)
 
     local centerX = Server.house.centerX
     local centerY = Server.house.centerY
-    local centerZ = Server.house.centerZ or 0
+    local spawnZ = 0
 
     if directions ~= nil and directions[1] == "ALL" then
         local segments = 12
@@ -506,7 +518,7 @@ local function getSpawnPoints(directions)
             points[#points + 1] = {
                 x = round(centerX + (math.cos(angle) * SPAWN_DISTANCE)),
                 y = round(centerY + (math.sin(angle) * SPAWN_DISTANCE)),
-                z = centerZ,
+                z = spawnZ,
             }
         end
         return points
@@ -518,7 +530,7 @@ local function getSpawnPoints(directions)
             points[#points + 1] = {
                 x = point.x,
                 y = point.y,
-                z = centerZ,
+                z = spawnZ,
             }
         end
     end
@@ -526,28 +538,67 @@ local function getSpawnPoints(directions)
     return points
 end
 
+local function applyZombieAggro(zombie, wave, targetData)
+    if zombie == nil or targetData == nil or targetData.player == nil then return end
+
+    local aggression = getAggression(wave)
+
+    if zombie.setTurnAlertedValues ~= nil then
+        zombie:setTurnAlertedValues(targetData.x, targetData.y)
+    end
+
+    if zombie.pathToCharacter ~= nil then
+        pcall(function()
+            zombie:pathToCharacter(targetData.player)
+        end)
+    end
+
+    if zombie.addAggro ~= nil then
+        zombie:addAggro(targetData.player, aggression * 100)
+    end
+
+    if zombie.spotted ~= nil then
+        pcall(function()
+            zombie:spotted(targetData.player, true)
+        end)
+    end
+end
+
 local function refreshZombiePressure()
     if Server.house == nil or not Server.waveActive then return end
 
-    local sourcePlayer = getClosestAlivePlayer(Server.house.centerX, Server.house.centerY)
-    if sourcePlayer == nil then return end
+    local targetData = getAggroTarget(Server.house.centerX, Server.house.centerY)
+    if targetData == nil then return end
 
-    addSound(sourcePlayer, Server.house.centerX, Server.house.centerY, Server.house.centerZ or 0, 100, round(getDetectionRange(Server.currentWave) + 20))
+    addSound(targetData.player, targetData.x, targetData.y, targetData.z or 0, 100, round(getDetectionRange(Server.currentWave) + 20))
+
+    local cell = getCell()
+    if cell == nil or cell.getZombieList == nil then return end
+
+    local zombies = cell:getZombieList()
+    if zombies == nil then return end
+
+    for i = zombies:size() - 1, 0, -1 do
+        local zombie = zombies:get(i)
+        if zombie ~= nil then
+            local modData = zombie:getModData()
+            if modData ~= nil and modData.LH_waveZombie and not modData.LH_countedDead then
+                applyZombieAggro(zombie, modData.LH_waveNumber or Server.currentWave, targetData)
+            end
+        end
+    end
 end
 
 local function scaleZombieStats(zombie, wave)
     if zombie == nil then return end
 
     local speedMultiplier = getSpeedMultiplier(wave)
-    local aggression = getAggression(wave)
     local detectionRange = getDetectionRange(wave)
     local modData = zombie:getModData()
 
     modData.LH_waveZombie = true
     modData.LH_waveNumber = wave
     modData.LH_countedDead = false
-    modData.LH_speedMultiplier = speedMultiplier
-    modData.LH_aggression = aggression
     modData.LH_detectionRange = detectionRange
 
     if zombie.setSpeedMod ~= nil then
@@ -558,22 +609,7 @@ local function scaleZombieStats(zombie, wave)
         zombie:setCanWalk(true)
     end
 
-    if Server.house ~= nil and zombie.setTurnAlertedValues ~= nil then
-        zombie:setTurnAlertedValues(Server.house.centerX, Server.house.centerY)
-    end
-
-    local target = getClosestAlivePlayer(zombie:getX(), zombie:getY())
-    if target ~= nil then
-        if zombie.addAggro ~= nil then
-            zombie:addAggro(target, aggression * 100)
-        end
-
-        if zombie.spotted ~= nil then
-            pcall(function()
-                zombie:spotted(target, true)
-            end)
-        end
-    end
+    applyZombieAggro(zombie, wave, getAggroTarget(zombie:getX(), zombie:getY()))
 end
 
 local function tagSpawnedZombies(spawned, wave)
@@ -591,6 +627,49 @@ local function tagSpawnedZombies(spawned, wave)
     end
 
     return added
+end
+
+local function clearAmbientZombiesNearHouse()
+    if Server.house == nil then return 0 end
+
+    local cell = getCell()
+    if cell == nil or cell.getZombieList == nil then
+        return 0
+    end
+
+    local zombies = cell:getZombieList()
+    if zombies == nil then
+        return 0
+    end
+
+    local radius = SPAWN_DISTANCE + 30
+    local radiusSquared = radius * radius
+    local centerX = Server.house.centerX
+    local centerY = Server.house.centerY
+    local removed = 0
+
+    for i = zombies:size() - 1, 0, -1 do
+        local zombie = zombies:get(i)
+        if zombie ~= nil and zombie:getSquare() ~= nil then
+            local modData = zombie:getModData()
+            local isWaveZombie = modData ~= nil and modData.LH_waveZombie == true and modData.LH_countedDead ~= true
+            if not isWaveZombie then
+                local dx = zombie:getX() - centerX
+                local dy = zombie:getY() - centerY
+                if (dx * dx) + (dy * dy) <= radiusSquared then
+                    zombie:removeFromWorld()
+                    zombie:removeFromSquare()
+                    removed = removed + 1
+                end
+            end
+        end
+    end
+
+    if removed > 0 then
+        print("[LastHome] Nettoyage zombies ambiants pres de la base: " .. tostring(removed) .. " supprimes")
+    end
+
+    return removed
 end
 
 local function spawnWaveZombies(count)
@@ -660,6 +739,8 @@ local function startPrepPhase()
 
     local nextWave = Server.currentWave + 1
     local prepDurationSeconds = getPrepDurationSeconds(nextWave)
+
+    clearAmbientZombiesNearHouse()
 
     Server.started = true
     Server.waveActive = false
