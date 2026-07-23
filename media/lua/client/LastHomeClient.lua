@@ -10,6 +10,7 @@ local roleRequestSent = false
 local soloPickerFallbackAt = nil
 local soloFallbackTickRegistered = false
 local soloStateLastSyncSecond = nil
+local skipWaveRequested = false
 local getNowSeconds = LastHomeShared.getNowSeconds
 local isInsideBoundary = LastHomeShared.isInsideBoundary
 local applyCarryProfile = LastHomeShared.applyCarryProfile
@@ -338,6 +339,7 @@ Events.OnCreatePlayer.Add(onCreatePlayer)
 local function onGameStart()
     logClient("OnGameStart")
     roleRequestSent = false
+    skipWaveRequested = false
     requestRolePicker()
 end
 Events.OnGameStart.Add(onGameStart)
@@ -419,8 +421,11 @@ local function updateWaveState(data)
         zombieCount = data.zombieCount or 0,
         score = data.score or 0,
         house = data.house,
-        canSkipToNextWave = data.phase == "prep",
     }
+
+    if newPhase ~= "prep" then
+        skipWaveRequested = false
+    end
 
     if previousPhase ~= newPhase
         or (previousState.currentWave or 0) ~= (data.currentWave or 0)
@@ -663,7 +668,7 @@ Events.OnPostUIDraw.Add(drawWaveHud)
 
 local function canSkipToNextWave()
     local state = LastHomeClient.waveState or {}
-    return state.phase == "prep" and state.canSkipToNextWave ~= false
+    return state.phase == "prep" and not skipWaveRequested
 end
 
 local function requestSkipToNextWave()
@@ -680,6 +685,7 @@ local function requestSkipToNextWave()
         return false
     end
 
+    skipWaveRequested = true
     logClient("SkipToNextWave -> serveur")
     sendClientCommand("LastHome", "SkipToNextWave", {})
     return true
