@@ -31,7 +31,7 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 ## État
 
 - ✅ Specs versionnées complètes pour **LH-01** à **LH-08** et **LH-10**
-- 📝 Specs d'exploration rédigées : **LH-12** (aggro via `createHordeFromTo`) et **LH-13** (suppression des spawns vanilla/story)
+- 📝 Spec d'exploration rédigée : **LH-12** (aggro via `createHordeFromTo`)
 - ✅ Implémentation de **LH-02** à **LH-08**, **LH-10** et **LH-13** terminée
 - ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)

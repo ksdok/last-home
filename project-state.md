@@ -207,7 +207,7 @@
   - Fonctionnalités implémentées :
     - `clearAmbientZombiesNearHouse(reason)` accepte un motif (`prep`, `wave`, `periodic`) et le loggue
     - cleanup immédiat conservé aux transitions de phase (début prep / début vague)
-    - cleanup périodique serveur toutes les `AMBIENT_CLEANUP_INTERVAL_SECONDS` (5s) tant que `started` et `house` définis
+    - cleanup périodique serveur toutes les `AMBIENT_CLEANUP_INTERVAL_SECONDS` (5s) tant que `started` et `house` définis **en mode Challenge** (`house.source == "challenge"`)
     - exclusion des zombies taggés `LH_waveZombie` conservée (vagues + spectateurs)
     - `Server.nextAmbientCleanupAt` planifié après chaque cleanup et réinitialisé dans `resetState()`
     - logs serveur distincts par type de nettoyage avec compte de zombies supprimés

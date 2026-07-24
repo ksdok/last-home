@@ -157,13 +157,18 @@ local AMBIENT_CLEANUP_INTERVAL_SECONDS = 5
 Pseudo-code attendu :
 
 ```lua
-if Server.started and not Server.gameOver and Server.house ~= nil then
+if Server.started and not Server.gameOver and isChallengeHouse() then
     if Server.nextAmbientCleanupAt ~= nil and now >= Server.nextAmbientCleanupAt then
         clearAmbientZombiesNearHouse("periodic")
         Server.nextAmbientCleanupAt = now + AMBIENT_CLEANUP_INTERVAL_SECONDS
     end
 end
 ```
+
+La suppression continue (périodique) est **restreinte au mode Challenge**
+(`Server.house.source == "challenge"`) pour ne pas modifier le gameplay vanilla
+hors Challenge. Le cleanup immédiat aux transitions de phase est conservé tel
+quel (comportement préexistant LH-10).
 
 ### Évolution du cleanup existant
 
@@ -197,8 +202,12 @@ Exemple de log attendu :
 
 - Le rayon actuel de cleanup est-il suffisant pour les 4 maisons, ou faut-il un
   paramètre dédié `ambientSuppressionRadius` par lieu ?
-- Faut-il activer la suppression continue seulement en mode Challenge, ou pour
-  tout runtime Last Home ?
+
+## Décisions
+
+- La suppression continue (périodique) est activée **uniquement en mode
+  Challenge** (`Server.house.source == "challenge"`), pour ne pas altérer la
+  pop vanilla d'une partie Last Home « normale ».
 
 ## Dépendances
 

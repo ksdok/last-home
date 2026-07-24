@@ -570,6 +570,10 @@ local function tagSpawnedZombies(spawned, wave)
     return added
 end
 
+local function isChallengeHouse()
+    return Server.house ~= nil and Server.house.source == "challenge"
+end
+
 local function clearAmbientZombiesNearHouse(reason)
     if Server.house == nil then return 0 end
 
@@ -688,7 +692,9 @@ local function startPrepPhase()
     local prepDurationSeconds = getPrepDurationSeconds(nextWave)
 
     clearAmbientZombiesNearHouse("prep")
-    Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
+    if isChallengeHouse() then
+        Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
+    end
 
     Server.started = true
     Server.waveActive = false
@@ -737,7 +743,9 @@ local function startWave(immediate)
 
     resetSpectatorWaveUsage()
     clearAmbientZombiesNearHouse("wave")
-    Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
+    if isChallengeHouse() then
+        Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
+    end
     print("[LastHome] VAGUE " .. tostring(Server.currentWave) .. " demarree - " .. tostring(getAlivePlayerCount()) .. " joueurs, direction(s): " .. formatDirections(Server.directions))
     spawnWaveZombies(calculateZombieCount(Server.currentWave, getAlivePlayerCount()))
     refreshZombiePressure(getNowSeconds())
@@ -1043,7 +1051,7 @@ local function onTick()
     updateBoundaryStates(now)
     updatePhaseState(now)
 
-    if Server.started and not Server.gameOver and Server.house ~= nil
+    if Server.started and not Server.gameOver and isChallengeHouse()
         and Server.nextAmbientCleanupAt ~= nil and now >= Server.nextAmbientCleanupAt then
         clearAmbientZombiesNearHouse("periodic")
         Server.nextAmbientCleanupAt = now + AMBIENT_CLEANUP_INTERVAL_SECONDS
