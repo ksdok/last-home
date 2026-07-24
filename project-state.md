@@ -16,7 +16,8 @@
 - ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
 - ✅ Les challenges Last Home désactivent désormais la pop vanilla (`SandboxVars.Zombies = 6` + multipliers à 0) et nettoient les zombies ambiants autour de la base
 - ✅ La Villa est fiabilisée : vagues forcées au **Sud**, spawns au sol, attraction des vagues recentrée sur des impulsions sonores type alarme vers la base
-- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs et le pacing LH-10
+- ✅ La spec **LH-12** est rédigée pour tester la piste A sur l'aggro des vagues via `createHordeFromTo`
+- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs, le pacing LH-10 et le test de la piste A
 
 ## Terminé
 
@@ -30,6 +31,7 @@
 - [x] LH-07 — Fix sync solo state via OnTick dédié
 - [x] LH-08 — Équipement des rôles
 - [x] LH-10 — Timers réduits et skip de vague
+- [x] LH-12 — Piste A aggro via createHordeFromTo
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -156,7 +158,7 @@
   - `specs/LH-10-timers-skip.md`
   - Fonctionnalités implémentées :
     - prep vague 1 = `2 * 60`, prep vagues suivantes = `5 * 60`, vague = `5 * 60`
-    - skip de la prep via touche `N`, solo direct ou commande réseau selon le runtime
+    - skip de la prep via touche `K`, solo direct ou commande réseau selon le runtime
     - HUD de skip + debounce client pour éviter les doubles demandes
     - spawns de vagues au sol pour la Villa
     - désactivation des zombies vanilla dans les 4 challenges (`SandboxVars.Zombies = 6`, multipliers/respawn/rally à 0)
@@ -204,7 +206,7 @@
 - [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn, du refill Builder/maison, du confinement serveur et du skip de vague
 - [ ] Valider en jeu la pression zombie sur la Villa avec l'attraction par impulsions sonores (portée, fréquence, sensation de horde)
 - [ ] Résoudre le problème d'aggro des zombies de vagues (les zombies n'attaquent pas) :
-  - **Piste A** : Remplacer `addZombiesInOutfit` par `createHordeFromTo` dans `LastHomeWaves.lua` (API native LastStand).
+  - **Piste A** : Remplacer `addZombiesInOutfit` par `createHordeFromTo` dans `LastHomeWaves.lua` (API native LastStand). Spec rédigée : `specs/LH-12-create-horde-from-to.md`
   - **Piste B** : Générer un pulse sonore périodique (`addSound`) sur le joueur pour forcer l'alerte de l'IA.
   - **Piste C** : Forcer `zombie:setAlerted(true)` en Lua lors du spawn pour éveiller l'IA.
   - **Piste D** : Vérifier le conflit potentiel lié au thread/autorité en Solo Challenge.
@@ -226,7 +228,7 @@
 - LH-05 ajoute un `boundary` rectangulaire par maison et un confinement **autoritatif côté serveur**, avec affichage HUD côté client
 - LH-07 déplace la sync solo sur `Events.OnTick`, corrige la détection `isInsideBoundary()` pour les objets joueur PZ et ajoute un indicateur HUD local `Zone: IN/OUT`
 - LH-08 extrait la logique commune d'équipement/charge dans `LastHomeShared.lua` (`applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`) pour réduire la duplication client/serveur
-- LH-10 réduit les timers de vague et ajoute le skip de prep via `N`, en conservant `pendingDirections` grâce à `startWave(false)` lors du skip
+- LH-10 réduit les timers de vague et ajoute le skip de prep via `K`, en conservant `pendingDirections` grâce à `startWave(false)` lors du skip
 - Pour la Villa, les vagues sont actuellement forcées au **Sud** et l'attraction repose sur des impulsions sonores centrées sur la base plutôt que sur un ciblage d'aggro zombie par zombie
 - Les challenges Last Home utilisent désormais `SandboxVars.Zombies = 6` pour couper la pop vanilla ; `5` correspond seulement à une population faible dans PZ
 - Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin

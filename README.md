@@ -32,7 +32,7 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 - ✅ Implémentation de **LH-02** à **LH-08** et **LH-10** terminée
 - ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
-- ✅ Timers LH-10 : prep vague 1 = 2 min, prep suivantes = 5 min, vague = 5 min, skip via touche `N`
+- ✅ Timers LH-10 : prep vague 1 = 2 min, prep suivantes = 5 min, vague = 5 min, skip via touche `K`
 - ✅ Challenges Last Home : zombies vanilla désactivés, nettoyage ambiant autour de la base, Villa forcée au **Sud**
 - ✅ Attraction des vagues recentrée sur des impulsions sonores type alarme vers la base pour fiabiliser la pression zombie
 - 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
