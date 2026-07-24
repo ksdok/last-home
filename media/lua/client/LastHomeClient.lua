@@ -17,7 +17,7 @@ local applyCarryProfile = LastHomeShared.applyCarryProfile
 local primeRoleLoadout = LastHomeShared.primeRoleLoadout
 local equipRoleItems = LastHomeShared.equipRoleItems
 local DEBUG_ENABLED = LastHomeShared.DEBUG == true
-local SKIP_WAVE_KEY = Keyboard ~= nil and Keyboard.KEY_N or nil
+local SKIP_WAVE_KEY = Keyboard ~= nil and Keyboard.KEY_K or nil
 
 local showRoleAssigned -- forward declaration (définie plus bas)
 
@@ -599,7 +599,7 @@ local function drawWaveHud()
         y = y + 16
         drawLine(x, y, "Taille estimee: ~" .. tostring(state.estimatedCount or 0) .. " zombies", ALERT_COLORS.info)
         y = y + 16
-        drawLine(x, y, "[N] Lancer la prochaine vague", ALERT_COLORS.warning)
+        drawLine(x, y, "[K] Lancer la prochaine vague", ALERT_COLORS.warning)
         y = y + 16
     elseif state.phase == "wave" then
         drawLine(x, y, string.format("Vague %d active - %s restantes", state.currentWave or 0, formatClock(remainingSeconds)), ALERT_COLORS.warning)

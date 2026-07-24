@@ -131,6 +131,24 @@ local function getAlivePlayerCount()
     return #getAlivePlayers()
 end
 
+local function emitHouseAttractionSound()
+    if not Server.waveActive or Server.house == nil or Server.zombieCount <= 0 or addSound == nil then
+        return false
+    end
+
+    local soundX = Server.house.centerX
+    local soundY = Server.house.centerY
+    local soundZ = Server.house.centerZ or 0
+    local radius = 120
+    local volume = 200
+
+    addSound(nil, soundX, soundY, soundZ, radius, volume)
+    print("[LastHome] Pulse sonore vague - source=" .. formatCoords(soundX, soundY, soundZ)
+        .. ", radius=" .. tostring(radius)
+        .. ", volume=" .. tostring(volume)
+        .. ", vague=" .. tostring(Server.currentWave))
+    return true
+end
 
 
 local function joinLabels(labels)
@@ -623,6 +641,13 @@ local function spawnWaveZombies(count)
     return spawnedCount
 end
 
+local function refreshZombiePressure(now)
+    if not emitHouseAttractionSound() then return false end
+
+    Server.nextPressurePulseAt = (now or getNowSeconds()) + PRESSURE_PULSE_SECONDS
+    return true
+end
+
 local function countSpectators()
     local count = 0
     for _ in pairs(Server.spectators) do count = count + 1 end
@@ -705,11 +730,13 @@ local function startWave(immediate)
     Server.directions = immediate and calculateDirections(Server.currentWave) or Server.pendingDirections
     Server.pendingDirections = {}
     Server.pendingEstimate = 0
+    Server.nextPressurePulseAt = getNowSeconds() + PRESSURE_PULSE_SECONDS
 
     resetSpectatorWaveUsage()
     clearAmbientZombiesNearHouse()
     print("[LastHome] VAGUE " .. tostring(Server.currentWave) .. " demarree - " .. tostring(getAlivePlayerCount()) .. " joueurs, direction(s): " .. formatDirections(Server.directions))
     spawnWaveZombies(calculateZombieCount(Server.currentWave, getAlivePlayerCount()))
+    refreshZombiePressure(getNowSeconds())
     syncWaveState()
     broadcastAlert(string.format("[Last Home] Vague %d! Les zombies arrivent par %s!", Server.currentWave, formatDirections(Server.directions)), "warning")
 
@@ -992,6 +1019,10 @@ local function updatePhaseState(now)
     end
 
     if Server.phase == "wave" then
+        if Server.nextPressurePulseAt ~= nil and now >= Server.nextPressurePulseAt then
+            refreshZombiePressure(now)
+        end
+
         if remaining <= 0 then
             broadcastAlert(string.format("[Last Home] Temps ecoule! La vague %d arrive... les zombies restants s'ajoutent a la horde!", Server.currentWave + 1), "danger")
             startWave(true)

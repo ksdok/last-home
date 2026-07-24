@@ -39,8 +39,8 @@ PZ ne propose pas de boutons UI dans `OnPostUIDraw` (c'est du texte uniquement).
 Solutions :
 - **Option A** : Utiliser `ISTickBox` ou `ISButton` via un overlay ISUI
   (panel persistant attaché au HUD)
-- **Option B** : Utiliser une touche clavier (ex: touche "N") pour skip la vague,
-  avec un message HUD "[N] Lancer la vague" pendant la prep
+- **Option B** : Utiliser une touche clavier (ex: touche "K") pour skip la vague,
+  avec un message HUD "[K] Lancer la vague" pendant la prep
 
 ## Fichiers impactés
 
@@ -70,9 +70,9 @@ Solutions :
 
 Toutes validées :
 1. Touche clavier (option B) — validé
-2. Touche "N" — validé
+2. Touche "K" — validé
 3. N'importe quel joueur peut skip — validé
-4. Message HUD "[N] Lancer la prochaine vague" affiché pendant la prep
+4. Message HUD "[K] Lancer la prochaine vague" affiché pendant la prep
 
 ## Dependencies
 
