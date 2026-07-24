@@ -203,6 +203,11 @@
 - [ ] Vérification en jeu solo/LAN de LH-03 à LH-10 (timers réels, skip, spectateurs, score, spawn maison, stock partagé, confinement, HUD, sync solo)
 - [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn, du refill Builder/maison, du confinement serveur et du skip de vague
 - [ ] Valider en jeu la pression zombie sur la Villa avec l'attraction par impulsions sonores (portée, fréquence, sensation de horde)
+- [ ] Résoudre le problème d'aggro des zombies de vagues (les zombies n'attaquent pas) :
+  - **Piste A** : Remplacer `addZombiesInOutfit` par `createHordeFromTo` dans `LastHomeWaves.lua` (API native LastStand).
+  - **Piste B** : Générer un pulse sonore périodique (`addSound`) sur le joueur pour forcer l'alerte de l'IA.
+  - **Piste C** : Forcer `zombie:setAlerted(true)` en Lua lors du spawn pour éveiller l'IA.
+  - **Piste D** : Vérifier le conflit potentiel lié au thread/autorité en Solo Challenge.
 
 ### Plus tard
 - [ ] Loot structuré dans les environs des maisons si nécessaire
