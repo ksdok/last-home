@@ -17,8 +17,8 @@
 - ✅ Les challenges Last Home désactivent désormais la pop vanilla (`SandboxVars.Zombies = 6` + multipliers à 0) et nettoient les zombies ambiants autour de la base
 - ✅ La Villa est fiabilisée : vagues forcées au **Sud**, spawns au sol, attraction des vagues recentrée sur des impulsions sonores type alarme vers la base
 - ✅ La spec **LH-12** est rédigée pour tester la piste A sur l'aggro des vagues via `createHordeFromTo`
-- ✅ La spec **LH-13** est rédigée pour supprimer les spawns vanilla/story parasites autour de la base en Challenge
-- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs, le pacing LH-10, le test de la piste A et la suppression des spawns parasites
+- ✅ La spec **LH-13** est rédigée et implémentée : suppression continue des spawns vanilla/story autour de la base en Challenge
+- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs, le pacing LH-10, le test de la piste A et la validation de la suppression des spawns parasites
 
 ## Terminé
 
@@ -201,6 +201,17 @@
     - `showRoleAssigned` déclenché en solo via forward declaration
     - `roleRequestSent` reset dans `onGameStart` pour permettre le Retry en mode Challenge
 
+- [x] LH-13 — Suppression continue des spawns vanilla/story en Challenge
+  - `media/lua/server/LastHomeWaves.lua`
+  - `specs/LH-13-suppression-spawns-vanilla.md`
+  - Fonctionnalités implémentées :
+    - `clearAmbientZombiesNearHouse(reason)` accepte un motif (`prep`, `wave`, `periodic`) et le loggue
+    - cleanup immédiat conservé aux transitions de phase (début prep / début vague)
+    - cleanup périodique serveur toutes les `AMBIENT_CLEANUP_INTERVAL_SECONDS` (5s) tant que `started` et `house` définis
+    - exclusion des zombies taggés `LH_waveZombie` conservée (vagues + spectateurs)
+    - `Server.nextAmbientCleanupAt` planifié après chaque cleanup et réinitialisé dans `resetState()`
+    - logs serveur distincts par type de nettoyage avec compte de zombies supprimés
+
 ## Backlog
 
 ### Priorité haute
@@ -212,7 +223,7 @@
   - **Piste B** : Générer un pulse sonore périodique (`addSound`) sur le joueur pour forcer l'alerte de l'IA.
   - **Piste C** : Forcer `zombie:setAlerted(true)` en Lua lors du spawn pour éveiller l'IA.
   - **Piste D** : Vérifier le conflit potentiel lié au thread/autorité en Solo Challenge.
-- [ ] Supprimer durablement les spawns vanilla/story parasites autour de la base en Challenge (`RDS*`, `createEatingZombies`, `RBSafehouse`, etc.). Spec rédigée : `specs/LH-13-suppression-spawns-vanilla.md`
+- [x] Supprimer durablement les spawns vanilla/story parasites autour de la base en Challenge (`RDS*`, `createEatingZombies`, `RBSafehouse`, etc.). Spec rédigée : `specs/LH-13-suppression-spawns-vanilla.md`
 
 ### Plus tard
 - [ ] Loot structuré dans les environs des maisons si nécessaire
