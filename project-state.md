@@ -263,5 +263,6 @@
 - Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
 - `BUILDER_REFILL_ITEMS` (refill du stock communautaire, multiplié par `HOUSE_SUPPLY_MULTIPLIER` = 8) contient outre le matériel de construction une variété de nourriture/eau (conserves, snacks, secs, eau) disponible dans les 4 lieux
 - Tous les rôles ont au minimum `Carpentry` 3 et `Trapping` 3 pour pouvoir créer des barricades et des pièges (les niveaux plus élevés existants sont conservés, ex. builder/invincible Carpentry 10, survivaliste Trapping 8)
+- Les bouteilles d'eau (`WaterBottleFull`) sont placées dans l'inventaire principal, pas dans le sac à dos (retirées de `bagContents`), pour rester accessibles et éviter la soif
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
 - La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé

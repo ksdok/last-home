@@ -84,7 +84,6 @@ Roles.ROLE_DEFS = {
             {"Base.Bullets9mm", 30},
             {"Base.HuntingKnife", 1},
             {"Base.Bandage", 4},
-            {"Base.WaterBottleFull", 1},
             {"Base.Torch", 1},
             {"Base.Battery", 1},
             {"Base.TinnedBeans", 2},
@@ -120,7 +119,6 @@ Roles.ROLE_DEFS = {
         bagContents = {
             {"Base.Screwdriver", 1},
             {"Base.Bandage", 2},
-            {"Base.WaterBottleFull", 1},
             {"Base.TinnedBeans", 2},
             {"Base.Torch", 1},
             {"Base.Battery", 1},
@@ -157,7 +155,6 @@ Roles.ROLE_DEFS = {
             {"Base.Screwdriver", 1},
             {"Base.Map", 1},
             {"Base.Bandage", 3},
-            {"Base.WaterBottleFull", 2},
             {"Base.TinnedSoup", 2},
         },
         equipped = {
@@ -197,7 +194,6 @@ Roles.ROLE_DEFS = {
             {"Base.PillsBeta", 2},
             {"Base.PillsVitamins", 2},
             {"Base.Antibiotics", 2},
-            {"Base.WaterBottleFull", 1},
             {"Base.TinnedSoup", 2},
         },
         equipped = {
@@ -228,7 +224,6 @@ Roles.ROLE_DEFS = {
         bagContents = {
             {"Base.Machete", 1},
             {"Base.Bandage", 5},
-            {"Base.WaterBottleFull", 1},
             {"Base.TinnedBeans", 2},
         },
         equipped = {
@@ -266,7 +261,6 @@ Roles.ROLE_DEFS = {
             {"Base.x4Scope", 1},
             {"Base.HuntingKnife", 1},
             {"Base.Bandage", 2},
-            {"Base.WaterBottleFull", 1},
             {"Base.TinnedSoup", 2},
         },
         equipped = {
@@ -299,7 +293,6 @@ Roles.ROLE_DEFS = {
         bagContents = {
             {"Base.Machete", 1},
             {"Base.Bandage", 3},
-            {"Base.WaterBottleFull", 1},
             {"Base.TinnedBeans", 2},
         },
         equipped = {
@@ -334,7 +327,6 @@ Roles.ROLE_DEFS = {
             {"Base.DuctTape", 2},
             {"Base.Wire", 2},
             {"Base.Bandage", 2},
-            {"Base.WaterBottleFull", 1},
             {"Base.GranolaBar", 2},
         },
         equipped = {
@@ -368,7 +360,6 @@ Roles.ROLE_DEFS = {
             {"Base.DuctTape", 2},
             {"Base.Rope", 2},
             {"Base.Bandage", 3},
-            {"Base.WaterBottleFull", 2},
             {"Base.TinnedBeans", 2},
         },
         equipped = {
@@ -399,7 +390,6 @@ Roles.ROLE_DEFS = {
         bagContents = {
             {"Base.Extinguisher", 1},
             {"Base.Bandage", 5},
-            {"Base.WaterBottleFull", 1},
             {"Base.TinnedSoup", 2},
         },
         equipped = {
@@ -431,7 +421,6 @@ Roles.ROLE_DEFS = {
         bagContents = {
             {"Base.GranolaBar", 2},
             {"Base.Bandage", 3},
-            {"Base.WaterBottleFull", 1},
         },
         equipped = {
             primary = "Base.Machete",
@@ -464,7 +453,6 @@ Roles.ROLE_DEFS = {
             {"Base.Map", 1},
             {"Base.Torch", 1},
             {"Base.Bandage", 2},
-            {"Base.WaterBottleFull", 1},
             {"Base.GranolaBar", 2},
         },
         equipped = {
@@ -507,7 +495,6 @@ Roles.ROLE_DEFS = {
             {"Base.Molotov", 5},
             {"Base.Lighter", 1},
             {"Base.Bandage", 3},
-            {"Base.WaterBottleFull", 1},
             {"Base.TinnedBeans", 2},
         },
         equipped = {
@@ -574,7 +561,6 @@ Roles.ROLE_DEFS = {
             {"Base.PillsBeta", 1},
             {"Base.PillsVitamins", 1},
             {"Base.Antibiotics", 1},
-            {"Base.WaterBottleFull", 2},
             {"Base.Map", 1},
             {"Base.Torch", 1},
             {"Base.Battery", 2},
@@ -611,7 +597,6 @@ Roles.ROLE_DEFS = {
         bagContents = {
             {"Base.Bag_DuffelBag", 1},
             {"Base.Bandage", 3},
-            {"Base.WaterBottleFull", 2},
             {"Base.TinnedBeans", 3},
             {"Base.TinnedSoup", 3},
             {"Base.TinOpener", 1},
@@ -685,7 +670,6 @@ Roles.ROLE_DEFS = {
             {"Base.MetalBar", 10},
             {"Base.Screws", 100},
             {"Base.Bandage", 5},
-            {"Base.WaterBottleFull", 2},
             {"Base.TinnedBeans", 3},
             {"Base.TinnedSoup", 3},
         },
@@ -720,7 +704,6 @@ Roles.ROLE_DEFS = {
         },
         bagContents = {
             {"Base.Bandage", 1},
-            {"Base.WaterBottleFull", 1},
             {"Base.GranolaBar", 2},
             {"Base.Torch", 1},
             {"Base.Battery", 1},
