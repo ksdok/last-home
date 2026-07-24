@@ -341,23 +341,40 @@ end
 local function fillAmmoItem(item)
     if item == nil then return end
 
-    if item.getClipSize ~= nil and item.setCurrentAmmoCount ~= nil then
-        local clipSize = item:getClipSize()
-        if clipSize ~= nil and clipSize > 0 then
-            item:setCurrentAmmoCount(clipSize)
-        end
-    elseif item.getMaxAmmo ~= nil and item.setCurrentAmmoCount ~= nil then
-        local maxAmmo = item:getMaxAmmo()
-        if maxAmmo ~= nil and maxAmmo > 0 then
-            item:setCurrentAmmoCount(maxAmmo)
-        end
-    end
-
+    -- Une arme magazine-fed (AssaultRifle, HuntingRifle) stocke currentAmmoCount
+    -- directement dans le gun ; le chargeur est consommé à l'insertion.
+    -- cf. ISInsertMagazine:loadAmmo dans le code PZ.
+    local isMagazineFed = false
     if item.getMagazineType ~= nil and item.setContainsClip ~= nil then
         local magazineType = item:getMagazineType()
         if magazineType ~= nil and magazineType ~= "" then
-            item:setContainsClip(true)
+            isMagazineFed = true
         end
+    end
+
+    -- Remplir l'item à sa capacité : gun magazine-fed (MaxAmmo), arme à clip
+    -- interne (ClipSize), ou chargeur spare / arme bullet-by-bullet (MaxAmmo).
+    -- On ne bloque plus sur getClipSize() == 0 (la méthode existe sur tout
+    -- HandWeapon même quand le script ne définit pas ClipSize).
+    if item.setCurrentAmmoCount ~= nil then
+        local capacity = 0
+        if isMagazineFed and item.getMaxAmmo ~= nil then
+            capacity = item:getMaxAmmo() or 0
+        elseif item.getClipSize ~= nil then
+            capacity = item:getClipSize() or 0
+            if capacity <= 0 and item.getMaxAmmo ~= nil then
+                capacity = item:getMaxAmmo() or 0
+            end
+        elseif item.getMaxAmmo ~= nil then
+            capacity = item:getMaxAmmo() or 0
+        end
+        if capacity > 0 then
+            item:setCurrentAmmoCount(capacity)
+        end
+    end
+
+    if isMagazineFed and item.setContainsClip ~= nil then
+        item:setContainsClip(true)
     end
 
     if item.setRoundChambered ~= nil and item.getCurrentAmmoCount ~= nil then

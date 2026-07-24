@@ -27,12 +27,13 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 | [LH-10](specs/LH-10-timers-skip.md) | Timers réduits + skip de vague | ✅ |
 | [LH-12](specs/LH-12-create-horde-from-to.md) | Piste A aggro via `createHordeFromTo` | 📝 |
 | [LH-13](specs/LH-13-suppression-spawns-vanilla.md) | Suppression continue des spawns vanilla/story | ✅ |
+| [LH-14](specs/LH-14-firearm-loadout-priming.md) | Amorçage des armes à feu à l'attribution du rôle | ✅ |
 
 ## État
 
 - ✅ Specs versionnées complètes pour **LH-01** à **LH-08** et **LH-10**
 - 📝 Spec d'exploration rédigée : **LH-12** (aggro via `createHordeFromTo`)
-- ✅ Implémentation de **LH-02** à **LH-08**, **LH-10** et **LH-13** terminée
+- ✅ Implémentation de **LH-02** à **LH-08**, **LH-10**, **LH-13** et **LH-14** terminée
 - ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
 - ✅ Timers LH-10 : prep vague 1 = 2 min, prep suivantes = 5 min, vague = 5 min, skip via touche `K`

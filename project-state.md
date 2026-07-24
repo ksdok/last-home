@@ -34,6 +34,7 @@
 - [x] LH-10 — Timers réduits et skip de vague
 - [x] LH-12 — Piste A aggro via createHordeFromTo
 - [x] LH-13 — Suppression des spawns vanilla/story parasites
+- [x] LH-14 — Amorçage des armes à feu à l'attribution du rôle
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -211,6 +212,16 @@
     - exclusion des zombies taggés `LH_waveZombie` conservée (vagues + spectateurs)
     - `Server.nextAmbientCleanupAt` planifié après chaque cleanup et réinitialisé dans `resetState()`
     - logs serveur distincts par type de nettoyage avec compte de zombies supprimés
+
+- [x] LH-14 — Amorçage des armes à feu à l'attribution du rôle
+  - `media/lua/shared/LastHomeShared.lua` (`fillAmmoItem`)
+  - `specs/LH-14-firearm-loadout-priming.md`
+  - Fonctionnalités implémentées :
+    - détection des armes magazine-fed via `getMagazineType()` non vide (AssaultRifle, HuntingRifle)
+    - capacité calculée en priorité depuis `getMaxAmmo()` pour les armes magazine-fed, puis `getClipSize()` si > 0, puis `getMaxAmmo()` en fallback (chargeurs spare, armes bullet-by-bullet)
+    - `setContainsClip(true)` appliqué uniquement aux armes magazine-fed
+    - ordre conservé identique au moteur PZ : ammo → containsClip → chambered
+  - Bug corrigé : `getClipSize()` renvoie 0 sur les armes sans `ClipSize` scripté (AssaultRifle, HuntingRifle, Shotgun), ce qui bloquait le `elseif getMaxAmmo` et laissait le gun à 0 balle. Le Pistol (`ClipSize=15`) restait fonctionnel.
 
 ## Backlog
 
