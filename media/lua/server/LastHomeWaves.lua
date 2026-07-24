@@ -16,6 +16,7 @@ local ARRIVAL_DIST_SQ = 36   -- 6 tiles: on stoppe le pulse quand un zombie de v
 local SPAWN_SPREAD = 8
 local BOUNDARY_COUNTDOWN_SECONDS = 10
 local BOUNDARY_DAMAGE_AMOUNT = 5
+local AMBIENT_CLEANUP_INTERVAL_SECONDS = 5
 local ZOMBIE_MODULE = "LastHome"
 
 local CARDINALS = {"N", "E", "S", "W"}
@@ -139,7 +140,7 @@ local function emitHouseAttractionSound()
     local soundX = Server.house.centerX
     local soundY = Server.house.centerY
     local soundZ = Server.house.centerZ or 0
-    local radius = 120
+    local radius = 30
     local volume = 200
 
     addSound(nil, soundX, soundY, soundZ, radius, volume)
@@ -231,6 +232,7 @@ local function resetState()
     Server.house = nil
     Server.lastTickSecond = nil
     Server.nextPressurePulseAt = nil
+    Server.nextAmbientCleanupAt = nil
     print("[LastHome] LastHomeWaves resetState - etat reinitialise")
 end
 
@@ -568,7 +570,7 @@ local function tagSpawnedZombies(spawned, wave)
     return added
 end
 
-local function clearAmbientZombiesNearHouse()
+local function clearAmbientZombiesNearHouse(reason)
     if Server.house == nil then return 0 end
 
     local cell = getCell()
@@ -605,7 +607,7 @@ local function clearAmbientZombiesNearHouse()
     end
 
     if removed > 0 then
-        print("[LastHome] Nettoyage zombies ambiants pres de la base: " .. tostring(removed) .. " supprimes")
+        print("[LastHome] Nettoyage zombies ambiants (" .. tostring(reason or "unknown") .. ") pres de la base: " .. tostring(removed) .. " supprimes")
     end
 
     return removed
@@ -685,7 +687,8 @@ local function startPrepPhase()
     local nextWave = Server.currentWave + 1
     local prepDurationSeconds = getPrepDurationSeconds(nextWave)
 
-    clearAmbientZombiesNearHouse()
+    clearAmbientZombiesNearHouse("prep")
+    Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
 
     Server.started = true
     Server.waveActive = false
@@ -733,7 +736,8 @@ local function startWave(immediate)
     Server.nextPressurePulseAt = getNowSeconds() + PRESSURE_PULSE_SECONDS
 
     resetSpectatorWaveUsage()
-    clearAmbientZombiesNearHouse()
+    clearAmbientZombiesNearHouse("wave")
+    Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
     print("[LastHome] VAGUE " .. tostring(Server.currentWave) .. " demarree - " .. tostring(getAlivePlayerCount()) .. " joueurs, direction(s): " .. formatDirections(Server.directions))
     spawnWaveZombies(calculateZombieCount(Server.currentWave, getAlivePlayerCount()))
     refreshZombiePressure(getNowSeconds())
@@ -1038,6 +1042,12 @@ local function onTick()
     checkDeadPlayers()
     updateBoundaryStates(now)
     updatePhaseState(now)
+
+    if Server.started and not Server.gameOver and Server.house ~= nil
+        and Server.nextAmbientCleanupAt ~= nil and now >= Server.nextAmbientCleanupAt then
+        clearAmbientZombiesNearHouse("periodic")
+        Server.nextAmbientCleanupAt = now + AMBIENT_CLEANUP_INTERVAL_SECONDS
+    end
 end
 
 local function onGameStart()
