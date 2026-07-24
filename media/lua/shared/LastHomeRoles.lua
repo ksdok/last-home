@@ -64,6 +64,8 @@ Roles.ROLE_DEFS = {
             {Perks.Fitness, 5},
             {Perks.Axe, 4},
             {Perks.SmallBlade, 4},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Pistol", 1},
@@ -102,6 +104,8 @@ Roles.ROLE_DEFS = {
             {Perks.Sprinting, 6},
             {Perks.LongBlunt, 4},
             {Perks.Strength, 3},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Crowbar", 1},
@@ -136,6 +140,7 @@ Roles.ROLE_DEFS = {
             {Perks.Electrical, 4},
             {Perks.PlantScavenging, 5},
             {Perks.Strength, 4},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Hammer", 1},
@@ -168,6 +173,8 @@ Roles.ROLE_DEFS = {
             {Perks.Strength, 3},
             {Perks.Fitness, 4},
             {Perks.SmallBlade, 4},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.KitchenKnife", 1},
@@ -207,6 +214,8 @@ Roles.ROLE_DEFS = {
             {Perks.Axe, 8},
             {Perks.LongBlade, 6},
             {Perks.Sprinting, 4},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Axe", 1},
@@ -237,6 +246,8 @@ Roles.ROLE_DEFS = {
             {Perks.Sneak, 6},
             {Perks.Strength, 4},
             {Perks.Fitness, 4},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.HuntingRifle", 1},
@@ -274,6 +285,8 @@ Roles.ROLE_DEFS = {
             {Perks.Nimble, 8},
             {Perks.Fitness, 7},
             {Perks.Strength, 5},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Katana", 1},
@@ -304,6 +317,7 @@ Roles.ROLE_DEFS = {
             {Perks.Mechanics, 4},
             {Perks.Cooking, 3},
             {Perks.Strength, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.ElectronicsScrap", 5},
@@ -371,6 +385,8 @@ Roles.ROLE_DEFS = {
             {Perks.Fitness, 7},
             {Perks.Axe, 7},
             {Perks.LongBlunt, 5},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Axe", 1},
@@ -402,6 +418,8 @@ Roles.ROLE_DEFS = {
             {Perks.Lightfoot, 7},
             {Perks.Strength, 4},
             {Perks.SmallBlade, 4},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Machete", 1},
@@ -430,6 +448,8 @@ Roles.ROLE_DEFS = {
             {Perks.Aiming, 5},
             {Perks.Fitness, 5},
             {Perks.SmallBlade, 5},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Machete", 1},
@@ -463,6 +483,8 @@ Roles.ROLE_DEFS = {
             {Perks.Aiming, 4},
             {Perks.Electrical, 8},
             {Perks.Mechanics, 7},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.PipeBomb", 6},
@@ -517,6 +539,7 @@ Roles.ROLE_DEFS = {
             {Perks.Electrical, 10},
             {Perks.Cooking, 10},
             {Perks.PlantScavenging, 10},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.AssaultRifle", 1},
@@ -572,6 +595,7 @@ Roles.ROLE_DEFS = {
             {Perks.Fitness, 7},
             {Perks.Sprinting, 10},
             {Perks.Carpentry, 4},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Bag_ALICEpack_Army", 1},
@@ -610,6 +634,7 @@ Roles.ROLE_DEFS = {
             {Perks.Cooking, 10},
             {Perks.Strength, 7},
             {Perks.Fitness, 5},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.Hammer", 1},
@@ -681,6 +706,8 @@ Roles.ROLE_DEFS = {
             {Perks.Sneak, 1},
             {Perks.Lightfoot, 1},
             {Perks.Nimble, 1},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
         },
         items = {
             {"Base.KitchenKnife", 1},
