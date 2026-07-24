@@ -54,31 +54,35 @@ PZ (magazine-fed, clip interne, ou bullet-by-bullet).
 
 ### `media/lua/shared/LastHomeShared.lua` — `fillAmmoItem`
 
-Restructurer la détection de la capacité pour ne plus bloquer sur
-`getClipSize() == 0` :
+Reproduire le pattern officiel du moteur `HandWeapon:randomizeBullets()` (qui
+pré-charge les armes au spawn des world weapons / zombies) :
 
-1. Détecter une arme **magazine-fed** via `getMagazineType()` non vide.
-2. Calculer la capacité :
-   - magazine-fed → `getMaxAmmo()`
-   - sinon `getClipSize()` si > 0
-   - sinon `getMaxAmmo()` (bullet-by-bullet / chargeur spare)
-3. `setCurrentAmmoCount(capacity)` si > 0.
-4. `setContainsClip(true)` seulement si magazine-fed.
-5. Chambrer une cartouche en décrémentant `currentAmmoCount` de `ammoPerShoot`
-   (comme le rack moteur `ISRackFirearm`), pour ne pas démarrer à capacity+1
-   coups. `setRoundChambered(true)` seulement si `currentAmmoCount > 0`.
-6. `setSpentRoundChambered(false)`.
+1. Garde `item:isRanged()` pour ne traiter que les armes à feu.
+2. `setCurrentAmmoCount(getMaxAmmo())` — le gun stocke le compte directement,
+   pas besoin de remplir/insérer un chargeur item.
+3. `setContainsClip(true)` si `getMagazineType()` non vide (armes magazine-fed).
+4. `setRoundChambered(true)` si `haveChamber()`.
+5. `setSpentRoundChambered(false)`.
+6. Log debug serveur/client indiquant l'arme, maxAmmo, ammo, containsClip,
+   roundChambered, haveChamber pour valider le priming en jeu.
 
-Ordre conservé identique au moteur : ammo → containsClip → chambered.
+Les chargeurs spare (items non-armes, ex. `Base.556Clip`) sont remplis à
+`getMaxAmmo()`.
+
+Note : `randomizeBullets()` ne décrémente pas `currentAmmoCount` au chambrage
+au spawn — l'arme démarre donc à `maxAmmo` + 1 cartouche chambrée, ce qui
+correspond à la convention du jeu pour les armes pré-chargées (un AssaultRifle
+trouvé dans le monde a le même profil). Le décrément s'applique au flux de
+reload en jeu (`ISRackFirearm`), pas au pré-chargement au spawn.
 
 ## Critères d'acceptation
 
-1. Invincible démarre avec l'AssaultRifle chargé (29 balles en magasin + 1 cartouche chambrée = 30 coups).
-2. Sniper / Survivaliste démarrent avec le HuntingRifle chargé (2 en magasin + 1 chambrée = 3 coups).
-3. Soldat démarre toujours avec le Pistol chargé (14 + 1 chambrée = 15 coups) — non régression.
-4. Les chargeurs spare (`556Clip`, `308Clip`, etc.) sont remplis à `MaxAmmo` (plein, sans cartouche chambrée).
+1. Invincible démarre avec l'AssaultRifle chargé (`currentAmmoCount=30`, `containsClip=true`, `roundChambered=true`), tirable immédiatement.
+2. Sniper / Survivaliste démarrent avec le HuntingRifle chargé (`currentAmmoCount=3`, `containsClip=true`, `roundChambered=true`).
+3. Soldat démarre toujours avec le Pistol chargé (`currentAmmoCount=15`, `roundChambered=true`) — non régression.
+4. Les chargeurs spare (`556Clip`, `308Clip`, etc.) sont remplis à `MaxAmmo`.
 5. Les armes de mêlée et objets non-armes ne sont pas affectés.
-6. Aucune arme ne démarre à capacity+1 coups.
+6. Le log `fillAmmoItem arme=...` confirme les valeurs au spawn.
 
 ## Fichiers impactés
 

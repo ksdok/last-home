@@ -341,63 +341,47 @@ end
 local function fillAmmoItem(item)
     if item == nil then return end
 
-    -- Une arme magazine-fed (AssaultRifle, HuntingRifle) stocke currentAmmoCount
-    -- directement dans le gun ; le chargeur est consommé à l'insertion.
-    -- cf. ISInsertMagazine:loadAmmo dans le code PZ.
-    local isMagazineFed = false
-    if item.getMagazineType ~= nil and item.setContainsClip ~= nil then
-        local magazineType = item:getMagazineType()
-        if magazineType ~= nil and magazineType ~= "" then
-            isMagazineFed = true
+    -- Pre-chargement des armes a feu : on reproduit le pattern officiel du
+    -- moteur (HandWeapon:randomizeBullets). Le gun stocke currentAmmoCount
+    -- directement - pas besoin de remplir/inserer un chargeur item.
+    if item.isRanged ~= nil and item:isRanged() then
+        local maxAmmo = 0
+        if item.getMaxAmmo ~= nil then maxAmmo = item:getMaxAmmo() or 0 end
+        if maxAmmo > 0 and item.setCurrentAmmoCount ~= nil then
+            item:setCurrentAmmoCount(maxAmmo)
         end
-    end
-
-    -- Remplir l'item à sa capacité : gun magazine-fed (MaxAmmo), arme à clip
-    -- interne (ClipSize), ou chargeur spare / arme bullet-by-bullet (MaxAmmo).
-    -- On ne bloque plus sur getClipSize() == 0 (la méthode existe sur tout
-    -- HandWeapon même quand le script ne définit pas ClipSize).
-    if item.setCurrentAmmoCount ~= nil then
-        local capacity = 0
-        if isMagazineFed and item.getMaxAmmo ~= nil then
-            capacity = item:getMaxAmmo() or 0
-        elseif item.getClipSize ~= nil then
-            capacity = item:getClipSize() or 0
-            if capacity <= 0 and item.getMaxAmmo ~= nil then
-                capacity = item:getMaxAmmo() or 0
+        if item.getMagazineType ~= nil and item.setContainsClip ~= nil then
+            local magazineType = item:getMagazineType()
+            if magazineType ~= nil and magazineType ~= "" then
+                item:setContainsClip(true)
             end
-        elseif item.getMaxAmmo ~= nil then
-            capacity = item:getMaxAmmo() or 0
         end
-        if capacity > 0 then
-            item:setCurrentAmmoCount(capacity)
-        end
-    end
-
-    if isMagazineFed and item.setContainsClip ~= nil then
-        item:setContainsClip(true)
-    end
-
-    if item.setRoundChambered ~= nil and item.getCurrentAmmoCount ~= nil then
-        local ammo = item:getCurrentAmmoCount() or 0
-        if ammo > 0 then
-            -- Chambrer une cartouche consomme ammoPerShoot depuis le magasin,
-            -- comme le rack moteur (ISRackFirearm). Sinon l'arme demarre a
-            -- capacity+1 coups (magasin plein + cartouche chambrée).
-            local perShoot = 1
-            if item.getAmmoPerShoot ~= nil then
-                perShoot = item:getAmmoPerShoot() or 1
-            end
-            if perShoot > 0 and ammo >= perShoot and item.setCurrentAmmoCount ~= nil then
-                item:setCurrentAmmoCount(ammo - perShoot)
-            end
+        if item.haveChamber ~= nil and item:haveChamber() and item.setRoundChambered ~= nil then
             item:setRoundChambered(true)
-        else
-            item:setRoundChambered(false)
+        elseif item.setRoundChambered ~= nil and item.getCurrentAmmoCount ~= nil then
+            item:setRoundChambered((item:getCurrentAmmoCount() or 0) > 0)
         end
+        if item.setSpentRoundChambered ~= nil then
+            item:setSpentRoundChambered(false)
+        end
+        local cc = (item.isContainsClip ~= nil) and tostring(item:isContainsClip()) or "?"
+        local rc = (item.isRoundChambered ~= nil) and tostring(item:isRoundChambered()) or "?"
+        local hc = (item.haveChamber ~= nil) and tostring(item:haveChamber()) or "?"
+        print("[LastHome] fillAmmoItem arme=" .. tostring(item:getType())
+            .. " maxAmmo=" .. tostring(maxAmmo)
+            .. " ammo=" .. tostring(item:getCurrentAmmoCount())
+            .. " containsClip=" .. cc
+            .. " roundChambered=" .. rc
+            .. " haveChamber=" .. hc)
+        return
     end
 
-    if item.setSpentRoundChambered ~= nil then
-        item:setSpentRoundChambered(false)
+    -- Chargeur spare (item non-arme, ex. Base.556Clip) : remplir a MaxAmmo.
+    if item.getMaxAmmo ~= nil and item.setCurrentAmmoCount ~= nil then
+        local maxAmmo = item:getMaxAmmo() or 0
+        if maxAmmo > 0 then
+            item:setCurrentAmmoCount(maxAmmo)
+        end
     end
 end
 
