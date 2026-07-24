@@ -17,7 +17,8 @@
 - ✅ Les challenges Last Home désactivent désormais la pop vanilla (`SandboxVars.Zombies = 6` + multipliers à 0) et nettoient les zombies ambiants autour de la base
 - ✅ La Villa est fiabilisée : vagues forcées au **Sud**, spawns au sol, attraction des vagues recentrée sur des impulsions sonores type alarme vers la base
 - ✅ La spec **LH-12** est rédigée pour tester la piste A sur l'aggro des vagues via `createHordeFromTo`
-- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs, le pacing LH-10 et le test de la piste A
+- ✅ La spec **LH-13** est rédigée pour supprimer les spawns vanilla/story parasites autour de la base en Challenge
+- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs, le pacing LH-10, le test de la piste A et la suppression des spawns parasites
 
 ## Terminé
 
@@ -32,6 +33,7 @@
 - [x] LH-08 — Équipement des rôles
 - [x] LH-10 — Timers réduits et skip de vague
 - [x] LH-12 — Piste A aggro via createHordeFromTo
+- [x] LH-13 — Suppression des spawns vanilla/story parasites
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -210,6 +212,7 @@
   - **Piste B** : Générer un pulse sonore périodique (`addSound`) sur le joueur pour forcer l'alerte de l'IA.
   - **Piste C** : Forcer `zombie:setAlerted(true)` en Lua lors du spawn pour éveiller l'IA.
   - **Piste D** : Vérifier le conflit potentiel lié au thread/autorité en Solo Challenge.
+- [ ] Supprimer durablement les spawns vanilla/story parasites autour de la base en Challenge (`RDS*`, `createEatingZombies`, `RBSafehouse`, etc.). Spec rédigée : `specs/LH-13-suppression-spawns-vanilla.md`
 
 ### Plus tard
 - [ ] Loot structuré dans les environs des maisons si nécessaire
@@ -231,6 +234,7 @@
 - LH-10 réduit les timers de vague et ajoute le skip de prep via `K`, en conservant `pendingDirections` grâce à `startWave(false)` lors du skip
 - Pour la Villa, les vagues sont actuellement forcées au **Sud** et l'attraction repose sur des impulsions sonores centrées sur la base plutôt que sur un ciblage d'aggro zombie par zombie
 - Les challenges Last Home utilisent désormais `SandboxVars.Zombies = 6` pour couper la pop vanilla ; `5` correspond seulement à une population faible dans PZ
+- Les logs montrent toutefois que `SandboxVars` + `ZombieConfig` ne suffisent pas à empêcher certains spawns `RDS*` / `createEatingZombies` en Challenge ; une suppression serveur continue autour de la base est désormais spécifiée en LH-13
 - Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
 - L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
 - La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé

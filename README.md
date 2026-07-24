@@ -25,10 +25,13 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 | [LH-07](specs/LH-07-fix-sync-solo.md) | Fix sync solo / confinement | ✅ |
 | [LH-08](specs/LH-08-equipement-roles.md) | Équipement des rôles et helpers partagés | ✅ |
 | [LH-10](specs/LH-10-timers-skip.md) | Timers réduits + skip de vague | ✅ |
+| [LH-12](specs/LH-12-create-horde-from-to.md) | Piste A aggro via `createHordeFromTo` | 📝 |
+| [LH-13](specs/LH-13-suppression-spawns-vanilla.md) | Suppression continue des spawns vanilla/story | 📝 |
 
 ## État
 
 - ✅ Specs versionnées complètes pour **LH-01** à **LH-08** et **LH-10**
+- 📝 Specs d'exploration rédigées : **LH-12** (aggro via `createHordeFromTo`) et **LH-13** (suppression des spawns vanilla/story)
 - ✅ Implémentation de **LH-02** à **LH-08** et **LH-10** terminée
 - ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
