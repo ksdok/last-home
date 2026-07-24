@@ -14,6 +14,9 @@ local PRESSURE_PULSE_SECONDS = 15
 local SPAWN_DISTANCE = 20
 local ARRIVAL_DIST_SQ = 36   -- 6 tiles: on stoppe le pulse quand un zombie de vague arrive pres du joueur
 local SPAWN_SPREAD = 8
+local WAVE_TAGGING_MAX_AGE_SECONDS = 4
+local WAVE_TAGGING_SPAWN_RADIUS = 12
+local WAVE_TAGGING_CORRIDOR_RADIUS = 6
 local BOUNDARY_COUNTDOWN_SECONDS = 10
 local BOUNDARY_DAMAGE_AMOUNT = 5
 local ZOMBIE_MODULE = "LastHome"
@@ -206,6 +209,7 @@ local function resetState()
     Server.pendingEstimate = 0
     Server.directions = {}
     Server.zombieCount = 0
+    Server.pendingWaveSpawnTags = {}
     Server.spectators = {}
     Server.boundaryStates = {}
     Server.boundaryDebugTrace = {}
@@ -518,10 +522,13 @@ end
 
 
 local function scaleZombieStats(zombie, wave)
-    if zombie == nil then return end
+    if zombie == nil then return false end
 
     local detectionRange = getDetectionRange(wave)
     local modData = zombie:getModData()
+    if modData == nil or modData.LH_waveZombie == true then
+        return false
+    end
 
     modData.LH_waveZombie = true
     modData.LH_waveNumber = wave
@@ -531,6 +538,8 @@ local function scaleZombieStats(zombie, wave)
     if zombie.setCanWalk ~= nil then
         zombie:setCanWalk(true)
     end
+
+    return true
 end
 
 local function tagSpawnedZombies(spawned, wave)
@@ -540,14 +549,163 @@ local function tagSpawnedZombies(spawned, wave)
     if spawned.size ~= nil and spawned.get ~= nil then
         for i = 0, spawned:size() - 1 do
             local zombie = spawned:get(i)
-            if zombie ~= nil then
-                scaleZombieStats(zombie, wave)
+            if zombie ~= nil and scaleZombieStats(zombie, wave) then
                 added = added + 1
             end
         end
     end
 
     return added
+end
+
+local function distancePointToSegmentSquared(px, py, ax, ay, bx, by)
+    local abx = bx - ax
+    local aby = by - ay
+    local lengthSquared = (abx * abx) + (aby * aby)
+
+    if lengthSquared <= 0 then
+        local dx = px - ax
+        local dy = py - ay
+        return (dx * dx) + (dy * dy), 0
+    end
+
+    local apx = px - ax
+    local apy = py - ay
+    local t = ((apx * abx) + (apy * aby)) / lengthSquared
+    if t < 0 then
+        t = 0
+    elseif t > 1 then
+        t = 1
+    end
+
+    local closestX = ax + (abx * t)
+    local closestY = ay + (aby * t)
+    local dx = px - closestX
+    local dy = py - closestY
+    return (dx * dx) + (dy * dy), t
+end
+
+local function queuePendingWaveSpawnTag(request)
+    Server.pendingWaveSpawnTags = Server.pendingWaveSpawnTags or {}
+    request.remainingToTag = request.remainingToTag or request.expectedCount or 0
+    request.taggedCount = request.taggedCount or 0
+    Server.pendingWaveSpawnTags[#Server.pendingWaveSpawnTags + 1] = request
+
+    print("[LastHome] Horde demandee - vague " .. tostring(request.wave)
+        .. ", source=" .. formatCoords(request.spawnX, request.spawnY, 0)
+        .. ", cible=" .. formatCoords(request.targetX, request.targetY, 0)
+        .. ", demandes=" .. tostring(request.expectedCount))
+end
+
+local function getPendingWaveZombieMatchScore(request, zombie, now)
+    if zombie == nil or zombie.getSquare == nil or zombie:getSquare() == nil then
+        return nil
+    end
+
+    local modData = zombie:getModData()
+    if modData == nil or modData.LH_waveZombie == true or modData.LH_countedDead == true then
+        return nil
+    end
+
+    local age = math.max(0, now - (request.createdAt or now))
+    local spawnRadius = WAVE_TAGGING_SPAWN_RADIUS + math.min(age, WAVE_TAGGING_MAX_AGE_SECONDS)
+    local spawnRadiusSquared = spawnRadius * spawnRadius
+
+    local zx = zombie:getX()
+    local zy = zombie:getY()
+    local dxSpawn = zx - request.spawnX
+    local dySpawn = zy - request.spawnY
+    local spawnDistanceSquared = (dxSpawn * dxSpawn) + (dySpawn * dySpawn)
+    if spawnDistanceSquared <= spawnRadiusSquared then
+        return spawnDistanceSquared
+    end
+
+    local corridorDistanceSquared, progress = distancePointToSegmentSquared(zx, zy, request.spawnX, request.spawnY, request.targetX, request.targetY)
+    local corridorRadiusSquared = WAVE_TAGGING_CORRIDOR_RADIUS * WAVE_TAGGING_CORRIDOR_RADIUS
+    local maxProgress = math.min(0.25 + (age * 0.15), 0.85)
+
+    if progress <= maxProgress and corridorDistanceSquared <= corridorRadiusSquared then
+        return spawnRadiusSquared + corridorDistanceSquared + (progress * 1000)
+    end
+
+    return nil
+end
+
+local function updatePendingWaveSpawnTags(now)
+    local requests = Server.pendingWaveSpawnTags
+    if requests == nil or #requests == 0 then return end
+
+    local cell = getCell()
+    if cell == nil or cell.getZombieList == nil then return end
+
+    local zombies = cell:getZombieList()
+    if zombies == nil then return end
+
+    local shouldSync = false
+
+    for requestIndex = #requests, 1, -1 do
+        local request = requests[requestIndex]
+        local taggedNow = 0
+
+        if request.remainingToTag > 0 then
+            local matches = {}
+
+            for i = 0, zombies:size() - 1 do
+                local zombie = zombies:get(i)
+                local score = getPendingWaveZombieMatchScore(request, zombie, now)
+                if score ~= nil then
+                    matches[#matches + 1] = {
+                        zombie = zombie,
+                        score = score,
+                    }
+                end
+            end
+
+            table.sort(matches, function(a, b)
+                return a.score < b.score
+            end)
+
+            local limit = math.min(request.remainingToTag, #matches)
+            for i = 1, limit do
+                if scaleZombieStats(matches[i].zombie, request.wave) then
+                    request.remainingToTag = request.remainingToTag - 1
+                    request.taggedCount = (request.taggedCount or 0) + 1
+                    Server.zombieCount = Server.zombieCount + 1
+                    taggedNow = taggedNow + 1
+                end
+            end
+        end
+
+        if taggedNow > 0 then
+            shouldSync = true
+            print("[LastHome] Tagging horde - vague " .. tostring(request.wave)
+                .. ", source=" .. formatCoords(request.spawnX, request.spawnY, 0)
+                .. ", cible=" .. formatCoords(request.targetX, request.targetY, 0)
+                .. ", +" .. tostring(taggedNow)
+                .. ", tagges=" .. tostring(request.taggedCount)
+                .. "/" .. tostring(request.expectedCount)
+                .. ", restantsATagger=" .. tostring(request.remainingToTag)
+                .. ", total restants=" .. tostring(Server.zombieCount))
+        end
+
+        local expired = now >= ((request.createdAt or now) + WAVE_TAGGING_MAX_AGE_SECONDS)
+        if request.remainingToTag <= 0 then
+            table.remove(requests, requestIndex)
+        elseif expired then
+            local missing = math.max(0, (request.expectedCount or 0) - (request.taggedCount or 0))
+            print("[LastHome] WARN: tagging horde expire - vague " .. tostring(request.wave)
+                .. ", source=" .. formatCoords(request.spawnX, request.spawnY, 0)
+                .. ", cible=" .. formatCoords(request.targetX, request.targetY, 0)
+                .. ", demandes=" .. tostring(request.expectedCount)
+                .. ", tagges=" .. tostring(request.taggedCount or 0)
+                .. ", manquants=" .. tostring(missing))
+            table.remove(requests, requestIndex)
+        end
+    end
+
+    if shouldSync then
+        syncWaveState()
+    end
 end
 
 local function clearAmbientZombiesNearHouse()
@@ -602,9 +760,10 @@ local function spawnWaveZombies(count)
         return 0
     end
 
-    local spawnedCount = 0
+    local requestedCount = 0
     local basePerPoint = math.floor(count / #points)
     local remainder = count % #points
+    local now = getNowSeconds()
 
     for index, point in ipairs(points) do
         local zombiesHere = basePerPoint
@@ -613,14 +772,23 @@ local function spawnWaveZombies(count)
         end
 
         if zombiesHere > 0 then
-            local spawned = addZombiesInOutfit(point.x, point.y, point.z, zombiesHere, nil, 0)
-            spawnedCount = spawnedCount + tagSpawnedZombies(spawned, Server.currentWave)
+            createHordeFromTo(point.x, point.y, Server.house.centerX, Server.house.centerY, zombiesHere)
+            queuePendingWaveSpawnTag({
+                wave = Server.currentWave,
+                expectedCount = zombiesHere,
+                remainingToTag = zombiesHere,
+                spawnX = point.x,
+                spawnY = point.y,
+                targetX = Server.house.centerX,
+                targetY = Server.house.centerY,
+                createdAt = now,
+            })
+            requestedCount = requestedCount + zombiesHere
         end
     end
 
-    Server.zombieCount = Server.zombieCount + spawnedCount
-    print("[LastHome] Vague " .. tostring(Server.currentWave) .. ": " .. tostring(spawnedCount) .. "/" .. tostring(count) .. " zombies spawnes, total restants=" .. tostring(Server.zombieCount))
-    return spawnedCount
+    print("[LastHome] Vague " .. tostring(Server.currentWave) .. ": " .. tostring(requestedCount) .. "/" .. tostring(count) .. " zombies demandes via createHordeFromTo, total restants=" .. tostring(Server.zombieCount))
+    return requestedCount
 end
 
 local function countSpectators()
@@ -1007,6 +1175,7 @@ local function onTick()
     checkDeadPlayers()
     updateBoundaryStates(now)
     updatePhaseState(now)
+    updatePendingWaveSpawnTags(now)
 end
 
 local function onGameStart()
