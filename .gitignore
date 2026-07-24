@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Lua / Zomboid
+*.luac
+
+# IDE
+.vscode/
+.idea/

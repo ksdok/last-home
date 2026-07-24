@@ -255,6 +255,7 @@
 - LH-05 ajoute un `boundary` rectangulaire par maison et un confinement **autoritatif côté serveur**, avec affichage HUD côté client
 - LH-07 déplace la sync solo sur `Events.OnTick`, corrige la détection `isInsideBoundary()` pour les objets joueur PZ et ajoute un indicateur HUD local `Zone: IN/OUT`
 - LH-08 extrait la logique commune d'équipement/charge dans `LastHomeShared.lua` (`applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`) pour réduire la duplication client/serveur
+- LH-14 aligne `fillAmmoItem` sur `HandWeapon:randomizeBullets()` du moteur ( Ammo, ContainsClip, RoundChambered) pour pré-charger les armes à feu à l'attribution du rôle
 - LH-10 réduit les timers de vague et ajoute le skip de prep via `K`, en conservant `pendingDirections` grâce à `startWave(false)` lors du skip
 - Pour la Villa, les vagues sont actuellement forcées au **Sud** et l'attraction repose sur des impulsions sonores centrées sur la base plutôt que sur un ciblage d'aggro zombie par zombie
 - Les challenges Last Home utilisent désormais `SandboxVars.Zombies = 6` pour couper la pop vanilla ; `5` correspond seulement à une population faible dans PZ
