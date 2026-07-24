@@ -378,7 +378,22 @@ local function fillAmmoItem(item)
     end
 
     if item.setRoundChambered ~= nil and item.getCurrentAmmoCount ~= nil then
-        item:setRoundChambered((item:getCurrentAmmoCount() or 0) > 0)
+        local ammo = item:getCurrentAmmoCount() or 0
+        if ammo > 0 then
+            -- Chambrer une cartouche consomme ammoPerShoot depuis le magasin,
+            -- comme le rack moteur (ISRackFirearm). Sinon l'arme demarre a
+            -- capacity+1 coups (magasin plein + cartouche chambrée).
+            local perShoot = 1
+            if item.getAmmoPerShoot ~= nil then
+                perShoot = item:getAmmoPerShoot() or 1
+            end
+            if perShoot > 0 and ammo >= perShoot and item.setCurrentAmmoCount ~= nil then
+                item:setCurrentAmmoCount(ammo - perShoot)
+            end
+            item:setRoundChambered(true)
+        else
+            item:setRoundChambered(false)
+        end
     end
 
     if item.setSpentRoundChambered ~= nil then

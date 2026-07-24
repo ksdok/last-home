@@ -221,6 +221,7 @@
     - capacité calculée en priorité depuis `getMaxAmmo()` pour les armes magazine-fed, puis `getClipSize()` si > 0, puis `getMaxAmmo()` en fallback (chargeurs spare, armes bullet-by-bullet)
     - `setContainsClip(true)` appliqué uniquement aux armes magazine-fed
     - ordre conservé identique au moteur PZ : ammo → containsClip → chambered
+    - chambrer décrémente `currentAmmoCount` de `ammoPerShoot` (comme `ISRackFirearm`) pour ne pas démarrer à capacity+1 coups ; les chargeurs spare (non-armes) restent remplis à `MaxAmmo` sans cartouche chambrée
   - Bug corrigé : `getClipSize()` renvoie 0 sur les armes sans `ClipSize` scripté (AssaultRifle, HuntingRifle, Shotgun), ce qui bloquait le `elseif getMaxAmmo` et laissait le gun à 0 balle. Le Pistol (`ClipSize=15`) restait fonctionnel.
 
 ## Backlog

@@ -64,18 +64,21 @@ Restructurer la détection de la capacité pour ne plus bloquer sur
    - sinon `getMaxAmmo()` (bullet-by-bullet / chargeur spare)
 3. `setCurrentAmmoCount(capacity)` si > 0.
 4. `setContainsClip(true)` seulement si magazine-fed.
-5. `setRoundChambered(currentAmmoCount > 0)`.
+5. Chambrer une cartouche en décrémentant `currentAmmoCount` de `ammoPerShoot`
+   (comme le rack moteur `ISRackFirearm`), pour ne pas démarrer à capacity+1
+   coups. `setRoundChambered(true)` seulement si `currentAmmoCount > 0`.
 6. `setSpentRoundChambered(false)`.
 
 Ordre conservé identique au moteur : ammo → containsClip → chambered.
 
 ## Critères d'acceptation
 
-1. Invincible démarre avec l'AssaultRifle chargé (30 balles, cartouche chambrée).
-2. Sniper / Survivaliste démarrent avec le HuntingRifle chargé (3 balles).
-3. Soldat démarre toujours avec le Pistol chargé (15 balles) — non régression.
-4. Les chargeurs spare (`556Clip`, `308Clip`, etc.) sont remplis à `MaxAmmo`.
+1. Invincible démarre avec l'AssaultRifle chargé (29 balles en magasin + 1 cartouche chambrée = 30 coups).
+2. Sniper / Survivaliste démarrent avec le HuntingRifle chargé (2 en magasin + 1 chambrée = 3 coups).
+3. Soldat démarre toujours avec le Pistol chargé (14 + 1 chambrée = 15 coups) — non régression.
+4. Les chargeurs spare (`556Clip`, `308Clip`, etc.) sont remplis à `MaxAmmo` (plein, sans cartouche chambrée).
 5. Les armes de mêlée et objets non-armes ne sont pas affectés.
+6. Aucune arme ne démarre à capacity+1 coups.
 
 ## Fichiers impactés
 
