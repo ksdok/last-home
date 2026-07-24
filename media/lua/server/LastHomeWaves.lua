@@ -140,7 +140,7 @@ local function emitHouseAttractionSound()
     local soundX = Server.house.centerX
     local soundY = Server.house.centerY
     local soundZ = Server.house.centerZ or 0
-    local radius = 120
+    local radius = 30
     local volume = 200
 
     addSound(nil, soundX, soundY, soundZ, radius, volume)
