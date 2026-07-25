@@ -576,3 +576,86 @@ function LastHomeShared.getNowSeconds()
     end
     return 0
 end
+
+-- ============================================================
+-- LH-MP-2: scenario bootstrap helpers (MP sandbox hosting)
+-- ============================================================
+
+-- Default SandboxVars for Last Home scenarios: disable vanilla zombie
+-- population and story spawns so only LH wave/spectator zombies remain.
+-- Best-effort on a dedicated server (LH-13 periodic cleanup compensates).
+-- Extracted from the 4 challenge setSandBoxVars() bodies (dedup).
+function LastHomeShared.applyDefaultSandboxVars()
+    if SandboxVars == nil then return end
+
+    SandboxVars.Zombies = 6
+    SandboxVars.Distribution = 1
+    SandboxVars.MetaEvent = 1
+    SandboxVars.SurvivorHouseChance = 1
+    SandboxVars.ZoneStoryChance = 1
+    SandboxVars.VehicleStoryChance = 1
+
+    local zombieConfig = ZombieConfig or SandboxVars.ZombieConfig
+    if zombieConfig ~= nil then
+        zombieConfig.PopulationMultiplier = 0
+        zombieConfig.PopulationStartMultiplier = 0
+        zombieConfig.PopulationPeakMultiplier = 0
+        zombieConfig.RespawnHours = 0
+        zombieConfig.RespawnUnseenHours = 0
+        zombieConfig.RespawnMultiplier = 0
+        zombieConfig.RedistributeHours = 0
+        zombieConfig.RallyGroupSize = 0
+    end
+end
+
+-- Reads the scenario house id from a dedicated-server config file.
+-- One source of truth for the bootstrap (LH-MP-2).
+--
+-- File: <userDir>/Server/LastHomeHouse.cfg  (or relative Zomboid/Server/...)
+-- Format: first non-empty, non-comment line is the token.
+-- Valid: hospital | villa | prison | elementary_school | random
+-- Missing/unreadable/invalid -> "random".
+-- The resolved path is logged on every read attempt.
+function LastHomeShared.getScenarioHouseId()
+    local validIds = { hospital = true, villa = true, prison = true,
+                       elementary_school = true }
+    local defaultId = "random"
+
+    local base = nil
+    local core = getCore()
+    if core ~= nil and core.getMyDocumentFolder ~= nil then
+        base = core:getMyDocumentFolder()
+    end
+    local path = (base ~= nil and (base .. "/Server/LastHomeHouse.cfg")
+                or "Zomboid/Server/LastHomeHouse.cfg")
+
+    local f = io.open(path, "r")
+    if f == nil then
+        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(path) .. ") -> random")
+        return defaultId
+    end
+
+    local result = defaultId
+    local found = false
+    for line in f:lines() do
+        local trimmed = line:match("^%s*(.-)%s*$")
+        if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
+            if trimmed == "random" then
+                result = defaultId
+            elseif validIds[trimmed] then
+                result = trimmed
+            else
+                print("[LastHome] LastHomeHouse.cfg valeur invalide: " .. tostring(trimmed) .. " -> random")
+                result = defaultId
+            end
+            found = true
+            break
+        end
+    end
+    f:close()
+
+    if not found then
+        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(path) .. ") -> random")
+    end
+    return result
+end
