@@ -1,7 +1,7 @@
 LastHomeShared = LastHomeShared or {}
 
 if LastHomeShared.DEBUG == nil then
-    LastHomeShared.DEBUG = false
+    LastHomeShared.DEBUG = true
 end
 
 local NOW_SOURCE = nil
