@@ -570,8 +570,13 @@ local function tagSpawnedZombies(spawned, wave)
     return added
 end
 
-local function isChallengeHouse()
-    return Server.house ~= nil and Server.house.source == "challenge"
+-- True when the house was selected by an LH scenario (solo Challenge or MP
+-- sandbox). Gates the LH-13 periodic ambient cleanup so it does not alter
+-- vanilla population in a normal sandbox game without a selected house.
+local function isScenarioHouse()
+    return Server.house ~= nil
+        and (Server.house.source == "challenge"
+          or Server.house.source == "scenario")
 end
 
 local function clearAmbientZombiesNearHouse(reason)
@@ -692,7 +697,7 @@ local function startPrepPhase()
     local prepDurationSeconds = getPrepDurationSeconds(nextWave)
 
     clearAmbientZombiesNearHouse("prep")
-    if isChallengeHouse() then
+    if isScenarioHouse() then
         Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
     end
 
@@ -743,7 +748,7 @@ local function startWave(immediate)
 
     resetSpectatorWaveUsage()
     clearAmbientZombiesNearHouse("wave")
-    if isChallengeHouse() then
+    if isScenarioHouse() then
         Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
     end
     print("[LastHome] VAGUE " .. tostring(Server.currentWave) .. " demarree - " .. tostring(getAlivePlayerCount()) .. " joueurs, direction(s): " .. formatDirections(Server.directions))
@@ -1051,7 +1056,7 @@ local function onTick()
     updateBoundaryStates(now)
     updatePhaseState(now)
 
-    if Server.started and not Server.gameOver and isChallengeHouse()
+    if Server.started and not Server.gameOver and isScenarioHouse()
         and Server.nextAmbientCleanupAt ~= nil and now >= Server.nextAmbientCleanupAt then
         clearAmbientZombiesNearHouse("periodic")
         Server.nextAmbientCleanupAt = now + AMBIENT_CLEANUP_INTERVAL_SECONDS
