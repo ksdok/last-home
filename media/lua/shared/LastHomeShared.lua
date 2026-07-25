@@ -70,8 +70,8 @@ local HOUSE_DEFS = {
     {
         id = "prison",
         name = "Prison",
-        centerX = 7683,
-        centerY = 11863,
+        centerX = 7693,
+        centerY = 11862,
         centerZ = 0,
         boundary = {
             minX = 7585,
