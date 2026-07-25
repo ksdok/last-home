@@ -29,6 +29,7 @@ Co-op mod for Project Zomboid (B41). Players defend a building against growing w
 | [LH-13](specs/LH-13-suppression-spawns-vanilla.md) | Continuous vanilla/story spawn suppression | ✅ |
 | [LH-14](specs/LH-14-firearm-loadout-priming.md) | Firearm priming on role assignment | ✅ |
 | [LH-15](specs/LH-15-stock-locator-arrow.md) | On-screen stock arrow | ✅ |
+| [LH-17](specs/LH-17-deduplication-role-equipment.md) | Single source of truth for role application (dedup) | 📝 |
 
 ## Status
 

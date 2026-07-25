@@ -16,7 +16,8 @@
 - ✅ 4 challenges registered in PZ's Challenges menu (Hospital, Villa, Prison, School)
 - ✅ Last Home challenges now disable vanilla pop (`SandboxVars.Zombies = 6` + multipliers at 0) and clean ambient zombies around the base
 - ✅ Villa stabilized: waves forced to **South**, ground-level spawns, wave attraction refocused on alarm-like sound pulses toward the base
-- ✅ Spec **LH-12** written to test Track A on wave aggro via `createHordeFromTo`
+- ✅ Spec **LH-12** written to test Track A on wave aggro via `createHordeFromTo` — resolved in-game (god mode was blocking the zombie AI)
+- 📝 Spec **LH-17** written: deduplication of role-application logic into `LastHomeShared`
 - ✅ Spec **LH-13** written and implemented: continuous vanilla/story spawn suppression around the base in Challenge mode
 - ✅ Fixed challenge house-selection race: stale `OnGameStart` handlers from a previously-played challenge leaked into the next launch and could lock the wrong house before the real challenge's `SetHouse` arrived. The client now guards `SendHouseSelection` with `getCore():getChallengeID() == self.id`, and the server lets the last `SetHouse` win as long as waves haven't started.
 - ⏳ Next step remains **in-game verification** (solo/LAN then multiplayer), especially on actual zombie pressure, Villa attraction, spectators, LH-10 pacing, Track A testing, and validation of parasite spawn suppression
@@ -37,6 +38,7 @@
 - [x] LH-13 — Vanilla/story parasite spawn suppression
 - [x] LH-14 — Firearm priming on role assignment
 - [x] LH-15 — On-screen stock arrow
+- [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`)
 
 ### Implementation
 - [x] LH-02 — Last Home role system
@@ -257,19 +259,19 @@
 - [ ] In-game solo/LAN verification of LH-03 through LH-10 (actual timers, skip, spectators, score, house spawn, shared stock, confinement, HUD, solo sync)
 - [ ] In-game multiplayer verification of the role picker, spawn teleports, Builder/house refill, server confinement, and wave skip
 - [ ] Validate in-game the zombie pressure on Villa with sound pulse attraction (range, frequency, horde feel)
-- [ ] Fix Villa playability: `pickHouseSpawnPoint` fails on all 10 spawn candidates (box `[13532..13533, 2839..2843, z=1]` → no `isFree` square) and no stock container found in bounds
-- [ ] Solve the wave zombie aggro issue (zombies don't attack):
-  - **Track A**: Replace `addZombiesInOutfit` with `createHordeFromTo` in `LastHomeWaves.lua` (native LastStand API). Spec written: `specs/LH-12-create-horde-from-to.md`
-  - **Track B**: Generate periodic sound pulses (`addSound`) on the player to force AI alert.
-  - **Track C**: Force `zombie:setAlerted(true)` in Lua on spawn to wake the AI.
-  - **Track D**: Check potential thread/authority conflict in Solo Challenge.
+- [ ] Fix Villa playability:
+  - `pickHouseSpawnPoint` fails on all 10 spawn candidates (box `[13532..13533, 2839..2843, z=1]` → no `isFree` square); it only checks `isFree(false)` and needs a wider/falling-back scan.
+  - No stock container found: `getPrimaryHouseSupplyContainer` first checks the configured `house.supply` square (Villa `(13540, 2836, 0)`); if that square has no container, the fallback scan only covers `house.bounds` (the spawn area, ~10 tiles), **not** the building `boundary`. So either the configured `supply` coord is wrong, or the fallback scan must be widened to `boundary` (130x128 / 197x218 → 16k-43k tiles), in which case the found container must be **cached** to avoid rescanning on every refill/SetHouse/RolePickerReady.
+  - Note: there is **no** performance problem today — the fallback scan is only ~10-81 tiles (spawn-derived `bounds`), not the full building. The real issue is coverage, not cost.
+- [x] Wave zombie aggro issue (zombies didn't attack) — **resolved in-game**: god mode was blocking the PZ zombie AI. Disabling god mode fixed it (LH-12 Tracks A-D).
 - [x] Permanently suppress vanilla/story parasite spawns around the base in Challenge (`RDS*`, `createEatingZombies`, `RBSafehouse`, etc.). Spec written: `specs/LH-13-suppression-spawns-vanilla.md`
+- [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`). Spec written: `specs/LH-17-deduplication-role-equipment.md`
 
 ### Later
 - [ ] Structured loot in the vicinity of houses if needed
 - [ ] More complete HUD / notifications for Last Home
 - [ ] Role balance adjustments if needed after testing
-- [ ] Complementary refactor: extract the rest of `applyRole` / `addRoleItems` into a shared helper to finish eliminating client/server duplication
+- [ ] House-state cleanup (low priority, no longer an active bug in challenge mode): `LastHomeServer.selectedHouse` and `LastHomeWaves.house` are two variables for one concept, synced one-way via `syncSelectedHouse()`. `LastHomeWaves.ensureHouse()` can set the waves house to a fallback without pushing back to the server module (only reachable in sandbox-rotation mode without `SetHouse`). Also `ensureSelectedHouse()` still does a momentary random pick in challenge mode before `SetHouse` overrides it (harmless since the fix, just wasteful); gate it with `getCore():isChallenge()` to skip the random rotation and wait for `SetHouse`. (LH-17 now covers the applyRole/addRoleItems dedup, which was the original 'complementary refactor' item.)
 - [ ] Check `Events.OnTick.Remove` in B41 — if the API doesn't exist, the fallback tick runs idle (review point 2, non-blocking)
 
 ## Implementation Notes

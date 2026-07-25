@@ -103,7 +103,7 @@ local HOUSE_DEFS = {
         },
         spawn = {
             type = "radius",
-            radius = 4,
+            radius = 3,
         },
         supply = {
             x = 10616,
