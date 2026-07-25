@@ -18,31 +18,35 @@ This bootstrap must **not** run when the game is a Challenge
 (`getCore():isChallenge()`), to avoid double-selecting the house against the
 challenge path.
 
-### Bootstrap event decision: `OnGameStart` (not `OnServerStarted`)
+### Bootstrap event decision: `OnServerStarted` (not `OnGameStart`) — VERIFIED in-game
 
-The bootstrap hooks `Events.OnGameStart`, registered **after** the existing
-`LastHomeServer.onGameStart` reset handler (PZ fires `OnGameStart` handlers in
-registration order). Rationale:
+The bootstrap hooks `Events.OnServerStarted`, **not** `Events.OnGameStart`.
 
-- The existing reset wipes `Server.selectedHouse = nil` on `OnGameStart`.
-- `OnServerStarted` fires **before** `OnGameStart`, so a bootstrap on
-  `OnServerStarted` would have its selected house wiped by the subsequent
-  reset.
-- Registering the bootstrap on `OnGameStart` after the reset gives the
-  correct sequence: reset -> bootstrap sets house -> no wipe.
+**Verified on 25-07-26 (MP Host server):** `Events.OnGameStart` is a
+**client-side** "entered the game" event. It does **not** fire on the MP
+server process (Host or dedicated). The server log
+(`25-07-26_23-26-48_DebugLog-server.txt`) shows `LastHomeBootstrap.lua`
+loads and prints `LastHomeBootstrap charge`, but the `OnGameStart` handler
+never runs — no `LastHomeBootstrap OnGameStart` / `Selection scenario
+house=` / `Maison selectionnee` lines, and `Server.house` stays `nil`
+(`[LastHome][Boundary] ... house=house=nil`). Meanwhile `Events.OnTick`
+fires correctly on the server.
 
-Fallback (validated in LH-MP-4): if `OnGameStart` turns out not to fire on a
-dedicated server, move **both** the reset (from `LastHomeServer.lua`) and this
-bootstrap to `OnServerStarted`, keeping the reset-before-bootstrap order.
+`Events.OnServerStarted` fires on the MP server once it has finished
+starting up (before players connect) — the correct hook for server-side
+house selection.
 
-Implementation note: to guarantee registration order, this file's
-`Events.OnGameStart.Add(...)` must execute after `LastHomeServer.lua`'s
-`Events.OnGameStart.Add(...)`. PZ loads `media/lua/server/` files in
-alphabetical order, and `LastHomeBootstrap.lua` sorts after
-`LastHomeServer.lua`, so the bootstrap registers after the reset by default.
-The implementer must verify this load order and, if not guaranteed, force it
-with a `require "LastHomeServer"` at the top of the bootstrap file (already
-present) so the reset handler is registered first.
+The former `OnGameStart` ordering concern (the `LastHomeServer.onGameStart`
+reset wiping `Server.selectedHouse`) is **moot in MP**: that reset is
+registered on `OnGameStart`, which does not fire on the MP server, so there
+is no wipe. The `Server` table starts clean on a fresh server process.
+
+Solo Challenges mode is unaffected: `isChallenge()` guard returns true and
+the bootstrap is dormant; the challenge runtime + client `SetHouse` drive
+house selection as before.
+
+A `bootstrapRan` one-shot guard protects against double execution if the
+event were to fire more than once.
 
 ## Goal
 
@@ -145,13 +149,18 @@ require "LastHomeServer"
 
 print("[LastHome] LastHomeBootstrap charge")
 
+local bootstrapRan = false
+
 local function isChallengeMode()
     local core = getCore()
     return core ~= nil and core.isChallenge ~= nil and core:isChallenge()
 end
 
-local function onGameStart()
-    print("[LastHome] LastHomeBootstrap OnGameStart")
+local function runBootstrap()
+    if bootstrapRan then return end
+    bootstrapRan = true
+
+    print("[LastHome] LastHomeBootstrap OnServerStarted")
     -- Never compete with the challenge runtime (solo Challenges mode).
     if isChallengeMode() then
         print("[LastHome] Mode Challenge detecte -> bootstrap inactif")
@@ -178,8 +187,13 @@ local function onGameStart()
     LastHomeServer.setSelectedHouse(resolvedId, "scenario")
 end
 
-Events.OnGameStart.Add(onGameStart)
+Events.OnServerStarted.Add(runBootstrap)
 ```
+
+> Note: the bootstrap uses `OnServerStarted` (not `OnGameStart`) because
+> `OnGameStart` is a client-side event that does not fire on the MP server
+> process — verified in-game on 25-07-26. See the "Bootstrap event decision"
+> section above.
 
 ## Files impacted
 
@@ -217,10 +231,10 @@ Events.OnGameStart.Add(onGameStart)
    confirms the early return.
 7. The 4 challenge entries in the Challenges menu still launch and select
    the correct house.
-8. The bootstrap's `OnGameStart` handler is registered after the existing
-   `LastHomeServer.onGameStart` reset handler (verified by load order or by
-   `require "LastHomeServer"` at the top of the bootstrap file), so the reset
-   does not wipe the selected house.
+8. The bootstrap hooks `Events.OnServerStarted` (verified: `OnGameStart` does
+   not fire on the MP server process). A `bootstrapRan` guard prevents double
+   execution. The `LastHomeServer` reset on `OnGameStart` is moot in MP (it
+   does not fire on the server) and does not wipe the selected house.
 
 ## Pitfalls (for the implementer)
 

@@ -1,36 +1,46 @@
 -- Last Home - LH-MP-2: server bootstrap for multiplayer sandbox hosting.
 --
 -- In solo Challenges mode, the challenge runtime calls setSandBoxVars() and
--- the challenge's client OnGameStart sends SetHouse. Neither runs in a
--- multiplayer sandbox server. This bootstrap performs the equivalent from
--- the server side, at OnGameStart, so the mod is launchable from the
--- multiplayer Host menu (Map = Muldraugh, KY + Mods = LastHome).
+-- the challenge's client OnGameStart sends SetHouse. Neither runs on an MP
+-- server. This bootstrap performs the equivalent from the server side so the
+-- mod is launchable from the multiplayer Host menu
+-- (Map = Muldraugh, KY + Mods = LastHome).
 --
--- Event choice: OnGameStart (NOT OnServerStarted).
---   - The existing LastHomeServer.onGameStart resets Server.selectedHouse = nil
---     on OnGameStart.
---   - OnServerStarted fires BEFORE OnGameStart, so a bootstrap on
---     OnServerStarted would have its selected house wiped by the reset.
---   - `require "LastHomeServer"` (below) executes LastHomeServer.lua
---     top-to-bottom and registers its reset handler BEFORE this file
---     registers its own OnGameStart handler, guaranteeing: reset -> bootstrap
---     sets house -> no wipe.
---   - Fallback (validated in LH-MP-4): if OnGameStart does not fire on a
---     dedicated server, move BOTH the reset and this bootstrap to
---     OnServerStarted (reset before bootstrap).
+-- Event choice: OnServerStarted (NOT OnGameStart) -- VERIFIED in-game.
+--   - Events.OnGameStart is a CLIENT-side "entered the game" event. It does
+--     NOT fire on the MP server process (Host or dedicated). Confirmed by the
+--     25-07-26 server log: LastHomeBootstrap.lua loads and prints
+--     "LastHomeBootstrap charge", but the OnGameStart handler never runs
+--     (no "LastHomeBootstrap OnGameStart" / "Selection scenario house=" /
+--     "Maison selectionnee" lines; Server.house stays nil).
+--   - Events.OnServerStarted fires on the MP server once it has finished
+--     starting up, before players connect -- the correct hook for server-side
+--     house selection.
+--   - The former OnGameStart ordering concern (LastHomeServer.onGameStart
+--     resetting Server.selectedHouse) is moot in MP: that reset is registered
+--     on OnGameStart, which does not fire on the MP server, so there is no
+--     wipe. The Server table starts clean on a fresh server process.
+--   - Solo Challenges mode is unaffected: isChallenge() guard returns true
+--     and the bootstrap is dormant; the challenge runtime + client SetHouse
+--     drive house selection as before.
 
 require "LastHomeShared"
 require "LastHomeServer"
 
 print("[LastHome] LastHomeBootstrap charge")
 
+local bootstrapRan = false
+
 local function isChallengeMode()
     local core = getCore()
     return core ~= nil and core.isChallenge ~= nil and core:isChallenge()
 end
 
-local function onGameStart()
-    print("[LastHome] LastHomeBootstrap OnGameStart")
+local function runBootstrap()
+    if bootstrapRan then return end
+    bootstrapRan = true
+
+    print("[LastHome] LastHomeBootstrap OnServerStarted")
 
     -- Never compete with the challenge runtime (solo Challenges mode).
     if isChallengeMode() then
@@ -58,4 +68,4 @@ local function onGameStart()
     LastHomeServer.setSelectedHouse(resolvedId, "scenario")
 end
 
-Events.OnGameStart.Add(onGameStart)
+Events.OnServerStarted.Add(runBootstrap)
