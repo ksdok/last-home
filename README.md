@@ -83,7 +83,13 @@ last-home/
 
 ## Dépendances
 
-- Aucune dépendance externe — mod standalone
+### Mods requis
+
+- **Pillow's Random Scenarios** (Workshop ID: `2106657533`) — mod hôte
+- **Xonic's Mega Mall** (Workshop ID: `1713269594`) — map
+
+### Autres
+
 - Inspiration d'Escapade Express pour le système de rôles (github.com/ksdok/escapade-express)
 
 ## Licence
