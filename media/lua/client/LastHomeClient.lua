@@ -19,7 +19,7 @@ local equipRoleItems = LastHomeShared.equipRoleItems
 local DEBUG_ENABLED = LastHomeShared.DEBUG == true
 local SKIP_WAVE_KEY = Keyboard ~= nil and Keyboard.KEY_K or nil
 
-local showRoleAssigned -- forward declaration (définie plus bas)
+local showRoleAssigned -- forward declaration (defined below)
 
 local function isSinglePlayerRuntime()
     if isClient ~= nil then

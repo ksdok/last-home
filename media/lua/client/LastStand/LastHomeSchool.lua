@@ -12,6 +12,12 @@ end
 LastHomeSchool.SendHouseSelection = function()
     if LastHomeSchool._houseSelectionSent then return end
 
+    -- Guard against OnGameStart handlers leaking from a previously-played
+    -- challenge (PZ doesn't reset Events.OnGameStart between launches in the
+    -- same process): only send SetHouse if this challenge is the active one.
+    local currentChallengeId = getCore() ~= nil and getCore().getChallengeID ~= nil and getCore():getChallengeID() or nil
+    if currentChallengeId ~= nil and currentChallengeId ~= LastHomeSchool.id then return end
+
     LastHomeSchool._houseSelectionSent = true
     sendClientCommand("LastHome", "SetHouse", { houseId = "elementary_school" })
 end

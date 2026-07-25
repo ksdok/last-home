@@ -18,6 +18,7 @@
 - ✅ Villa stabilized: waves forced to **South**, ground-level spawns, wave attraction refocused on alarm-like sound pulses toward the base
 - ✅ Spec **LH-12** written to test Track A on wave aggro via `createHordeFromTo`
 - ✅ Spec **LH-13** written and implemented: continuous vanilla/story spawn suppression around the base in Challenge mode
+- ✅ Fixed challenge house-selection race: stale `OnGameStart` handlers from a previously-played challenge leaked into the next launch and could lock the wrong house before the real challenge's `SetHouse` arrived. The client now guards `SendHouseSelection` with `getCore():getChallengeID() == self.id`, and the server lets the last `SetHouse` win as long as waves haven't started.
 - ⏳ Next step remains **in-game verification** (solo/LAN then multiplayer), especially on actual zombie pressure, Villa attraction, spectators, LH-10 pacing, Track A testing, and validation of parasite spawn suppression
 
 ## Completed
@@ -29,7 +30,7 @@
 - [x] LH-04 — House, repairs, and defense
 - [x] LH-05 — Confinement zone
 - [x] LH-06 — HUD overhaul and positioning
-- [x] LH-07 — Fix sync solo state via dedicated OnTick
+- [x] LH-07 — Fix solo sync state via dedicated OnTick
 - [x] LH-08 — Role equipment
 - [x] LH-10 — Reduced timers and wave skip
 - [x] LH-12 — Track A aggro via createHordeFromTo
@@ -238,12 +239,25 @@
   - Note: PZ bitmap fonts don't contain unicode arrow glyphs; ASCII cardinal arrow (4 directions) used for rendering reliability
   - Fallback fix: `getPrimaryHouseSupplyContainer` rewrites `house.supply` with the actual fallback container square and calls `syncSelectedHouse()` to re-propagate to the client (otherwise the arrow pointed to an empty square on houses where the configured square has no container)
 
+- [x] Challenge house-selection race fix
+  - `media/lua/client/LastStand/LastHomeHospital.lua`
+  - `media/lua/client/LastStand/LastHomeVilla.lua`
+  - `media/lua/client/LastStand/LastHomePrison.lua`
+  - `media/lua/client/LastStand/LastHomeSchool.lua`
+  - `media/lua/server/LastHomeServer.lua` (`SetHouse` handler)
+  - Symptom: at spawn the player was "out of zone" and the LH-15 arrow pointed very far away
+  - Root cause: the 4 challenge files register their `OnGameStart` via a `_gameStartRegistered` guard that prevents re-registration but never removes the handler. PZ doesn't reset `Events.OnGameStart` between challenge launches in the same process, so a previously-played challenge (e.g. Villa) left its `OnGameStart` registered. When launching another challenge (e.g. School), both handlers fired: `SetHouse("villa")` first, then `SetHouse("elementary_school")`. The server locked Villa on the first challenge `SetHouse` and rejected the real one ("car la maison est deja verrouillee"). The player stayed at the School spawn while the server house was Villa → boundary + arrow pointed ~3000 tiles away.
+  - Fixes applied:
+    - client: each `SendHouseSelection` now guards with `getCore():getChallengeID() == self.id`, so a stale handler from another challenge no longer sends a wrong `SetHouse`
+    - server: the `SetHouse` handler now lets the last `SetHouse` win as long as waves haven't started (defense in depth); it only rejects once `LastHomeWaves.hasStarted()` is true
+
 ## Backlog
 
 ### High priority
 - [ ] In-game solo/LAN verification of LH-03 through LH-10 (actual timers, skip, spectators, score, house spawn, shared stock, confinement, HUD, solo sync)
 - [ ] In-game multiplayer verification of the role picker, spawn teleports, Builder/house refill, server confinement, and wave skip
 - [ ] Validate in-game the zombie pressure on Villa with sound pulse attraction (range, frequency, horde feel)
+- [ ] Fix Villa playability: `pickHouseSpawnPoint` fails on all 10 spawn candidates (box `[13532..13533, 2839..2843, z=1]` → no `isFree` square) and no stock container found in bounds
 - [ ] Solve the wave zombie aggro issue (zombies don't attack):
   - **Track A**: Replace `addZombiesInOutfit` with `createHordeFromTo` in `LastHomeWaves.lua` (native LastStand API). Spec written: `specs/LH-12-create-horde-from-to.md`
   - **Track B**: Generate periodic sound pulses (`addSound`) on the player to force AI alert.

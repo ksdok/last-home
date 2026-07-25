@@ -5,9 +5,9 @@ Co-op mod for Project Zomboid (B41). Players defend a building against growing w
 ## Concept
 
 - **Co-op** up to 8 players (duplicate roles allowed)
-- **Real-time waves**: prep 2 min for wave 1, then 5 min; each wave lasts 5 min
+- **Real-time waves**: 2 min prep for wave 1, then 5 min; each wave lasts 5 min
 - **Random building** among 4 (Hospital, Villa, Prison, Elementary School), or forced by challenge
-- **Increasing directions** of hordes: 1 direction at first, then 2, 3, up to 360° — with gameplay exceptions per location if needed
+- **Increasing horde directions**: 1 direction at first, then 2, 3, up to 360° — with per-location gameplay exceptions if needed
 - **Permadeath**: dead players become spectators and can spawn 1 zombie during subsequent waves
 - **17 roles** taken from Escapade Express (without Mechanic, with Builder)
 - **Unlimited survival**: score = number of waves survived
@@ -42,6 +42,7 @@ Co-op mod for Project Zomboid (B41). Players defend a building against growing w
 - ✅ Wave attraction refocused on alarm-like sound pulses toward the base to make zombie pressure reliable
 - ✅ Continuous vanilla/story spawn suppression around the base in Challenge mode (periodic cleanup every 5s, `LH_waveZombie` tagging preserved)
 - ✅ On-screen stock arrow pointing to the community container with distance (visible through walls)
+- ✅ Fixed challenge house-selection race: stale `OnGameStart` handlers from a previously-played challenge could lock the wrong house before the real challenge's `SetHouse` arrived (arrow + confinement pointed to the wrong building)
 - 📋 Backlog and current tracking in [project-state.md](project-state.md)
 
 ## Mod Structure

@@ -588,17 +588,25 @@ local function onClientCommand(module, command, player, data)
             and LastHomeWaves.hasStarted ~= nil
             and LastHomeWaves.hasStarted() == true
 
-        local canOverrideRotation = Server.selectedHouse ~= nil
-            and Server.selectedHouse.source == "rotation"
-            and not wavesStarted
-
-        if Server.houseSelectionLocked and not canOverrideRotation then
+        -- Once waves have started, the house is frozen (no mid-game changes).
+        if wavesStarted then
             if Server.selectedHouse ~= nil and Server.selectedHouse.id == houseId then
                 print("[LastHome] SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
                 return
             end
+            print("[LastHome] WARN: SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car les vagues ont demarree")
+            return
+        end
 
-            print("[LastHome] WARN: SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja verrouillee")
+        -- Before waves start: the last SetHouse wins. This tolerates
+        -- OnGameStart handlers from previously-played challenges leaking
+        -- between launches (PZ doesn't reset Events.OnGameStart in the same
+        -- process): the real challenge's SetHouse is registered last, arrives
+        -- last, and overrides any earlier (stale or random) selection.
+        if Server.selectedHouse ~= nil
+            and Server.selectedHouse.id == houseId
+            and Server.selectedHouse.source == "challenge" then
+            print("[LastHome] SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
             return
         end
 
