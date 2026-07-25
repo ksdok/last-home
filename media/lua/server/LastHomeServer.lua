@@ -392,6 +392,7 @@ local function getPrimaryHouseSupplyContainer()
     local minZ = bounds.min.z or house.centerZ or 0
     local maxZ = bounds.max.z or house.centerZ or minZ
     local bestContainer = nil
+    local bestX, bestY, bestZ
     local bestDistance = nil
 
     for z = minZ, maxZ do
@@ -406,13 +407,24 @@ local function getPrimaryHouseSupplyContainer()
                     if bestDistance == nil or distance < bestDistance then
                         bestDistance = distance
                         bestContainer = container
+                        bestX, bestY, bestZ = x, y, z
                     end
                 end
             end
         end
     end
 
-    if bestContainer == nil then
+    if bestContainer ~= nil then
+        -- Fallback : la case configuree (house.supply) n'avait pas de conteneur.
+        -- On reecrit house.supply avec la case reelle du conteneur choisi pour que
+        -- la fleche client (LH-15) pointe au bon endroit, puis on resync le client.
+        local cur = house.supply or {}
+        if cur.x ~= bestX or cur.y ~= bestY or (cur.z or 0) ~= (bestZ or 0) then
+            house.supply = { x = bestX, y = bestY, z = bestZ }
+            print("[LastHome] getPrimaryHouseSupplyContainer - fallback supply pour " .. tostring(house.name or house.id or "?") .. " -> (" .. tostring(bestX) .. "," .. tostring(bestY) .. "," .. tostring(bestZ or 0) .. ")")
+            syncSelectedHouse()
+        end
+    else
         local houseName = house.name or house.id or "?"
         print("[LastHome] WARN: getPrimaryHouseSupplyContainer - aucun conteneur trouve pour " .. tostring(houseName) .. " dans bounds [" .. tostring(bounds.min.x) .. "," .. tostring(bounds.min.y) .. "," .. tostring(minZ) .. "] -> [" .. tostring(bounds.max.x) .. "," .. tostring(bounds.max.y) .. "," .. tostring(maxZ) .. "]")
     end

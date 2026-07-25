@@ -236,6 +236,7 @@
     - texte centré via `TextManager:DrawStringCentre(UIFont.Medium, ...)` ombre noire + jaune
     - désactivé en phase `idle`/`gameover`, sans maison, ou à moins de 3 tiles du stock
   - Note : les fonts bitmap PZ ne contiennent pas les glyphe de flèches unicode ; flèche cardinale ASCII (4 directions) utilisée pour fiabilité de rendu
+  - Fix fallback : `getPrimaryHouseSupplyContainer` réécrit `house.supply` avec la case réelle du conteneur fallback et appelle `syncSelectedHouse()` pour repropager au client (sinon la flèche pointait vers une case vide sur les maisons où la case configurée n'a pas de conteneur)
 
 ## Backlog
 

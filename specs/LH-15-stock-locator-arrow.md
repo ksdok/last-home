@@ -32,6 +32,14 @@ Nouvelle fonction branchée sur `Events.OnPostUIDraw` :
   ombre noire + couleur jaune.
 - Désactivé en phase `idle` / `gameover` ou sans maison.
 
+### `media/lua/server/LastHomeServer.lua` — `getPrimaryHouseSupplyContainer`
+
+Quand la case configurée (`house.supply`) n'a pas de conteneur et que le serveur
+tombe sur le fallback "conteneur le plus proche dans les bounds", il **réécrit
+`house.supply`** avec la case réelle du conteneur choisi puis appelle
+`syncSelectedHouse()` pour repropager les coords au client. Sans ça, la flèche
+LH-15 pointerait vers une case vide.
+
 ### Note sur les fonts
 
 Les fonts bitmap PZ (`zomboidSmall/Medium.fnt`) ne contiennent **pas** les
