@@ -30,6 +30,11 @@ Co-op mod for Project Zomboid (B41). Players defend a building against growing w
 | [LH-14](specs/LH-14-firearm-loadout-priming.md) | Firearm priming on role assignment | ✅ |
 | [LH-15](specs/LH-15-stock-locator-arrow.md) | On-screen stock arrow | ✅ |
 | [LH-17](specs/LH-17-deduplication-role-equipment.md) | Single source of truth for role application (dedup) | 📝 |
+| [LH-MP](specs/LH-MP-multiplayer-sandbox-conversion.md) | Host Last Home in multiplayer (sandbox conversion) | 📝 |
+| └ [LH-MP-1](specs/LH-MP-1-server-setSelectedHouse.md) | Expose `LastHomeServer.setSelectedHouse(houseId, source)` | 📝 |
+| └ [LH-MP-2](specs/LH-MP-2-server-bootstrap.md) | Server bootstrap `LastHomeBootstrap.lua` + house config | 📝 |
+| └ [LH-MP-3](specs/LH-MP-3-isScenarioHouse.md) | Generalize periodic cleanup to scenario houses | 📝 |
+| └ [LH-MP-4](specs/LH-MP-4-mp-verification-docs.md) | MP server setup docs + verification checklist | 📝 |
 
 ## Status
 
