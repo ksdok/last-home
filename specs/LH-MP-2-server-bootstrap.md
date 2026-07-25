@@ -66,46 +66,60 @@ function LastHomeShared.getScenarioHouseId()
                        elementary_school = true }
     local defaultId = "random"
 
-    -- Resolve the PZ user-data dir, then Zomboid/Server/LastHomeHouse.cfg.
-    -- Preferred: getCore():getMyDocumentFolder() (PZ B41) returns the user
-    -- data root, e.g. "<user>/Zomboid". Build the absolute path:
-    --   <myDocumentFolder> .. "/Server/LastHomeHouse.cfg"
-    -- If that API is unavailable, fall back to a relative path
-    -- "Zomboid/Server/LastHomeHouse.cfg" (works when the server CWD is the
-    -- PZ user-data dir, which is the common dedicated-server case).
-    local base = nil
-    local core = getCore()
-    if core ~= nil and core.getMyDocumentFolder ~= nil then
-        base = core:getMyDocumentFolder()
-    end
-    local path = (base ~= nil and (base .. "/Server/LastHomeHouse.cfg")
-                or "Zomboid/Server/LastHomeHouse.cfg")
+    -- PZ's getFileReader / fileExists resolve relative to the user Zomboid
+    -- data folder, so "Server/LastHomeHouse.cfg" maps to
+    -- <userDir>/Server/LastHomeHouse.cfg. Do NOT use `io` (nil in Kahlua).
+    local relPath = "Server/LastHomeHouse.cfg"
 
-    local f = io.open(path, "r")  -- io is available server-side in PZ B41
-    if f ~= nil then
-        for line in f:lines() do
-            local trimmed = line:match("^%s*(.-)%s*$")
-            if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
-                f:close()
-                if trimmed == "random" then return defaultId end
-                if validIds[trimmed] then return trimmed end
-                print("[LastHome] LastHomeHouse.cfg valeur invalide: " .. tostring(trimmed) .. " -> random")
-                return defaultId
-            end
-        end
-        f:close()
-    else
-        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(path) .. ") -> random")
+    if fileExists == nil or not fileExists(relPath) then
+        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(relPath) .. ") -> random")
+        return defaultId
     end
-    return defaultId
+
+    local reader = getFileReader(relPath, false)
+    if reader == nil then
+        print("[LastHome] LastHomeHouse.cfg non lisible (path=" .. tostring(relPath) .. ") -> random")
+        return defaultId
+    end
+
+    local result = defaultId
+    local found = false
+    local line = reader:readLine()
+    while line ~= nil do
+        local trimmed = line:match("^%s*(.-)%s*$")
+        if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
+            if trimmed == "random" then
+                result = defaultId
+            elseif validIds[trimmed] then
+                result = trimmed
+            else
+                print("[LastHome] LastHomeHouse.cfg valeur invalide: " .. tostring(trimmed) .. " -> random")
+                result = defaultId
+            end
+            found = true
+            break
+        end
+        line = reader:readLine()
+    end
+    reader:close()
+
+    if not found then
+        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(relPath) .. ") -> random")
+    end
+    return result
 end
 ```
 
-> Implementer note: `io.open` works in PZ server Lua. Resolve the path via
-> `getCore():getMyDocumentFolder()` first (absolute, dedicated-server-safe),
-> then fall back to the relative path. The `random` fallback is the contract if
-> the file is absent, unreadable, or contains an invalid token. This path
-> strategy is an **acceptance criterion**, not best-effort (see below).
+> Implementer note: PZ's Kahlua Lua runtime has **no `io` library** (`io` is
+> nil -> `io.open` throws "attempted index: open of non-table: null",
+> confirmed in-game 25-07-26). Use the PZ-native globals `fileExists(path)` and
+> `getFileReader(path, createIfNull)` (returns a Java `BufferedReader`), then
+> `reader:readLine()` / `reader:close()`. These resolve `path` **relative to the
+> user Zomboid data folder**, so `"Server/LastHomeHouse.cfg"` maps to
+> `<userDir>/Server/LastHomeHouse.cfg` (the same dir as `LastHome.ini`). The
+> `random` fallback is the contract if the file is absent, unreadable, or
+> contains an invalid token. This path strategy is an **acceptance
+> criterion**, not best-effort (see below).
 
 ### 2. `LastHomeShared.applyDefaultSandboxVars()` in `media/lua/shared/LastHomeShared.lua`
 
@@ -218,11 +232,11 @@ Events.OnServerStarted.Add(runBootstrap)
    back to `random` and selects one of the 4 houses, logging the resolved
    path and the fallback reason.
 4. **Config path resolution is deterministic (not best-effort):**
-   `getScenarioHouseId()` resolves the file via `getCore():getMyDocumentFolder()`
-   first and falls back to the relative `Zomboid/Server/LastHomeHouse.cfg`;
-   the resolved path is logged on every read attempt (success, missing, or
-   invalid). A test placing the file at the absolute path is documented in
-   LH-MP-4 and passes.
+   `getScenarioHouseId()` uses PZ-native `fileExists` + `getFileReader` (NOT
+   `io`, which is nil in Kahlua) with the relative path `Server/LastHomeHouse.cfg`,
+   which resolves to `<userDir>/Server/LastHomeHouse.cfg`; the resolved path is
+   logged on every read attempt (missing, unreadable, or invalid). A test
+   placing the file at that path is documented in LH-MP-4 and passes.
 5. `LastHomeShared.applyDefaultSandboxVars()` sets `SandboxVars.Zombies = 6`
    and all `ZombieConfig` multipliers to 0 when called.
 6. In solo Challenges mode, `isChallengeMode()` is true and the bootstrap
@@ -238,9 +252,12 @@ Events.OnServerStarted.Add(runBootstrap)
 
 ## Pitfalls (for the implementer)
 
-- `io.open` path must resolve to the PZ user data dir. If `Zomboid/Server/`
-  is relative to the working dir, confirm against an existing PZ server
-  install; otherwise use the PZ file API. Keep the `random` fallback robust.
+- **Do NOT use `io`** -- it is nil in PZ's Kahlua Lua; `io.open` throws
+  `attempted index: open of non-table: null` (confirmed in-game 25-07-26).
+  Use PZ's `fileExists(path)` + `getFileReader(path, false)` + `reader:readLine()`.
+  The path is relative to the user Zomboid data folder, so
+  `"Server/LastHomeHouse.cfg"` maps to `<userDir>/Server/LastHomeHouse.cfg`.
+  Keep the `random` fallback robust.
 - `getCore():isChallenge()` may be `isChallenge()` (method) or a field;
   guard with nil-checks as in the example.
 - Do **not** call `setSelectedHouse` after waves have started (the guard
