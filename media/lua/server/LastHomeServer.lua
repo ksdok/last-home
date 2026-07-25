@@ -415,9 +415,9 @@ local function getPrimaryHouseSupplyContainer()
     end
 
     if bestContainer ~= nil then
-        -- Fallback : la case configuree (house.supply) n'avait pas de conteneur.
-        -- On reecrit house.supply avec la case reelle du conteneur choisi pour que
-        -- la fleche client (LH-15) pointe au bon endroit, puis on resync le client.
+        -- Fallback: the configured square (house.supply) had no container.
+        -- Rewrite house.supply with the actual square of the chosen container so
+        -- the client arrow (LH-15) points to the right location, then resync the client.
         local cur = house.supply or {}
         if cur.x ~= bestX or cur.y ~= bestY or (cur.z or 0) ~= (bestZ or 0) then
             house.supply = { x = bestX, y = bestY, z = bestZ }

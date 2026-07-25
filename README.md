@@ -1,50 +1,50 @@
 # Last Home
 
-Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre des vagues de zombies croissantes. Entre chaque vague, ils craftent, réparent et préparent leurs défenses. Survie la plus longue possible.
+Co-op mod for Project Zomboid (B41). Players defend a building against growing waves of zombies. Between each wave, they craft, repair, and prepare their defenses. Survive as long as possible.
 
 ## Concept
 
-- **Coop** jusqu'à 8 joueurs (doublons de rôles autorisés)
-- **Vagues** en temps réel : prep 2 min pour la vague 1, puis 5 min ; chaque vague dure 5 min
-- **Bâtiment aléatoire** parmi 4 (Hôpital, Villa, Prison, École élémentaire), ou forcé par challenge
-- **Direction croissante** des hordes : 1 direction au début, puis 2, 3, jusqu'à 360° — avec exceptions de gameplay par lieu si nécessaire
-- **Permadeath** : le joueur mort devient spectateur et peut faire spawner 1 zombie pendant les vagues suivantes
-- **17 rôles** repris d'Escapade Express (sans Mécanicien, avec Builder)
-- **Survie illimitée** : le score = nombre de vagues survécues
+- **Co-op** up to 8 players (duplicate roles allowed)
+- **Real-time waves**: prep 2 min for wave 1, then 5 min; each wave lasts 5 min
+- **Random building** among 4 (Hospital, Villa, Prison, Elementary School), or forced by challenge
+- **Increasing directions** of hordes: 1 direction at first, then 2, 3, up to 360° — with gameplay exceptions per location if needed
+- **Permadeath**: dead players become spectators and can spawn 1 zombie during subsequent waves
+- **17 roles** taken from Escapade Express (without Mechanic, with Builder)
+- **Unlimited survival**: score = number of waves survived
 
-## Spécifications
+## Specifications
 
-| Spec | Description | Statut |
+| Spec | Description | Status |
 |------|-------------|--------|
-| [LH-01](specs/LH-01-concept.md) | Concept et questions validées | ✅ |
-| [LH-02](specs/LH-02-roles.md) | 17 rôles réajustés | ✅ |
-| [LH-03](specs/LH-03-vagues.md) | Vagues, scaling, directions, spectateur | ✅ |
-| [LH-04](specs/LH-04-maison.md) | Bâtiment, réparations, défense | ✅ |
-| [LH-05](specs/LH-05-zone-confinement.md) | Zone de confinement autour de la maison | ✅ |
-| [LH-06](specs/LH-06-hud.md) | Refonte HUD et position | ✅ |
-| [LH-07](specs/LH-07-fix-sync-solo.md) | Fix sync solo / confinement | ✅ |
-| [LH-08](specs/LH-08-equipement-roles.md) | Équipement des rôles et helpers partagés | ✅ |
-| [LH-10](specs/LH-10-timers-skip.md) | Timers réduits + skip de vague | ✅ |
-| [LH-12](specs/LH-12-create-horde-from-to.md) | Piste A aggro via `createHordeFromTo` | 📝 |
-| [LH-13](specs/LH-13-suppression-spawns-vanilla.md) | Suppression continue des spawns vanilla/story | ✅ |
-| [LH-14](specs/LH-14-firearm-loadout-priming.md) | Amorçage des armes à feu à l'attribution du rôle | ✅ |
-| [LH-15](specs/LH-15-stock-locator-arrow.md) | Flèche du stock à l'écran | ✅ |
+| [LH-01](specs/LH-01-concept.md) | Concept and validated questions | ✅ |
+| [LH-02](specs/LH-02-roles.md) | 17 rebalanced roles | ✅ |
+| [LH-03](specs/LH-03-vagues.md) | Waves, scaling, directions, spectator | ✅ |
+| [LH-04](specs/LH-04-maison.md) | Building, repairs, defense | ✅ |
+| [LH-05](specs/LH-05-zone-confinement.md) | Confinement zone around the house | ✅ |
+| [LH-06](specs/LH-06-hud.md) | HUD overhaul and positioning | ✅ |
+| [LH-07](specs/LH-07-fix-sync-solo.md) | Fix solo sync / confinement | ✅ |
+| [LH-08](specs/LH-08-equipement-roles.md) | Role equipment and shared helpers | ✅ |
+| [LH-10](specs/LH-10-timers-skip.md) | Reduced timers + wave skip | ✅ |
+| [LH-12](specs/LH-12-create-horde-from-to.md) | Track A aggro via `createHordeFromTo` | 📝 |
+| [LH-13](specs/LH-13-suppression-spawns-vanilla.md) | Continuous vanilla/story spawn suppression | ✅ |
+| [LH-14](specs/LH-14-firearm-loadout-priming.md) | Firearm priming on role assignment | ✅ |
+| [LH-15](specs/LH-15-stock-locator-arrow.md) | On-screen stock arrow | ✅ |
 
-## État
+## Status
 
-- ✅ Specs versionnées complètes pour **LH-01** à **LH-08** et **LH-10**
-- 📝 Spec d'exploration rédigée : **LH-12** (aggro via `createHordeFromTo`)
-- ✅ Implémentation de **LH-02** à **LH-08**, **LH-10**, **LH-13**, **LH-14** et **LH-15** terminée
-- ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
-- ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
-- ✅ Timers LH-10 : prep vague 1 = 2 min, prep suivantes = 5 min, vague = 5 min, skip via touche `K`
-- ✅ Challenges Last Home : zombies vanilla désactivés, nettoyage ambiant autour de la base, Villa forcée au **Sud**
-- ✅ Attraction des vagues recentrée sur des impulsions sonores type alarme vers la base pour fiabiliser la pression zombie
-- ✅ Suppression continue des spawns vanilla/story autour de la base en Challenge (cleanup périodique toutes les 5s, tagging `LH_waveZombie` préservé)
-- ✅ Flèche du stock à l'écran pointant vers le conteneur communautaire avec distance (visible à travers les murs)
-- 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
+- ✅ Versioned specs complete for **LH-01** through **LH-08** and **LH-10**
+- 📝 Exploration spec written: **LH-12** (aggro via `createHordeFromTo`)
+- ✅ Implementation of **LH-02** through **LH-08**, **LH-10**, **LH-13**, **LH-14** and **LH-15** complete
+- ✅ Solo confinement stabilized (dedicated sync, fixed boundary detection, HUD IN/OUT)
+- ✅ 4 challenges registered in the menu (Hospital, Villa, Prison, School)
+- ✅ LH-10 timers: prep wave 1 = 2 min, subsequent prep = 5 min, wave = 5 min, skip via `K` key
+- ✅ Last Home challenges: vanilla zombies disabled, ambient cleanup around base, Villa forced to **South**
+- ✅ Wave attraction refocused on alarm-like sound pulses toward the base to make zombie pressure reliable
+- ✅ Continuous vanilla/story spawn suppression around the base in Challenge mode (periodic cleanup every 5s, `LH_waveZombie` tagging preserved)
+- ✅ On-screen stock arrow pointing to the community container with distance (visible through walls)
+- 📋 Backlog and current tracking in [project-state.md](project-state.md)
 
-## Structure du mod
+## Mod Structure
 
 ```text
 last-home/
@@ -55,20 +55,20 @@ last-home/
   media/
     lua/
       server/
-        LastHomeServer.lua      -- rôles, attribution, refill Builder, SetHouse
-        LastHomeWaves.lua       -- vagues, scaling, directions, spectateur, confinement
+        LastHomeServer.lua      -- roles, assignment, Builder refill, SetHouse
+        LastHomeWaves.lua       -- waves, scaling, directions, spectator, confinement
       client/
         LastStand/
-          LastHomeHospital.lua  -- challenge Hôpital
-          LastHomeVilla.lua     -- challenge Villa
-          LastHomePrison.lua    -- challenge Prison
-          LastHomeSchool.lua    -- challenge École
-          *.png                 -- images de preview (200x200)
-        LastHomeClient.lua      -- bootstrap client / HUD / sync solo
-        LastHomeRolePicker.lua  -- picker de rôles
+          LastHomeHospital.lua  -- Hospital challenge
+          LastHomeVilla.lua     -- Villa challenge
+          LastHomePrison.lua    -- Prison challenge
+          LastHomeSchool.lua    -- School challenge
+          *.png                 -- preview images (200x200)
+        LastHomeClient.lua      -- client bootstrap / HUD / solo sync
+        LastHomeRolePicker.lua  -- role picker
       shared/
-        LastHomeRoles.lua       -- définitions des 17 rôles
-        LastHomeShared.lua      -- helpers partagés (maisons, coords, timers, boundary)
+        LastHomeRoles.lua       -- definitions of the 17 roles
+        LastHomeShared.lua      -- shared helpers (houses, coords, timers, boundary)
   specs/
     LH-01-concept.md
     LH-02-roles.md
@@ -81,17 +81,17 @@ last-home/
     LH-10-timers-skip.md
 ```
 
-## Dépendances
+## Dependencies
 
-### Mods requis
+### Required mods
 
-- **Pillow's Random Scenarios** (Workshop ID: `2106657533`) — mod hôte
+- **Pillow's Random Scenarios** (Workshop ID: `2106657533`) — host mod
 - **Xonic's Mega Mall** (Workshop ID: `1713269594`) — map
 
-### Autres
+### Other
 
-- Inspiration d'Escapade Express pour le système de rôles (github.com/ksdok/escapade-express)
+- Inspiration from Escapade Express for the role system (github.com/ksdok/escapade-express)
 
-## Licence
+## License
 
 MIT

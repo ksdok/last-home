@@ -152,7 +152,7 @@ LastHomeClient.TickRolePickerFallback = function()
 end
 
 -- ============================================================
--- SOLO: application locale du role (sans serveur)
+-- SOLO: local role application (no server)
 -- ============================================================
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
@@ -263,8 +263,8 @@ local function applyPerkLevel(player, perk, level)
     xp:setXPToLevel(perk, level)
 end
 
--- Fallback legacy solo: conserve intentionnellement comme filet de securite si le flux serveur
--- du mode Challenge / solo regressait. Cette voie n'est pas le chemin nominal.
+-- Legacy solo fallback: intentionally kept as a safety net if the server flow
+-- in Challenge / solo mode regressed. This is not the nominal path.
 function LastHomeClient.applyRoleLocally(player, roleKey)
     if player == nil or roleKey == nil then return false end
 
@@ -683,7 +683,7 @@ local function drawStockArrow()
     local dist = math.sqrt(dx * dx + dy * dy)
     if dist < 3 then return end -- deja sur le stock
 
-    -- Projection monde -> ecran (camera-incluse via IsoCamera offset)
+    -- World -> screen projection (camera-adjusted via IsoCamera offset)
     if IsoUtils == nil or IsoUtils.XToScreenExact == nil then return end
     local stockScreenX = IsoUtils.XToScreenExact(sx, sy, sz, 0)
     local stockScreenY = IsoUtils.YToScreenExact(sx, sy, sz, 0)
@@ -697,12 +697,12 @@ local function drawStockArrow()
     local cx, cy = screenW / 2, screenH / 2
     local arrowX, arrowY, arrowChar
     if onScreen then
-        -- marqueur au-dessus du stock, fleche vers le bas pointant le conteneur
+        -- marker above the stock, down arrow pointing at the container
         arrowX = stockScreenX
         arrowY = stockScreenY - 28
         arrowChar = "v"
     else
-        -- clamper a l'edge le long de la ligne centre -> stock ecran
+        -- clamp to the edge along the center -> stock screen line
         local ax = stockScreenX - cx
         local ay = stockScreenY - cy
         if ax == 0 and ay == 0 then return end
@@ -715,7 +715,7 @@ local function drawStockArrow()
         elseif ay < 0 then scale = math.min(scale, (minY - cy) / ay) end
         arrowX = cx + ax * scale
         arrowY = cy + ay * scale
-        -- direction cardinale dominante
+        -- dominant cardinal direction
         if math.abs(ax) > math.abs(ay) then
             arrowChar = ax > 0 and ">" or "<"
         else
@@ -725,7 +725,7 @@ local function drawStockArrow()
 
     local label = string.format("%s %dm", arrowChar, math.floor(dist))
     local tm = getTextManager()
-    -- ombre + texte centre (jaune)
+    -- shadow + centered text (yellow)
     tm:DrawStringCentre(UIFont.Medium, arrowX + 1, arrowY + 1, label, 0, 0, 0, 1)
     tm:DrawStringCentre(UIFont.Medium, arrowX, arrowY, label, 1, 0.85, 0.25, 1)
 end

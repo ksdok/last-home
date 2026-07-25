@@ -728,7 +728,7 @@ Roles.BUILDER_REFILL_ITEMS = {
     {"Base.Glue", 5},
     {"Base.MetalBar", 10},
     {"Base.Screws", 100},
-    -- Nourriture / eau (stock communautaire, refill x8)
+    -- Food / water (community stock, refill x8)
     {"Base.TinnedBeans", 5},
     {"Base.TinnedSoup", 5},
     {"Base.TunaTin", 5},

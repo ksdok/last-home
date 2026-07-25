@@ -1,157 +1,157 @@
 # Project State
 
-## Résumé
+## Summary
 
-- Projet : **Last Home**
-- Repo : `/Users/kim/Documents/Zomboid/last-home`
-- Branche de référence : `main`
-- Branche source du ticket livré : `feat/lh-10-timers-skip`
-- Référence utilisée : `/Users/kim/Documents/Zomboid/EscapadeExpress`
+- Project: **Last Home**
+- Repo: `/Users/kim/Documents/Zomboid/last-home`
+- Reference branch: `main`
+- Source branch for delivered ticket: `feat/lh-10-timers-skip`
+- Reference used: `/Users/kim/Documents/Zomboid/EscapadeExpress`
 
-## État actuel
+## Current Status
 
-- ✅ Les specs versionnées **LH-01** à **LH-08** et **LH-10** sont rédigées et validées
-- ✅ **LH-02** à **LH-08** sont implémentés et corrigés après review / debug
-- ✅ **LH-10** est implémenté : timers raccourcis, skip de vague, HUD de skip, debounce client
-- ✅ 4 challenges enregistrés dans le menu Challenges de PZ (Hôpital, Villa, Prison, École)
-- ✅ Les challenges Last Home désactivent désormais la pop vanilla (`SandboxVars.Zombies = 6` + multipliers à 0) et nettoient les zombies ambiants autour de la base
-- ✅ La Villa est fiabilisée : vagues forcées au **Sud**, spawns au sol, attraction des vagues recentrée sur des impulsions sonores type alarme vers la base
-- ✅ La spec **LH-12** est rédigée pour tester la piste A sur l'aggro des vagues via `createHordeFromTo`
-- ✅ La spec **LH-13** est rédigée et implémentée : suppression continue des spawns vanilla/story autour de la base en Challenge
-- ⏳ La prochaine étape reste la **vérification en jeu** (solo/LAN puis multijoueur), surtout sur la pression zombie réelle, l'attraction vers la Villa, les spectateurs, le pacing LH-10, le test de la piste A et la validation de la suppression des spawns parasites
+- ✅ Versioned specs **LH-01** through **LH-08** and **LH-10** are written and validated
+- ✅ **LH-02** through **LH-08** are implemented and fixed after review/debug
+- ✅ **LH-10** is implemented: shortened timers, wave skip, skip HUD, client debounce
+- ✅ 4 challenges registered in PZ's Challenges menu (Hospital, Villa, Prison, School)
+- ✅ Last Home challenges now disable vanilla pop (`SandboxVars.Zombies = 6` + multipliers at 0) and clean ambient zombies around the base
+- ✅ Villa stabilized: waves forced to **South**, ground-level spawns, wave attraction refocused on alarm-like sound pulses toward the base
+- ✅ Spec **LH-12** written to test Track A on wave aggro via `createHordeFromTo`
+- ✅ Spec **LH-13** written and implemented: continuous vanilla/story spawn suppression around the base in Challenge mode
+- ⏳ Next step remains **in-game verification** (solo/LAN then multiplayer), especially on actual zombie pressure, Villa attraction, spectators, LH-10 pacing, Track A testing, and validation of parasite spawn suppression
 
-## Terminé
+## Completed
 
 ### Specs
-- [x] LH-01 — Concept et spécification
-- [x] LH-02 — Rôles réajustés
-- [x] LH-03 — Vagues
-- [x] LH-04 — Maison, réparations et défense
-- [x] LH-05 — Zone de confinement
-- [x] LH-06 — Refonte HUD et position
-- [x] LH-07 — Fix sync solo state via OnTick dédié
-- [x] LH-08 — Équipement des rôles
-- [x] LH-10 — Timers réduits et skip de vague
-- [x] LH-12 — Piste A aggro via createHordeFromTo
-- [x] LH-13 — Suppression des spawns vanilla/story parasites
-- [x] LH-14 — Amorçage des armes à feu à l'attribution du rôle
-- [x] LH-15 — Flèche du stock à l'écran
+- [x] LH-01 — Concept and specification
+- [x] LH-02 — Rebalanced roles
+- [x] LH-03 — Waves
+- [x] LH-04 — House, repairs, and defense
+- [x] LH-05 — Confinement zone
+- [x] LH-06 — HUD overhaul and positioning
+- [x] LH-07 — Fix sync solo state via dedicated OnTick
+- [x] LH-08 — Role equipment
+- [x] LH-10 — Reduced timers and wave skip
+- [x] LH-12 — Track A aggro via createHordeFromTo
+- [x] LH-13 — Vanilla/story parasite spawn suppression
+- [x] LH-14 — Firearm priming on role assignment
+- [x] LH-15 — On-screen stock arrow
 
-### Implémentation
-- [x] LH-02 — Système de rôles Last Home
+### Implementation
+- [x] LH-02 — Last Home role system
   - `media/lua/shared/LastHomeRoles.lua`
   - `media/lua/client/LastHomeRolePicker.lua`
   - `media/lua/client/LastHomeClient.lua`
   - `media/lua/server/LastHomeServer.lua`
   - `mod.info`
-  - Correctifs post-review appliqués :
-    - ouverture du role picker fiabilisée côté client
-    - `applyPerkLevel()` rendu plus robuste
-    - texte du picker rendu plus pérenne
-    - `version=0.1.0` ajoutée à `mod.info`
+  - Post-review fixes applied:
+    - reliable role picker opening on client side
+    - `applyPerkLevel()` made more robust
+    - picker text made more durable
+    - `version=0.1.0` added to `mod.info`
 
-- [x] LH-03 — Système de vagues Last Home
+- [x] LH-03 — Last Home wave system
   - `media/lua/server/LastHomeWaves.lua`
   - `media/lua/shared/LastHomeShared.lua`
   - `media/lua/server/LastHomeServer.lua`
   - `media/lua/client/LastHomeClient.lua`
   - `mod.info`
-  - Fonctionnalités implémentées :
-    - cycle prep 10 min / vague 10 min en temps réel
-    - scaling des zombies selon vague + joueurs vivants
-    - directions croissantes 1 / 2 / 3 / 360
-    - annonces serveur/client + HUD timer MM:SS
-    - débordement des zombies restants sur la vague suivante
-    - mode spectateur avec 1 spawn zombie par vague
-    - score = nombre de vagues survécues
-  - Correctifs post-review appliqués :
-    - score fiabilisé via `wavesSurvived`
-    - timers migrés sur un suivi temps réel partagé
-    - robustesse côté serveur sur détection de mort joueur
-    - feedback ciblé si un spawn spectateur est refusé
-    - `version=0.2.0` ajoutée à `mod.info`
+  - Implemented features:
+    - prep 10 min / wave 10 min real-time cycle
+    - zombie scaling based on wave + living players
+    - increasing directions 1 / 2 / 3 / 360
+    - server/client announcements + MM:SS HUD timer
+    - leftover zombies overflow to next wave
+    - spectator mode with 1 zombie spawn per wave
+    - score = number of waves survived
+  - Post-review fixes applied:
+    - score stabilized via `wavesSurvived`
+    - timers migrated to shared real-time tracking
+    - server-side robustness on player death detection
+    - targeted feedback if a spectator spawn is denied
+    - `version=0.2.0` added to `mod.info`
 
-- [x] LH-04 — Maison, réparations et défense
+- [x] LH-04 — House, repairs, and defense
   - `media/lua/shared/LastHomeShared.lua`
   - `media/lua/server/LastHomeServer.lua`
   - `media/lua/server/LastHomeWaves.lua`
   - `media/lua/client/LastHomeClient.lua`
   - `mod.info`
-  - Fonctionnalités implémentées :
-    - sélection aléatoire d'un bâtiment vanilla parmi 4 (Hôpital, Villa, Prison, École élémentaire)
-    - zones de spawn joueur par bâtiment (radius ou box selon la maison)
-    - centre de maison synchronisé au système de vagues et au HUD client
-    - stock communautaire dans un conteneur vanilla dédié par maison
-    - fallback sur le conteneur vanilla le plus proche si le conteneur dédié est absent
-    - refill Builder conservé + stock maison rerempli toutes les 10 minutes
-  - Correctifs post-review appliqués :
-    - validation plus stricte des squares de spawn joueur
-    - garde anti-spam sur le refill du stock maison lors des reconnexions / assignations
-    - warning serveur si un téléport de joueur vers la maison échoue
-    - `version=0.3.0` ajoutée à `mod.info`
+  - Implemented features:
+    - random vanilla building selection among 4 (Hospital, Villa, Prison, Elementary School)
+    - player spawn zones per building (radius or box depending on house)
+    - house center synced to wave system and client HUD
+    - community stock in a dedicated vanilla container per house
+    - fallback to nearest vanilla container if dedicated container is missing
+    - Builder refill preserved + house stock refilled every 10 minutes
+  - Post-review fixes applied:
+    - stricter validation of player spawn squares
+    - anti-spam guard on house stock refill during reconnections/assignments
+    - server warning if player teleport to house fails
+    - `version=0.3.0` added to `mod.info`
 
-- [x] LH-05 — Zone de confinement autour de la maison
+- [x] LH-05 — Confinement zone around the house
   - `media/lua/shared/LastHomeShared.lua`
   - `media/lua/server/LastHomeWaves.lua`
   - `media/lua/client/LastHomeClient.lua`
   - `specs/LH-05-zone-confinement.md`
   - `README.md`
   - `mod.info`
-  - Fonctionnalités implémentées :
-    - `boundary` rectangulaire 2D configurable par maison (coordonnées validées en jeu)
-    - détection serveur des sorties de zone pour les joueurs vivants avec rôle
-    - compte à rebours de 10s synchronisé au HUD client via `BoundaryState`
-    - dégâts progressifs autoritatifs côté serveur après expiration du compte à rebours
-    - exemption des spectateurs et arrêt immédiat du confinement au retour dans la zone
-  - Notes :
-    - l'architecture de la spec a été corrigée vers un modèle **serveur autoritatif** pour le multijoueur
-    - zones de confinement rectangulaires 2D `X/Y` sans contrainte `Z` pour les 4 lieux
-    - correctifs post-review : suppression de la re-normalisation inutile de `boundary` à chaque tick, alignement du fallback de dégâts sur `BOUNDARY_DAMAGE_AMOUNT`
-    - `version=0.5.0` ajoutée à `mod.info`
+  - Implemented features:
+    - configurable 2D rectangular `boundary` per house (coordinates validated in-game)
+    - server-side zone exit detection for alive players with a role
+    - 10s countdown synced to client HUD via `BoundaryState`
+    - authoritative progressive damage server-side after countdown expiration
+    - spectator exemption and immediate confinement stop on re-entry
+  - Notes:
+    - spec architecture corrected to an **authoritative server** model for multiplayer
+    - 2D rectangular `X/Y` confinement zones without `Z` constraint for all 4 locations
+    - post-review fixes: removed unnecessary `boundary` re-normalization every tick, aligned damage fallback with `BOUNDARY_DAMAGE_AMOUNT`
+    - `version=0.5.0` added to `mod.info`
 
-- [x] LH-06 — Refonte HUD et position
+- [x] LH-06 — HUD overhaul and positioning
   - `media/lua/client/LastHomeClient.lua`
   - `specs/LH-06-hud.md`
   - `mod.info`
-  - Fonctionnalités implémentées :
-    - HUD ancré en haut à droite avec calcul dynamique (`getCore():getScreenWidth()`)
-    - secondes du countdown de confinement affichées en entier (`math.ceil()`)
-    - clignotement de la ligne « Dégâts actifs » (alternance toutes les 0.5s)
-    - message « De retour dans la zone » (vert, disparaît après 3s) via `boundaryReturnedAt`
-  - Correctifs post-review appliqués :
-    - détection du retour en zone dans `updateBoundaryState()` (transition countdown/damaging → inside)
-    - `version=0.6.0` ajoutée à `mod.info`
+  - Implemented features:
+    - HUD anchored top-right with dynamic calculation (`getCore():getScreenWidth()`)
+    - confinement countdown seconds displayed as integers (`math.ceil()`)
+    - "Damage active" line blinking (toggle every 0.5s)
+    - "Back in the zone" message (green, disappears after 3s) via `boundaryReturnedAt`
+  - Post-review fixes applied:
+    - zone re-entry detection in `updateBoundaryState()` (countdown/damaging → inside transition)
+    - `version=0.6.0` added to `mod.info`
 
 - [x] LH-07 — Fix sync solo / confinement
   - `media/lua/client/LastHomeClient.lua`
   - `media/lua/server/LastHomeWaves.lua`
   - `media/lua/shared/LastHomeShared.lua`
   - `specs/LH-07-fix-sync-solo.md`
-  - Fonctionnalités implémentées :
-    - sync solo déplacée du rendu HUD vers un `Events.OnTick` dédié
-    - resynchronisation solo de `waveState` et `boundaryState` indépendante du draw UI
-    - indicateur local HUD `Zone: IN/OUT` pour visualiser l'état du confinement côté client
-    - logs ciblés serveur/client pour debugger la détection boundary en solo
-  - Correctifs post-debug appliqués :
-    - `LastHomeShared.isInsideBoundary()` corrigé pour gérer les objets joueur PZ via `getX()/getY()` au lieu d'un test `type(...) == "table"`
-    - warning local client « Hors zone ! Retournez vers la base » ajouté en fallback visuel
-    - spam de logs périodiques des coordonnées joueur retiré après validation
+  - Implemented features:
+    - solo sync moved from HUD rendering to a dedicated `Events.OnTick`
+    - solo resync of `waveState` and `boundaryState` independent of draw UI
+    - local HUD indicator `Zone: IN/OUT` to visualize confinement state client-side
+    - targeted server/client logs for debugging boundary detection in solo
+  - Post-debug fixes applied:
+    - `LastHomeShared.isInsideBoundary()` fixed to handle PZ player objects via `getX()/getY()` instead of a `type(...) == "table"` check
+    - local client warning "Out of zone! Return to base" added as visual fallback
+    - periodic player coordinate log spam removed after validation
 
-- [x] LH-08 — Équipement des rôles
+- [x] LH-08 — Role equipment
   - `media/lua/shared/LastHomeShared.lua`
   - `media/lua/client/LastHomeClient.lua`
   - `media/lua/server/LastHomeServer.lua`
   - `specs/LH-08-equipement-roles.md`
-  - Fonctionnalités implémentées :
-    - répartition de l'inventaire, du sac et des objets équipés plus robuste selon le rôle
-    - détection automatique des armes 2 mains
-    - munitions préchargées au spawn
-    - helpers partagés `applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`
-  - Correctifs appliqués :
-    - duplication client/serveur réduite pour l'équipement et la charge
-    - compatibilité conservée avec les rôles existants et le refill Builder
+  - Implemented features:
+    - more robust inventory, bag, and equipped item distribution per role
+    - automatic 2-handed weapon detection
+    - pre-loaded ammunition on spawn
+    - shared helpers `applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`
+  - Fixes applied:
+    - reduced client/server duplication for equipment and loadout
+    - compatibility preserved with existing roles and Builder refill
 
-- [x] LH-10 — Timers réduits, skip de vague et fiabilisation Villa
+- [x] LH-10 — Reduced timers, wave skip, and Villa stabilization
   - `media/lua/server/LastHomeWaves.lua`
   - `media/lua/client/LastHomeClient.lua`
   - `media/lua/shared/LastHomeShared.lua`
@@ -160,20 +160,20 @@
   - `media/lua/client/LastStand/LastHomeSchool.lua`
   - `media/lua/client/LastStand/LastHomeVilla.lua`
   - `specs/LH-10-timers-skip.md`
-  - Fonctionnalités implémentées :
-    - prep vague 1 = `2 * 60`, prep vagues suivantes = `5 * 60`, vague = `5 * 60`
-    - skip de la prep via touche `K`, solo direct ou commande réseau selon le runtime
-    - HUD de skip + debounce client pour éviter les doubles demandes
-    - spawns de vagues au sol pour la Villa
-    - désactivation des zombies vanilla dans les 4 challenges (`SandboxVars.Zombies = 6`, multipliers/respawn/rally à 0)
-    - nettoyage des zombies ambiants autour de la base au début de la prep et au démarrage de vague
-    - Villa forcée au **Sud** et attraction des vagues recentrée sur des impulsions sonores type alarme vers la base
-  - Commits associés :
-    - `9da0397` — `LH-10: ajouter le skip de vague et réduire les timers`
-    - `5e0335d` — `LH-10: debounce la demande de skip de vague`
-    - `b3dc132` — `fix: aggro des vagues et zombies vanilla des challenges`
+  - Implemented features:
+    - prep wave 1 = `2 * 60`, subsequent prep = `5 * 60`, wave = `5 * 60`
+    - skip prep via `K` key, direct solo or network command depending on runtime
+    - skip HUD + client debounce to prevent double requests
+    - ground-level wave spawns for Villa
+    - vanilla zombies disabled in all 4 challenges (`SandboxVars.Zombies = 6`, multipliers/respawn/rally at 0)
+    - ambient zombie cleanup around base at prep start and wave start
+    - Villa forced to **South** and wave attraction refocused on alarm-like sound pulses toward the base
+  - Associated commits:
+    - `9da0397` — `LH-10: add wave skip and reduce timers`
+    - `5e0335d` — `LH-10: debounce wave skip request`
+    - `b3dc132` — `fix: wave aggro and vanilla zombies in challenges`
 
-- [x] Challenges PZ (menu Challenges)
+- [x] PZ Challenges (Challenges menu)
   - `media/lua/client/LastStand/LastHomeHospital.lua`
   - `media/lua/client/LastStand/LastHomeVilla.lua`
   - `media/lua/client/LastStand/LastHomePrison.lua`
@@ -181,101 +181,101 @@
   - `media/lua/server/LastHomeServer.lua` (handler `SetHouse`)
   - `media/lua/server/LastHomeWaves.lua` (`hasStarted()`)
   - `mod.info` (`poster=poster.png`, `version=0.4.0`)
-  - Fonctionnalités implémentées :
-    - 4 challenges enregistrés via `Events.OnChallengeQuery.Add()`
-    - chaque challenge force la maison correspondante côté serveur
-    - images de preview 200x200 + poster 256x256
-  - Correctifs post-review appliqués :
-    - verrouillage serveur de la maison challenge via `houseSelectionLocked`
-    - surcharge autorisée d'une rotation initiale tant que les vagues n'ont pas démarré
-    - re-téléport des joueurs déjà assignés + refill immédiat si `SetHouse` corrige une rotation initiale
-    - garde client `_houseSelectionSent` pour éviter les doublons `SetHouse`
-    - API explicite `LastHomeWaves.hasStarted()` + log debug sur le no-op `SetHouse` avec même maison
+  - Implemented features:
+    - 4 challenges registered via `Events.OnChallengeQuery.Add()`
+    - each challenge forces the corresponding house server-side
+    - 200x200 preview images + 256x256 poster
+  - Post-review fixes applied:
+    - server-side challenge house lock via `houseSelectionLocked`
+    - initial rotation override allowed as long as waves haven't started
+    - re-teleport of already assigned players + immediate refill if `SetHouse` fixes an initial rotation
+    - client guard `_houseSelectionSent` to prevent duplicate `SetHouse`
+    - explicit API `LastHomeWaves.hasStarted()` + debug log on no-op `SetHouse` with same house
 
-- [x] Fallback solo role picker (mode Challenge)
+- [x] Solo role picker fallback (Challenge mode)
   - `media/lua/client/LastHomeClient.lua`
   - `media/lua/client/LastHomeRolePicker.lua`
-  - Fonctionnalités implémentées :
-    - `isSinglePlayerRuntime()` détecte le solo (isClient + getOnlinePlayers)
-    - `TickRolePickerFallback` ouvre le picker localement après 3s si le serveur ne répond pas
-    - `applyRoleLocally()` duplique la logique d'applyRole côté client (items, skills, stats, equip, unlimitedCarry)
-    - `openLocal()` + mode "solo" dans `onChooseRole` du RolePicker
-    - `showRoleAssigned` déclenché en solo via forward declaration
-    - `roleRequestSent` reset dans `onGameStart` pour permettre le Retry en mode Challenge
+  - Implemented features:
+    - `isSinglePlayerRuntime()` detects solo (isClient + getOnlinePlayers)
+    - `TickRolePickerFallback` opens the picker locally after 3s if the server doesn't respond
+    - `applyRoleLocally()` duplicates applyRole logic client-side (items, skills, stats, equip, unlimitedCarry)
+    - `openLocal()` + "solo" mode in `onChooseRole` of RolePicker
+    - `showRoleAssigned` triggered in solo via forward declaration
+    - `roleRequestSent` reset in `onGameStart` to allow Retry in Challenge mode
 
-- [x] LH-13 — Suppression continue des spawns vanilla/story en Challenge
+- [x] LH-13 — Continuous vanilla/story spawn suppression in Challenge mode
   - `media/lua/server/LastHomeWaves.lua`
   - `specs/LH-13-suppression-spawns-vanilla.md`
-  - Fonctionnalités implémentées :
-    - `clearAmbientZombiesNearHouse(reason)` accepte un motif (`prep`, `wave`, `periodic`) et le loggue
-    - cleanup immédiat conservé aux transitions de phase (début prep / début vague)
-    - cleanup périodique serveur toutes les `AMBIENT_CLEANUP_INTERVAL_SECONDS` (5s) tant que `started` et `house` définis **en mode Challenge** (`house.source == "challenge"`)
-    - exclusion des zombies taggés `LH_waveZombie` conservée (vagues + spectateurs)
-    - `Server.nextAmbientCleanupAt` planifié après chaque cleanup et réinitialisé dans `resetState()`
-    - logs serveur distincts par type de nettoyage avec compte de zombies supprimés
+  - Implemented features:
+    - `clearAmbientZombiesNearHouse(reason)` accepts a reason (`prep`, `wave`, `periodic`) and logs it
+    - immediate cleanup preserved at phase transitions (prep start / wave start)
+    - periodic server cleanup every `AMBIENT_CLEANUP_INTERVAL_SECONDS` (5s) as long as `started` and `house` are set **in Challenge mode** (`house.source == "challenge"`)
+    - exclusion of tagged `LH_waveZombie` zombies preserved (waves + spectators)
+    - `Server.nextAmbientCleanupAt` scheduled after each cleanup and reset in `resetState()`
+    - distinct server logs per cleanup type with removed zombie count
 
-- [x] LH-14 — Amorçage des armes à feu à l'attribution du rôle
+- [x] LH-14 — Firearm priming on role assignment
   - `media/lua/shared/LastHomeShared.lua` (`fillAmmoItem`)
   - `specs/LH-14-firearm-loadout-priming.md`
-  - Fonctionnalités implémentées :
-    - détection des armes magazine-fed via `getMagazineType()` non vide (AssaultRifle, HuntingRifle)
-    - capacité calculée en priorité depuis `getMaxAmmo()` pour les armes magazine-fed, puis `getClipSize()` si > 0, puis `getMaxAmmo()` en fallback (chargeurs spare, armes bullet-by-bullet)
-    - `setContainsClip(true)` appliqué uniquement aux armes magazine-fed
-    - reproduit le pattern officiel du moteur `HandWeapon:randomizeBullets()` : `setCurrentAmmoCount(getMaxAmmo())` + `setContainsClip(true)` si magazine-fed + `setRoundChambered(true)` si `haveChamber()`
-    - garde `isRanged()` pour ne traiter que les armes à feu ; les chargeurs spare (non-armes) sont remplis à `MaxAmmo`
-    - log debug `fillAmmoItem arme=...` pour valider le priming en jeu (utile pour diagnostiquer un éventuel souci de sync MP ou de cache Lua)
-  - Bug corrigé : `getClipSize()` renvoie 0 sur les armes sans `ClipSize` scripté (AssaultRifle, HuntingRifle, Shotgun), ce qui bloquait le `elseif getMaxAmmo` et laissait le gun à 0 balle. Le Pistol (`ClipSize=15`) restait fonctionnel.
+  - Implemented features:
+    - magazine-fed weapon detection via non-empty `getMagazineType()` (AssaultRifle, HuntingRifle)
+    - capacity calculated primarily from `getMaxAmmo()` for magazine-fed weapons, then `getClipSize()` if > 0, then `getMaxAmmo()` as fallback (spare magazines, bullet-by-bullet weapons)
+    - `setContainsClip(true)` applied only to magazine-fed weapons
+    - replicates the engine's official pattern `HandWeapon:randomizeBullets()`: `setCurrentAmmoCount(getMaxAmmo())` + `setContainsClip(true)` if magazine-fed + `setRoundChambered(true)` if `haveChamber()`
+    - `isRanged()` guard to only process firearms; spare magazines (non-weapons) filled to `MaxAmmo`
+    - debug log `fillAmmoItem weapon=...` to validate priming in-game (useful for diagnosing potential MP sync or Lua cache issues)
+  - Bug fixed: `getClipSize()` returns 0 on weapons without scripted `ClipSize` (AssaultRifle, HuntingRifle, Shotgun), which blocked the `elseif getMaxAmmo` and left the gun at 0 bullets. Pistol (`ClipSize=15`) remained functional.
 
-- [x] LH-15 — Flèche du stock à l'écran
+- [x] LH-15 — On-screen stock arrow
   - `media/lua/client/LastHomeClient.lua` (`drawStockArrow`)
   - `specs/LH-15-stock-locator-arrow.md`
-  - Fonctionnalités implémentées :
-    - flèche à l'écran pointant vers le conteneur de stock (`house.supply`) avec distance en mètres, visible à travers les murs
-    - projection monde→écran via `IsoUtils.XToScreenExact/YToScreenExact` (caméra-adjustées)
-    - marqueur `v <dist>m` au-dessus du conteneur si le stock est à l'écran ; sinon flèche cardinale (`^ v < >`) clampée au bord de l'écran
-    - texte centré via `TextManager:DrawStringCentre(UIFont.Medium, ...)` ombre noire + jaune
-    - désactivé en phase `idle`/`gameover`, sans maison, ou à moins de 3 tiles du stock
-  - Note : les fonts bitmap PZ ne contiennent pas les glyphe de flèches unicode ; flèche cardinale ASCII (4 directions) utilisée pour fiabilité de rendu
-  - Fix fallback : `getPrimaryHouseSupplyContainer` réécrit `house.supply` avec la case réelle du conteneur fallback et appelle `syncSelectedHouse()` pour repropager au client (sinon la flèche pointait vers une case vide sur les maisons où la case configurée n'a pas de conteneur)
+  - Implemented features:
+    - on-screen arrow pointing to the stock container (`house.supply`) with distance in meters, visible through walls
+    - world-to-screen projection via `IsoUtils.XToScreenExact/YToScreenExact` (camera-adjusted)
+    - `v <dist>m` marker above the container if stock is on-screen; otherwise cardinal arrow (`^ v < >`) clamped to screen edge
+    - centered text via `TextManager:DrawStringCentre(UIFont.Medium, ...)` black shadow + yellow
+    - disabled in `idle`/`gameover` phase, without a house, or within 3 tiles of the stock
+  - Note: PZ bitmap fonts don't contain unicode arrow glyphs; ASCII cardinal arrow (4 directions) used for rendering reliability
+  - Fallback fix: `getPrimaryHouseSupplyContainer` rewrites `house.supply` with the actual fallback container square and calls `syncSelectedHouse()` to re-propagate to the client (otherwise the arrow pointed to an empty square on houses where the configured square has no container)
 
 ## Backlog
 
-### Priorité haute
-- [ ] Vérification en jeu solo/LAN de LH-03 à LH-10 (timers réels, skip, spectateurs, score, spawn maison, stock partagé, confinement, HUD, sync solo)
-- [ ] Vérification en jeu multijoueur du picker de rôles, des téléports de spawn, du refill Builder/maison, du confinement serveur et du skip de vague
-- [ ] Valider en jeu la pression zombie sur la Villa avec l'attraction par impulsions sonores (portée, fréquence, sensation de horde)
-- [ ] Résoudre le problème d'aggro des zombies de vagues (les zombies n'attaquent pas) :
-  - **Piste A** : Remplacer `addZombiesInOutfit` par `createHordeFromTo` dans `LastHomeWaves.lua` (API native LastStand). Spec rédigée : `specs/LH-12-create-horde-from-to.md`
-  - **Piste B** : Générer un pulse sonore périodique (`addSound`) sur le joueur pour forcer l'alerte de l'IA.
-  - **Piste C** : Forcer `zombie:setAlerted(true)` en Lua lors du spawn pour éveiller l'IA.
-  - **Piste D** : Vérifier le conflit potentiel lié au thread/autorité en Solo Challenge.
-- [x] Supprimer durablement les spawns vanilla/story parasites autour de la base en Challenge (`RDS*`, `createEatingZombies`, `RBSafehouse`, etc.). Spec rédigée : `specs/LH-13-suppression-spawns-vanilla.md`
+### High priority
+- [ ] In-game solo/LAN verification of LH-03 through LH-10 (actual timers, skip, spectators, score, house spawn, shared stock, confinement, HUD, solo sync)
+- [ ] In-game multiplayer verification of the role picker, spawn teleports, Builder/house refill, server confinement, and wave skip
+- [ ] Validate in-game the zombie pressure on Villa with sound pulse attraction (range, frequency, horde feel)
+- [ ] Solve the wave zombie aggro issue (zombies don't attack):
+  - **Track A**: Replace `addZombiesInOutfit` with `createHordeFromTo` in `LastHomeWaves.lua` (native LastStand API). Spec written: `specs/LH-12-create-horde-from-to.md`
+  - **Track B**: Generate periodic sound pulses (`addSound`) on the player to force AI alert.
+  - **Track C**: Force `zombie:setAlerted(true)` in Lua on spawn to wake the AI.
+  - **Track D**: Check potential thread/authority conflict in Solo Challenge.
+- [x] Permanently suppress vanilla/story parasite spawns around the base in Challenge (`RDS*`, `createEatingZombies`, `RBSafehouse`, etc.). Spec written: `specs/LH-13-suppression-spawns-vanilla.md`
 
-### Plus tard
-- [ ] Loot structuré dans les environs des maisons si nécessaire
-- [ ] HUD / notifications plus complètes pour Last Home
-- [ ] Ajustements d'équilibrage des rôles si nécessaire après tests
-- [ ] Refactor complémentaire: extraire le reste de `applyRole` / `addRoleItems` dans un helper shared pour finir d'éliminer la duplication client/serveur
-- [ ] Vérifier `Events.OnTick.Remove` en B41 — si l'API n'existe pas, le tick fallback tourne en idle (review point 2, non-bloquant)
+### Later
+- [ ] Structured loot in the vicinity of houses if needed
+- [ ] More complete HUD / notifications for Last Home
+- [ ] Role balance adjustments if needed after testing
+- [ ] Complementary refactor: extract the rest of `applyRole` / `addRoleItems` into a shared helper to finish eliminating client/server duplication
+- [ ] Check `Events.OnTick.Remove` in B41 — if the API doesn't exist, the fallback tick runs idle (review point 2, non-blocking)
 
-## Notes d'implémentation
+## Implementation Notes
 
-- Les doublons de rôles sont autorisés dans Last Home
-- Le rôle `mecanicien` est supprimé
-- Le `builder` conserve `setUnlimitedCarry` et son refill toutes les 10 minutes en temps réel
-- LH-03 introduit `LastHomeShared.lua` pour mutualiser `round()`, `getScenarioPlayers()` et `getNowSeconds()`
-- LH-04 étend `LastHomeShared.lua` avec la définition des 4 maisons, leurs zones de spawn et leurs conteneurs de stock dédiés
-- LH-05 ajoute un `boundary` rectangulaire par maison et un confinement **autoritatif côté serveur**, avec affichage HUD côté client
-- LH-07 déplace la sync solo sur `Events.OnTick`, corrige la détection `isInsideBoundary()` pour les objets joueur PZ et ajoute un indicateur HUD local `Zone: IN/OUT`
-- LH-08 extrait la logique commune d'équipement/charge dans `LastHomeShared.lua` (`applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`) pour réduire la duplication client/serveur
-- LH-14 aligne `fillAmmoItem` sur `HandWeapon:randomizeBullets()` du moteur ( Ammo, ContainsClip, RoundChambered) pour pré-charger les armes à feu à l'attribution du rôle
-- LH-10 réduit les timers de vague et ajoute le skip de prep via `K`, en conservant `pendingDirections` grâce à `startWave(false)` lors du skip
-- Pour la Villa, les vagues sont actuellement forcées au **Sud** et l'attraction repose sur des impulsions sonores centrées sur la base plutôt que sur un ciblage d'aggro zombie par zombie
-- Les challenges Last Home utilisent désormais `SandboxVars.Zombies = 6` pour couper la pop vanilla ; `5` correspond seulement à une population faible dans PZ
-- Les logs montrent toutefois que `SandboxVars` + `ZombieConfig` ne suffisent pas à empêcher certains spawns `RDS*` / `createEatingZombies` en Challenge ; une suppression serveur continue autour de la base est désormais spécifiée en LH-13
-- Le stock maison est injecté dans un conteneur vanilla existant, avec fallback sur le conteneur le plus proche dans la zone si besoin
-- `BUILDER_REFILL_ITEMS` (refill du stock communautaire, multiplié par `HOUSE_SUPPLY_MULTIPLIER` = 8) contient outre le matériel de construction une variété de nourriture/eau (conserves, snacks, secs, eau) disponible dans les 4 lieux
-- Tous les rôles ont au minimum `Carpentry` 3 et `Trapping` 3 pour pouvoir créer des barricades et des pièges (les niveaux plus élevés existants sont conservés, ex. builder/invincible Carpentry 10, survivaliste Trapping 8)
-- Les bouteilles d'eau (`WaterBottleFull`) sont placées dans l'inventaire principal, pas dans le sac à dos (retirées de `bagContents`), pour rester accessibles et éviter la soif
-- L'implémentation de LH-02 s'inspire de la structure d'Escapade Express, mais sans logique de verrouillage des rôles
-- La backlog courante doit être maintenue ici à chaque ticket terminé ou corrigé
+- Duplicate roles are allowed in Last Home
+- The `mechanic` role is removed
+- The `builder` retains `setUnlimitedCarry` and its refill every 10 minutes in real time
+- LH-03 introduces `LastHomeShared.lua` to share `round()`, `getScenarioPlayers()`, and `getNowSeconds()`
+- LH-04 extends `LastHomeShared.lua` with the definition of 4 houses, their spawn zones, and their dedicated stock containers
+- LH-05 adds a rectangular `boundary` per house and an **authoritative server-side** confinement, with client-side HUD display
+- LH-07 moves solo sync to `Events.OnTick`, fixes `isInsideBoundary()` detection for PZ player objects, and adds a local HUD indicator `Zone: IN/OUT`
+- LH-08 extracts common equipment/loadout logic into `LastHomeShared.lua` (`applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`) to reduce client/server duplication
+- LH-14 aligns `fillAmmoItem` with the engine's `HandWeapon:randomizeBullets()` (Ammo, ContainsClip, RoundChambered) to pre-load firearms on role assignment
+- LH-10 reduces wave timers and adds prep skip via `K`, preserving `pendingDirections` through `startWave(false)` on skip
+- For Villa, waves are currently forced to the **South** and attraction relies on sound pulses centered on the base rather than zombie-by-zombie aggro targeting
+- Last Home challenges now use `SandboxVars.Zombies = 6` to cut vanilla pop; `5` only corresponds to low population in PZ
+- Logs however show that `SandboxVars` + `ZombieConfig` aren't enough to prevent certain `RDS*` / `createEatingZombies` spawns in Challenge mode; a continuous server-side cleanup around the base is now specified in LH-13
+- The house stock is injected into an existing vanilla container, with fallback to the nearest container in the zone if needed
+- `BUILDER_REFILL_ITEMS` (community stock refill, multiplied by `HOUSE_SUPPLY_MULTIPLIER` = 8) contains, besides construction materials, a variety of food/water (canned goods, snacks, dry food, water) available in all 4 locations
+- All roles have at minimum `Carpentry` 3 and `Trapping` 3 to be able to create barricades and traps (existing higher levels are preserved, e.g. builder/invincible Carpentry 10, survivalist Trapping 8)
+- Water bottles (`WaterBottleFull`) are placed in the main inventory, not the backpack (removed from `bagContents`), to remain accessible and prevent thirst
+- The LH-02 implementation draws inspiration from Escapade Express's structure, but without role locking logic
+- The current backlog should be maintained here with each completed or fixed ticket

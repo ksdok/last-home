@@ -341,9 +341,9 @@ end
 local function fillAmmoItem(item)
     if item == nil then return end
 
-    -- Pre-chargement des armes a feu : on reproduit le pattern officiel du
-    -- moteur (HandWeapon:randomizeBullets). Le gun stocke currentAmmoCount
-    -- directement - pas besoin de remplir/inserer un chargeur item.
+    -- Pre-loading firearms: replicate the official engine pattern
+    -- (HandWeapon:randomizeBullets). The gun stores currentAmmoCount
+    -- directly - no need to fill/insert a magazine item.
     if item.isRanged ~= nil and item:isRanged() then
         local maxAmmo = 0
         if item.getMaxAmmo ~= nil then maxAmmo = item:getMaxAmmo() or 0 end
@@ -376,7 +376,7 @@ local function fillAmmoItem(item)
         return
     end
 
-    -- Chargeur spare (item non-arme, ex. Base.556Clip) : remplir a MaxAmmo.
+    -- Spare magazine (non-weapon item, e.g. Base.556Clip): fill to MaxAmmo.
     if item.getMaxAmmo ~= nil and item.setCurrentAmmoCount ~= nil then
         local maxAmmo = item:getMaxAmmo() or 0
         if maxAmmo > 0 then

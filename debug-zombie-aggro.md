@@ -1,22 +1,22 @@
-# État des lieux : les zombies de vague n'attaquent pas le joueur (Project Zomboid B41, mod Last Home)
+# Status Report: Wave zombies don't attack the player (Project Zomboid B41, Last Home mod)
 
-## 1. Contexte
+## 1. Context
 
-- Je développe un mod **Last Home** pour Project Zomboid **Build 41** (version Steam Mac, ~41.78).
-- Mode de jeu : **Challenge personnalisé** (menu Challenges). Le challenge sélectionné force une « maison » (ici **Villa**) et lance un système de vagues zombies.
-- Objectif : les zombies d'une vague doivent **se déplacer vers la base (villa) et attaquer les joueurs**.
-- Symptôme : quelle que soit l'approche essayée, **les zombies spawness n'attaquent jamais le joueur**. Ils peuvent s'approcher (pathing) mais restent passifs / passent en idle, jamais en `AttackState`.
+- I'm developing a **Last Home** mod for Project Zomboid **Build 41** (Steam Mac version, ~41.78).
+- Game mode: **Custom Challenge** (Challenges menu). The selected challenge forces a "house" (here **Villa**) and starts a zombie wave system.
+- Goal: wave zombies must **move toward the base (villa) and attack the players**.
+- Symptom: regardless of the approach tried, **spawned zombies never attack the player**. They can approach (pathing) but remain passive / go idle, never entering `AttackState`.
 
-## 2. Environnement / configuration
+## 2. Environment / Configuration
 
-### Spawn des zombies de vague
-- Les zombies sont créés via la fonction Lua globale :
+### Wave zombie spawning
+- Zombies are created via the global Lua function:
   ```lua
   addZombiesInOutfit(x, y, z, count, nil, 0)
   ```
-  (x,y,z = points de spawn calculés autour du centre de la maison, `count` zombies, `outfit=nil`, `range=0`.)
-- Spawn à **20 tiles** au sud du centre de la villa (testé aussi à 30). Coordonnées réelles observées : spawn vers `(13524..13541, 2872, 0)`, villa rect `x=13524..13545, y=2830..2858`.
-- Chaque zombie spawné est taggé via `zombie:getModData()` :
+  (x,y,z = spawn points calculated around the house center, `count` zombies, `outfit=nil`, `range=0`.)
+- Spawn at **20 tiles** south of the villa center (also tested at 30). Actual observed coordinates: spawn around `(13524..13541, 2872, 0)`, villa rect `x=13524..13545, y=2830..2858`.
+- Each spawned zombie is tagged via `zombie:getModData()`:
   ```lua
   modData.LH_waveZombie = true
   modData.LH_waveNumber = wave
@@ -24,9 +24,9 @@
   zombie:setCanWalk(true)
   ```
 
-### Sandbox vars du challenge (appliquées via `LastHomeVilla.setSandBoxVars`)
+### Challenge sandbox vars (applied via `LastHomeVilla.setSandBoxVars`)
 ```lua
-SandboxVars.Zombies = 6          -- 6 = "None" (désactive la pop vanilla ambiante)
+SandboxVars.Zombies = 6          -- 6 = "None" (disables ambient vanilla pop)
 SandboxVars.Distribution = 1
 SandboxVars.MetaEvent = 1
 ...
@@ -38,85 +38,85 @@ ZombieConfig.RespawnUnseenHours = 0
 ZombieConfig.RespawnMultiplier = 0
 ZombieConfig.RallyGroupSize = 0
 ```
-- ⚠️ **Piste non explorée** : `SandboxVars.Zombies = 6` ("None") désactive la population ambiante, mais **peut-il aussi désactiver l'attaque globalement** pour tous les zombies (y compris ceux spawnés manuellement) ? À vérifier.
-- `ZombieLore` (Strength/Speed/Cognition/Memory/Hearing/Sight) n'est **pas** modifié → defaults vanilla (normal).
+- ⚠️ **Unexplored track**: `SandboxVars.Zombies = 6` ("None") disables ambient population, but **could it also disable attack globally** for all zombies (including manually spawned ones)? To be checked.
+- `ZombieLore` (Strength/Speed/Cognition/Memory/Hearing/Sight) is **not** modified → vanilla defaults (normal).
 
-### Confinement du joueur
-- Le joueur est **confiné dans un rectangle** autour de la villa (`boundary`), dégâts s'il en sort (10s de compte à rebours puis 5 hp/tick). Donc le joueur ne peut pas facilement aller vers les zombies.
+### Player confinement
+- The player is **confined within a rectangle** around the villa (`boundary`), taking damage if they leave (10s countdown then 5 hp/tick). So the player can't easily go toward the zombies.
 
-## 3. Symptôme précis (observé en jeu + logs)
+## 3. Precise Symptom (observed in-game + logs)
 
-Quel que soit le mécanisme d'aggro forcé essayé :
-- Les zombies peuvent **se déplacer** vers le joueur (pathing OK via `addSound` investigation ou `pathToCharacter`).
-- Mais ils **ne passent jamais en `AttackState`** → n'attaquent jamais.
-- Même constat en **vanilla pure** (aucun forçage, spawn à 20 tiles) : le joueur s'approche des zombies → ils ne l'attaquent pas.
+Regardless of the forced aggro mechanism tried:
+- Zombies can **move** toward the player (pathing OK via `addSound` investigation or `pathToCharacter`).
+- But they **never transition to `AttackState`** → never attack.
+- Same observation in **pure vanilla** (no forcing, 20-tile spawn): the player approaches zombies → they don't attack.
 
-## 4. Chronologie des approches essayées et résultats
+## 4. Chronology of Approaches Tried and Results
 
-Tests faits en partie réelle, avec logs diagnostiques lisant `getTarget()`, `getCurrentState()`, `isAttacking()`, `isZombiesDontAttack()`, `isFakeDead()`, `isCanWalk()`, `isTargetVisible()` sur les zombies.
+Tests done in real games, with diagnostic logs reading `getTarget()`, `getCurrentState()`, `isAttacking()`, `isZombiesDontAttack()`, `isFakeDead()`, `isCanWalk()`, `isTargetVisible()` on zombies.
 
-| # | Approche | Résultat observé |
-|---|----------|------------------|
-| 1 | `addSound(player, x, y, z, radius, vol)` au **centre fixe** de la base (z=0) | Zombies convergent vers le RDC, ne voient pas le joueur (z=1 étage) → aucun aggro. Régression identifiée. |
-| 2 | `addSound` à la **position réelle du joueur** (x,y,z) | Zombies pathent jusqu'au joueur mais restent en investigation, **aucun aggro**. |
-| 3 | `zombie:spotted(player, true)` par pulse (toutes les 3s) | `spotted` s'exécute sans erreur (`fail=0`), mais `getTarget() → none` → **ne set pas le target**. Aucun aggro. |
-| 4 | `zombie:addAggro(player, 100)` par pulse | S'exécute sans erreur mais **no-op effectif** : `getTarget() → none` même à `minDist=0` (zombie sur la tuile du joueur). Aucun aggro. |
-| 5 | `zombie:setTarget(player)` par pulse | ✅ **set le target** : `getTarget() → player:X`, `isTargetVisible() → true`. **Mais** `getCurrentState()` reste `WalkTowardState` / `ZombieIdleState` / `PathFindState2` / `ClimbOverFenceState` — **jamais `AttackState`**. `isAttacking() → false` même à `minDist=0` (zombie sur la tuile du joueur). |
-| 6 | `setTarget` + arrêt du pulse à l'arrivée (≤6 tiles) | Idem : target posé, `targetVis=true`, mais pas de transition vers `AttackState`. |
-| 7 | Au **spawn** seulement : `setTarget(player le plus proche)` + `spotted(player, true)`, **pas de `pathToCharacter`**, pas de pulse | Le joueur rapporte que les zombies **ne l'attaquent pas** même en s'approchant. |
-| 8 | **Vanilla pure** : aucun forçage, spawn à 20 tiles | Les zombies n'attaquent pas, même quand le joueur s'approche à ~2 tiles. |
+| # | Approach | Observed Result |
+|---|----------|-----------------|
+| 1 | `addSound(player, x, y, z, radius, vol)` at **fixed center** of base (z=0) | Zombies converge to ground floor, don't see player (z=1 upstairs) → no aggro. Regression identified. |
+| 2 | `addSound` at **player's actual position** (x,y,z) | Zombies path to player but stay in investigation, **no aggro**. |
+| 3 | `zombie:spotted(player, true)` by pulse (every 3s) | `spotted` executes without error (`fail=0`), but `getTarget() → none` → **does not set target**. No aggro. |
+| 4 | `zombie:addAggro(player, 100)` by pulse | Executes without error but **effectively a no-op**: `getTarget() → none` even at `minDist=0` (zombie on player's tile). No aggro. |
+| 5 | `zombie:setTarget(player)` by pulse | ✅ **Sets target**: `getTarget() → player:X`, `isTargetVisible() → true`. **But** `getCurrentState()` stays `WalkTowardState` / `ZombieIdleState` / `PathFindState2` / `ClimbOverFenceState` — **never `AttackState`**. `isAttacking() → false` even at `minDist=0` (zombie on player's tile). |
+| 6 | `setTarget` + stop pulse on arrival (≤6 tiles) | Same: target set, `targetVis=true`, but no transition to `AttackState`. |
+| 7 | At **spawn** only: `setTarget(nearest player)` + `spotted(player, true)`, **no `pathToCharacter`**, no pulse | Player reports zombies **don't attack** even when approaching. |
+| 8 | **Pure vanilla**: no forcing, 20-tile spawn | Zombies don't attack, even when the player approaches within ~2 tiles. |
 
-## 5. Faits API vérifiés (IsoZombie B41 — javadocs officielles + tests en jeu)
+## 5. Verified API Facts (IsoZombie B41 — official javadocs + in-game tests)
 
-Sources : `projectzomboid.com/modding/zombie/characters/IsoZombie.html`, `zomboid-javadoc.com/41.78`, parsage du `.class` `zombie/characters/IsoZombie.class`.
+Sources: `projectzomboid.com/modding/zombie/characters/IsoZombie.html`, `zomboid-javadoc.com/41.78`, `.class` parsing of `zombie/characters/IsoZombie.class`.
 
-Méthodes pertinentes et comportement **observé** :
-- `setTarget(IsoMovingObject)` → set le champ public `target`. **Confirmeé fonctionne** (`getTarget()` renvoie le joueur ensuite).
-- `spotted(IsoMovingObject, boolean bForced)` → s'exécute sans erreur mais **ne set pas `target`** seul.
-- `addAggro(IsoMovingObject, float)` → **no-op effectif** dans notre contexte (`getTarget()` reste `none`).
-- `pathToCharacter(IsoGameCharacter)` → force le pathing, met le zombie en `PathFindState`/`WalkTowardState`. **Suspecté de bloquer la transition vers `AttackState`** (state machine maintenu en mode « marche vers »).
-- `AttemptAttack()` → `boolean`, force un swing d'attaque. **Non testé**.
-- `getTarget()`, `getCurrentState()`, `isAttacking()`, `isZombiesDontAttack()`, `isFakeDead()`, `isCanWalk()`, `isTargetVisible()` → tous exposés au Lua.
+Relevant methods and **observed** behavior:
+- `setTarget(IsoMovingObject)` → sets the public `target` field. **Confirmed working** (`getTarget()` returns the player afterward).
+- `spotted(IsoMovingObject, boolean bForced)` → executes without error but **does not set `target`** by itself.
+- `addAggro(IsoMovingObject, float)` → **effectively a no-op** in our context (`getTarget()` remains `none`).
+- `pathToCharacter(IsoGameCharacter)` → forces pathing, puts zombie in `PathFindState`/`WalkTowardState`. **Suspected of blocking the transition to `AttackState`** (state machine kept in "walk toward" mode).
+- `AttemptAttack()` → `boolean`, forces an attack swing. **Not tested**.
+- `getTarget()`, `getCurrentState()`, `isAttacking()`, `isZombiesDontAttack()`, `isFakeDead()`, `isCanWalk()`, `isTargetVisible()` → all exposed to Lua.
 
-Champs publics : `target`, `LastTargetSeenX/Y/Z`, `alerted`, `AttackAnimTime`.
+Public fields: `target`, `LastTargetSeenX/Y/Z`, `alerted`, `AttackAnimTime`.
 
-Cerveau IA `GameCharacterAIBrain` (champs publics) : `spottedCharacters` (ArrayList<IsoGameCharacter>), `aiTarget` (IsoMovingObject) — **séparés** du champ `target` de l'IsoZombie.
+AI Brain `GameCharacterAIBrain` (public fields): `spottedCharacters` (ArrayList<IsoGameCharacter>), `aiTarget` (IsoMovingObject) — **separate** from the IsoZombie's `target` field.
 
-⚠️ **Le moteur vanilla ne fournit aucun pattern Lua** : toute la logique d'aggro/perception est en Java ; aucune fonction vanilla n'appelle `setTarget`/`spotted`/`addAggro` depuis Lua. Pas d'exemple canonique à copier.
+⚠️ **The vanilla engine provides no Lua pattern**: all aggro/perception logic is in Java; no vanilla function calls `setTarget`/`spotted`/`addAggro` from Lua. No canonical example to copy.
 
-## 6. Le mystère central
+## 6. The Central Mystery
 
-> Même avec `setTarget(player)` réussi (`getTarget()=player`, `isTargetVisible()=true`), un zombie **sur la tuile même du joueur** (`minDist=0`, même z) reste en `WalkTowardState`/`ZombieIdleState` et **n'attaque jamais**. `isZombiesDontAttack()=false`, `isFakeDead()=false`, `isCanWalk()=true`.
+> Even with successful `setTarget(player)` (`getTarget()=player`, `isTargetVisible()=true`), a zombie **on the player's exact tile** (`minDist=0`, same z) stays in `WalkTowardState`/`ZombieIdleState` and **never attacks**. `isZombiesDontAttack()=false`, `isFakeDead()=false`, `isCanWalk()=true`.
 
-Le state machine ne transitionne pas vers `AttackState` malgré une cible valide et visible à portée. Quelque chose empêche la transition attaque — ce n'est pas le `target` (il est posé), ni les flags `dontAttack`/`fakeDead`.
+The state machine does not transition to `AttackState` despite a valid and visible target at point-blank range. Something prevents the attack transition — it's not the `target` (it's set), nor the `dontAttack`/`fakeDead` flags.
 
-## 7. Hypothèses restantes / pistes NON explorées
+## 7. Remaining Hypotheses / Unexplored Tracks
 
-1. **`SandboxVars.Zombies = 6` ("None") désactiverait-il l'attaque globalement** (pas seulement la pop ambiante) ? Si oui, tous les zombies — même spawnés manuellement — ne pourraient pas attaquer. → **Piste forte à vérifier en premier** (tester avec `SandboxVars.Zombies = 4` "Normal" + population à 0 via ZombieConfig).
-2. **Zombies spawnés via `addZombiesInOutfit` = zombies « non réels » ?** Peut-être qu'ils ont un flag (`bRemote`, `authOwner`, `bIndoorZombie`...) qui les empêche d'attaquer, ou que leur IA n'est pas tickée correctement côté serveur. Vérifier si un spawn via la population normale (au lieu de `addZombiesInOutfit`) attaque.
-3. **Le brain `GameCharacterAIBrain` doit être alimenté** (`spottedCharacters`, `aiTarget`) plutôt que juste `zombie.target`. `setTarget` ne suffit peut-être pas ; il faut peut-être ajouter le joueur à `zombie:getBrain().spottedCharacters` + set `aiTarget`. API d'accès au brain à confirmer (`getBrain()` ?).
-4. **`AttemptAttack()` forcé à portée** : appeler `zombie:AttemptAttack()` quand `minDist <= ~2` pour forcer le swing, contournant le state machine.
-5. **Sight/Hearing perception** : en vanilla pure, les zombies n'attaquent que s'ils perçoivent le joueur (vue/son). Un joueur silencieux dans une villa fermée à 20 tiles n'est pas perçu. → Le confinement + vanilla pure sont incompatibles : il faut soit un `addSound` minimal au spawn (investigation vers la base), soit lever le confinement.
+1. **Does `SandboxVars.Zombies = 6` ("None") disable attack globally** (not just ambient pop)? If so, all zombies — even manually spawned — couldn't attack. → **Strong track to verify first** (test with `SandboxVars.Zombies = 4` "Normal" + population at 0 via ZombieConfig).
+2. **Zombies spawned via `addZombiesInOutfit` = "non-real" zombies?** They might have a flag (`bRemote`, `authOwner`, `bIndoorZombie`...) that prevents attacking, or their AI isn't ticked properly server-side. Check if spawning via normal population (instead of `addZombiesInOutfit`) attacks.
+3. **The `GameCharacterAIBrain` brain needs to be fed** (`spottedCharacters`, `aiTarget`) rather than just `zombie.target`. `setTarget` alone may not be enough; may need to add the player to `zombie:getBrain().spottedCharacters` + set `aiTarget`. Brain access API to confirm (`getBrain()`?).
+4. **`AttemptAttack()` forced at range**: call `zombie:AttemptAttack()` when `minDist <= ~2` to force the swing, bypassing the state machine.
+5. **Sight/Hearing perception**: in pure vanilla, zombies only attack if they perceive the player (sight/sound). A silent player in a closed villa at 20 tiles is not perceived. → Confinement + pure vanilla are incompatible: either a minimal `addSound` at spawn (investigation toward base), or lift the confinement.
 
-## 8. État actuel du code
+## 8. Current Code State
 
-`media/lua/server/LastHomeWaves.lua` :
+`media/lua/server/LastHomeWaves.lua`:
 - `SPAWN_DISTANCE = 20`.
-- Spawn vanilla pur : `addZombiesInOutfit` + tag modData (`LH_waveZombie`...) + `setCanWalk(true)`.
-- **Aucun** appel à `setTarget`/`spotted`/`addAggro`/`pathToCharacter`/`addSound`. Aucun pulse.
-- `onZombieDead` décrémente le compteur et déclenche la vague suivante quand `zombieCount <= 0`.
-- Le cycle vague/prep/skip/HUD/confinement fonctionne.
+- Pure vanilla spawn: `addZombiesInOutfit` + modData tag (`LH_waveZombie`...) + `setCanWalk(true)`.
+- **No** calls to `setTarget`/`spotted`/`addAggro`/`pathToCharacter`/`addSound`. No pulse.
+- `onZombieDead` decrements the counter and triggers the next wave when `zombieCount <= 0`.
+- The wave/prep/skip/HUD/confinement cycle works.
 
-## 9. Questions pour le LLM consulté
+## 9. Questions for the Consulted LLM
 
-1. `SandboxVars.Zombies = 6` ("None") **désactive-t-il l'attaque des zombies globalement**, y compris pour des zombies spawnés manuellement via `addZombiesInOutfit` ? Si oui, comment désactiver la pop ambiante SANS désactiver l'attaque ?
-2. Pourquoi un zombie avec `setTarget(player)` + `isTargetVisible()=true` + sur la tuile du joueur ne passe-t-il **jamais** en `AttackState` ? Quelle est la condition exacte de transition `WalkTowardState → AttackState` côté Java ?
-3. Quelle est la méthode **fiable** (Lua, B41) pour forcer un zombie à attaquer un joueur donné ? `setTarget` seul ne suffit pas. Faut-il manipuler `GameCharacterAIBrain.spottedCharacters`/`aiTarget` ? Appeler `AttemptAttack()` ?
-4. Les zombies de `addZombiesInOutfit` sont-ils « actifs » (IA tickée) côté serveur en solo, ou faut-il un spawn différent (ex. population normale) pour qu'ils attaquent ?
-5. Existe-t-il un pattern de mod connu (B41) qui fait attaquer des zombies à un joueur précis (horde dirigée) ?
+1. Does `SandboxVars.Zombies = 6` ("None") **disable zombie attack globally**, including for manually spawned zombies via `addZombiesInOutfit`? If so, how to disable ambient pop WITHOUT disabling attack?
+2. Why does a zombie with `setTarget(player)` + `isTargetVisible()=true` + on the player's tile **never** transition to `AttackState`? What is the exact `WalkTowardState → AttackState` transition condition on the Java side?
+3. What is the **reliable method** (Lua, B41) to force a zombie to attack a given player? `setTarget` alone is not enough. Do we need to manipulate `GameCharacterAIBrain.spottedCharacters`/`aiTarget`? Call `AttemptAttack()`?
+4. Are `addZombiesInOutfit` zombies "active" (AI ticked) server-side in solo, or do we need a different spawn (e.g. normal population) for them to attack?
+5. Is there a known mod pattern (B41) that makes zombies attack a specific player (directed horde)?
 
 ---
 
-## Résumé en une phrase
+## One-Sentence Summary
 
-Des zombies spawnés via `addZombiesInOutfit` dans un challenge qui met `SandboxVars.Zombies = 6` ("None") n'attaquent jamais le joueur, même avec `setTarget` + `isTargetVisible()=true` à portée zéro ; `addAggro`/`spotted` sont no-ops ; `pathToCharacter` bloque `AttackState` ; et même en vanilla pure ils n'attaquent pas — il faut déterminer si c'est le sandbox "None" qui désactive l'attaque, un problème avec les zombies spawnés manuellement, ou un mécanisme du brain non alimenté.
+Zombies spawned via `addZombiesInOutfit` in a challenge that sets `SandboxVars.Zombies = 6` ("None") never attack the player, even with `setTarget` + `isTargetVisible()=true` at point-blank range; `addAggro`/`spotted` are no-ops; `pathToCharacter` blocks `AttackState`; and even in pure vanilla they don't attack — we need to determine whether the "None" sandbox setting disables attack, a problem with manually spawned zombies, or an unfed brain mechanism.
