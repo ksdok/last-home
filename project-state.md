@@ -5,7 +5,7 @@
 - Project: **Last Home**
 - Repo: `/Users/kim/Documents/Zomboid/last-home`
 - Reference branch: `main`
-- Source branch for delivered ticket: `feat/lh-10-timers-skip`
+- Source branch for delivered ticket: `feat/lh-mp-1-set-selected-house`
 - Reference used: `/Users/kim/Documents/Zomboid/EscapadeExpress`
 
 ## Current Status
@@ -19,8 +19,9 @@
 - ✅ Spec **LH-12** written to test Track A on wave aggro via `createHordeFromTo` — resolved in-game (god mode was blocking the zombie AI)
 - 📝 Spec **LH-17** written: deduplication of role-application logic into `LastHomeShared`
 - ✅ Spec **LH-13** written and implemented: continuous vanilla/story spawn suppression around the base in Challenge mode
+- ✅ LH-MP-1 implemented: `LastHomeServer.setSelectedHouse(...)` now centralizes server-side house selection for both challenge and future scenario/bootstrap paths (validation, lock, sync, refill, roled-player re-teleport)
 - ✅ Fixed challenge house-selection race: stale `OnGameStart` handlers from a previously-played challenge leaked into the next launch and could lock the wrong house before the real challenge's `SetHouse` arrived. The client now guards `SendHouseSelection` with `getCore():getChallengeID() == self.id`, and the server lets the last `SetHouse` win as long as waves haven't started.
-- ⏳ Next step remains **in-game verification** (solo/LAN then multiplayer), especially on actual zombie pressure, Villa attraction, spectators, LH-10 pacing, Track A testing, and validation of parasite spawn suppression
+- ⏳ Next steps: implement **LH-MP-2** (server bootstrap / house config), then do **in-game verification** (solo/LAN then multiplayer), especially on actual zombie pressure, Villa attraction, spectators, LH-10 pacing, Track A testing, and validation of parasite spawn suppression
 
 ## Completed
 
@@ -38,6 +39,7 @@
 - [x] LH-13 — Vanilla/story parasite spawn suppression
 - [x] LH-14 — Firearm priming on role assignment
 - [x] LH-15 — On-screen stock arrow
+- [x] LH-MP-1 — Expose `LastHomeServer.setSelectedHouse(houseId, source)`
 - [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`)
 
 ### Implementation
@@ -253,9 +255,22 @@
     - client: each `SendHouseSelection` now guards with `getCore():getChallengeID() == self.id`, so a stale handler from another challenge no longer sends a wrong `SetHouse`
     - server: the `SetHouse` handler now lets the last `SetHouse` win as long as waves haven't started (defense in depth); it only rejects once `LastHomeWaves.hasStarted()` is true
 
+- [x] LH-MP-1 — Reusable server-side `setSelectedHouse`
+  - `media/lua/server/LastHomeServer.lua`
+  - Implemented features:
+    - exported API `LastHomeServer.setSelectedHouse(houseId, source[, actorUsername])`
+    - extracted the former inline `SetHouse` logic into a reusable server function for challenge and scenario/bootstrap callers
+    - preserved pre-wave "last selection wins" behavior and post-wave freeze behavior
+    - preserved side effects: `house.source`, `Server.houseSelectionLocked`, `Server.lastHouseSupplyRefillAt = nil`, `syncSelectedHouse()`, `refillHouseSuppliesIfNeeded()`
+    - preserved re-teleport symmetry for already-roled players by resetting `modData.LH_houseSpawnId = nil` before `teleportPlayerToHouse(player)`
+    - challenge path keeps actor-aware ignore logs; scenario path gets distinct `warnTeleportFailure` context (`setSelectedHouse:<source>`)
+  - Associated commit:
+    - `879c0c8` — `refactor(LH-MP-1): extract setSelectedHouse`
+
 ## Backlog
 
 ### High priority
+- [ ] LH-MP-2 — Server bootstrap / house config using `LastHomeServer.setSelectedHouse(...)`
 - [ ] In-game solo/LAN verification of LH-03 through LH-10 (actual timers, skip, spectators, score, house spawn, shared stock, confinement, HUD, solo sync)
 - [ ] In-game multiplayer verification of the role picker, spawn teleports, Builder/house refill, server confinement, and wave skip
 - [ ] Validate in-game the zombie pressure on Villa with sound pulse attraction (range, frequency, horde feel)
