@@ -2,6 +2,8 @@ require "LastHomeRoles"
 require "LastHomeShared"
 require "LastHomeWaves"
 
+LastHomeServer = LastHomeServer or {}
+
 print("[LastHome] LastHomeServer charge")
 
 local Server = {
@@ -573,6 +575,92 @@ local function restoreAssignedRole(player)
     return nil
 end
 
+function LastHomeServer.setSelectedHouse(houseId, source, actorUsername)
+    if houseId == nil then return false end
+
+    local selectionSource = source or "challenge"
+    local challengeActor = actorUsername ~= nil and tostring(actorUsername) or "?"
+    local teleportContext = selectionSource == "challenge"
+        and "SetHouse"
+        or ("setSelectedHouse:" .. tostring(selectionSource))
+    local wavesStarted = LastHomeWaves ~= nil
+        and LastHomeWaves.hasStarted ~= nil
+        and LastHomeWaves.hasStarted() == true
+
+    if wavesStarted then
+        if Server.selectedHouse ~= nil and Server.selectedHouse.id == houseId then
+            if selectionSource == "challenge" then
+                print("[LastHome] SetHouse ignore pour " .. challengeActor .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
+            else
+                print("[LastHome] setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
+            end
+            return false
+        end
+
+        if selectionSource == "challenge" then
+            print("[LastHome] WARN: SetHouse ignore pour " .. challengeActor .. " (houseId=" .. tostring(houseId) .. ") car les vagues ont demarree")
+        else
+            print("[LastHome] WARN: setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId=" .. tostring(houseId) .. ") car les vagues ont demarree")
+        end
+        return false
+    end
+
+    if Server.selectedHouse ~= nil
+        and Server.selectedHouse.id == houseId
+        and Server.selectedHouse.source == selectionSource then
+        if selectionSource == "challenge" then
+            print("[LastHome] SetHouse ignore pour " .. challengeActor .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
+        else
+            print("[LastHome] setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
+        end
+        return false
+    end
+
+    local house = LastHomeShared.getHouseById(houseId)
+    if house == nil then
+        if selectionSource == "challenge" then
+            print("[LastHome] WARN: SetHouse ignore pour " .. challengeActor .. " (houseId inconnu=" .. tostring(houseId) .. ")")
+        else
+            print("[LastHome] WARN: setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId inconnu=" .. tostring(houseId) .. ")")
+        end
+        return false
+    end
+
+    local previousHouse = Server.selectedHouse
+    house.source = selectionSource
+    Server.selectedHouse = house
+    Server.houseSelectionLocked = true
+    Server.lastHouseSupplyRefillAt = nil
+    syncSelectedHouse()
+    refillHouseSuppliesIfNeeded()
+
+    for _, scenarioPlayer in ipairs(getScenarioPlayers()) do
+        local modData = scenarioPlayer:getModData()
+        if modData ~= nil and modData.LH_role ~= nil then
+            modData.LH_houseSpawnId = nil
+            if not teleportPlayerToHouse(scenarioPlayer) then
+                warnTeleportFailure(scenarioPlayer, teleportContext)
+            end
+        end
+    end
+
+    if previousHouse ~= nil and previousHouse.id ~= nil and previousHouse.id ~= house.id then
+        if selectionSource == "challenge" then
+            print("[LastHome] Maison challenge remplace la rotation: " .. tostring(previousHouse.id) .. " -> " .. tostring(house.id))
+        else
+            print("[LastHome] Maison remplacee: " .. tostring(previousHouse.id) .. " -> " .. tostring(house.id))
+        end
+    end
+
+    if selectionSource == "challenge" then
+        print("[LastHome] Maison forcee par challenge: " .. tostring(house.name or house.id))
+    else
+        print("[LastHome] Maison selectionnee (source=" .. tostring(selectionSource) .. "): " .. tostring(house.name or house.id))
+    end
+
+    return true
+end
+
 local function onClientCommand(module, command, player, data)
     if module ~= "LastHome" then return end
 
@@ -583,61 +671,7 @@ local function onClientCommand(module, command, player, data)
         local houseId = data and data.houseId or nil
         logServer("Commande SetHouse recue de " .. tostring(username) .. " -> " .. tostring(houseId))
         if houseId == nil then return end
-
-        local wavesStarted = LastHomeWaves ~= nil
-            and LastHomeWaves.hasStarted ~= nil
-            and LastHomeWaves.hasStarted() == true
-
-        -- Once waves have started, the house is frozen (no mid-game changes).
-        if wavesStarted then
-            if Server.selectedHouse ~= nil and Server.selectedHouse.id == houseId then
-                print("[LastHome] SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
-                return
-            end
-            print("[LastHome] WARN: SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car les vagues ont demarree")
-            return
-        end
-
-        -- Before waves start: the last SetHouse wins. This tolerates
-        -- OnGameStart handlers from previously-played challenges leaking
-        -- between launches (PZ doesn't reset Events.OnGameStart in the same
-        -- process): the real challenge's SetHouse is registered last, arrives
-        -- last, and overrides any earlier (stale or random) selection.
-        if Server.selectedHouse ~= nil
-            and Server.selectedHouse.id == houseId
-            and Server.selectedHouse.source == "challenge" then
-            print("[LastHome] SetHouse ignore pour " .. tostring(username) .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
-            return
-        end
-
-        local house = LastHomeShared.getHouseById(houseId)
-        if house == nil then
-            print("[LastHome] WARN: SetHouse ignore pour " .. tostring(username) .. " (houseId inconnu=" .. tostring(houseId) .. ")")
-            return
-        end
-
-        local previousHouse = Server.selectedHouse
-        house.source = "challenge"
-        Server.selectedHouse = house
-        Server.houseSelectionLocked = true
-        Server.lastHouseSupplyRefillAt = nil
-        syncSelectedHouse()
-        refillHouseSuppliesIfNeeded()
-
-        for _, scenarioPlayer in ipairs(getScenarioPlayers()) do
-            local modData = scenarioPlayer:getModData()
-            if modData ~= nil and modData.LH_role ~= nil then
-                modData.LH_houseSpawnId = nil
-                if not teleportPlayerToHouse(scenarioPlayer) then
-                    warnTeleportFailure(scenarioPlayer, "SetHouse")
-                end
-            end
-        end
-
-        if previousHouse ~= nil and previousHouse.id ~= nil and previousHouse.id ~= house.id then
-            print("[LastHome] Maison challenge remplace la rotation: " .. tostring(previousHouse.id) .. " -> " .. tostring(house.id))
-        end
-        print("[LastHome] Maison forcee par challenge: " .. tostring(house.name or house.id))
+        LastHomeServer.setSelectedHouse(houseId, "challenge", username)
         return
     end
 
