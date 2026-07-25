@@ -880,9 +880,17 @@ local function onServerCommand(module, command, data)
     elseif command == "RoleAssigned" then
         local player = getPlayer()
         if player ~= nil and data ~= nil and data.username == player:getUsername() then
-            player:getModData().LH_role = data.role
+            -- MP: apply items/equipment locally on the client (vanilla pattern,
+            -- see SpawnItems.OnNewGame). The server does NOT add items (they
+            -- do not replicate to the client in MP); it only handles skills,
+            -- stats, carry, and teleport. applyRoleLocally is a no-op if the
+            -- role was already applied (reconnect: LH_role already set from save).
+            local applied = LastHomeClient.applyRoleLocally(player, data.role)
+            if player:getModData().LH_role == nil then
+                player:getModData().LH_role = data.role
+            end
             showRoleAssigned(data.roleName or data.role)
-            print("[LastHome] Client: role recu - " .. tostring(data.roleName or data.role))
+            print("[LastHome] Client: role recu - " .. tostring(data.roleName or data.role) .. " (applique localement=" .. tostring(applied) .. ")")
         end
     elseif command == "RoleDenied" or command == "RoleUnavailable" then
         roleRequestSent = false

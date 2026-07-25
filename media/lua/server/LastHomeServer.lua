@@ -304,21 +304,15 @@ local function applyRole(player, roleKey)
         return false
     end
 
-    local inv = player:getInventory()
-    local roleBag = nil
-
-    if def.equipped and def.equipped.bag then
-        roleBag = inv:AddItem(def.equipped.bag)
-    end
-
-    addRoleItems(inv, roleBag, def.equipped and def.equipped.bag or nil, def.items, def.bagContents)
-    primeRoleLoadout(inv)
-
+    -- MP: items + equipment are applied CLIENT-SIDE on RoleAssigned (applyRoleLocally).
+    -- Server-side inventory/equipment grants do not reliably replicate to the
+    -- client in MP, and adding them on both sides would duplicate. The client's
+    -- inventory is the authoritative synced copy (client -> server). The server
+    -- keeps the authoritative parts: skills, stats, carry (these replicate),
+    -- modData.LH_role, and the role-loadout tracking.
     for _, skillDef in ipairs(def.skills or {}) do
         applyPerkLevel(player, skillDef[1], skillDef[2])
     end
-
-    equipRoleItems(player, inv, def.equipped)
     applyRoleStats(player, def.stats)
     applyCarryProfile(player, roleKey)
 
