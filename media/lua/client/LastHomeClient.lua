@@ -8,6 +8,7 @@ print("[LastHome] LastHomeClient charge")
 
 local roleRequestSent = false
 local soloPickerFallbackAt = nil
+local mpRolePickerRetryAt = nil
 local soloFallbackTickRegistered = false
 local soloStateLastSyncSecond = nil
 local skipWaveRequested = false
@@ -117,33 +118,51 @@ local function unregisterSoloFallbackTick()
 end
 
 LastHomeClient.TickRolePickerFallback = function()
-    if soloPickerFallbackAt == nil then
-        unregisterSoloFallbackTick()
-        return
-    end
-
-    if not isSinglePlayerRuntime() then
-        logClient("Fallback solo annule: runtime reseau detecte")
-        soloPickerFallbackAt = nil
-        unregisterSoloFallbackTick()
-        return
-    end
-
     local player = getPlayer()
     if player == nil then return end
-    if player:getModData().LH_role ~= nil then
+    local modData = player:getModData()
+    if modData ~= nil and modData.LH_role ~= nil then
         soloPickerFallbackAt = nil
+        mpRolePickerRetryAt = nil
         unregisterSoloFallbackTick()
         return
     end
 
     if LastHomeRolePicker.isVisible() then
         soloPickerFallbackAt = nil
+        mpRolePickerRetryAt = nil
         unregisterSoloFallbackTick()
         return
     end
 
-    if getNowSeconds() >= soloPickerFallbackAt then
+    local now = getNowSeconds()
+
+    -- MP retry: the initial RolePickerReady (sent at OnCreatePlayer/OnGameStart)
+    -- can be lost because the client-server connection is not yet established.
+    -- Re-send every 3s until the server responds (OpenRolePicker -> picker visible)
+    -- or a role is assigned.
+    if not isSinglePlayerRuntime() then
+        if mpRolePickerRetryAt == nil then
+            unregisterSoloFallbackTick()
+            return
+        end
+        if now >= mpRolePickerRetryAt then
+            logClient("Retry MP: renvoi RolePickerReady (joueur=" .. tostring(player:getUsername() or "?") .. ")")
+            sendClientCommand("LastHome", "RolePickerReady", {
+                username = player:getUsername(),
+            })
+            mpRolePickerRetryAt = now + 3
+        end
+        return
+    end
+
+    -- Solo fallback
+    if soloPickerFallbackAt == nil then
+        unregisterSoloFallbackTick()
+        return
+    end
+
+    if now >= soloPickerFallbackAt then
         logClient("Fallback solo declenche -> ouverture locale du role picker")
         soloPickerFallbackAt = nil
         unregisterSoloFallbackTick()
@@ -318,9 +337,20 @@ local function requestRolePicker()
 
     roleRequestSent = true
 
-    if isSinglePlayerRuntime() and soloPickerFallbackAt == nil then
-        soloPickerFallbackAt = getNowSeconds() + 3
-        logClient("requestRolePicker - fallback solo arme pour t=" .. tostring(soloPickerFallbackAt))
+    if isSinglePlayerRuntime() then
+        if soloPickerFallbackAt == nil then
+            soloPickerFallbackAt = getNowSeconds() + 3
+            logClient("requestRolePicker - fallback solo arme pour t=" .. tostring(soloPickerFallbackAt))
+            ensureSoloFallbackTickRegistered()
+        end
+    else
+        -- MP: OnCreatePlayer/OnGameStart fire during local setup, BEFORE the
+        -- client-server connection is established, so the first sendClientCommand
+        -- can be lost. Arm a retry; the tick re-sends RolePickerReady every 3s
+        -- until the server responds (OpenRolePicker -> picker visible) or a role
+        -- is assigned.
+        mpRolePickerRetryAt = getNowSeconds() + 3
+        logClient("requestRolePicker - retry MP arme pour t=" .. tostring(mpRolePickerRetryAt))
         ensureSoloFallbackTickRegistered()
     end
 
