@@ -35,6 +35,7 @@
 - [x] LH-12 — Piste A aggro via createHordeFromTo
 - [x] LH-13 — Suppression des spawns vanilla/story parasites
 - [x] LH-14 — Amorçage des armes à feu à l'attribution du rôle
+- [x] LH-15 — Flèche du stock à l'écran
 
 ### Implémentation
 - [x] LH-02 — Système de rôles Last Home
@@ -224,6 +225,17 @@
     - garde `isRanged()` pour ne traiter que les armes à feu ; les chargeurs spare (non-armes) sont remplis à `MaxAmmo`
     - log debug `fillAmmoItem arme=...` pour valider le priming en jeu (utile pour diagnostiquer un éventuel souci de sync MP ou de cache Lua)
   - Bug corrigé : `getClipSize()` renvoie 0 sur les armes sans `ClipSize` scripté (AssaultRifle, HuntingRifle, Shotgun), ce qui bloquait le `elseif getMaxAmmo` et laissait le gun à 0 balle. Le Pistol (`ClipSize=15`) restait fonctionnel.
+
+- [x] LH-15 — Flèche du stock à l'écran
+  - `media/lua/client/LastHomeClient.lua` (`drawStockArrow`)
+  - `specs/LH-15-stock-locator-arrow.md`
+  - Fonctionnalités implémentées :
+    - flèche à l'écran pointant vers le conteneur de stock (`house.supply`) avec distance en mètres, visible à travers les murs
+    - projection monde→écran via `IsoUtils.XToScreenExact/YToScreenExact` (caméra-adjustées)
+    - marqueur `v <dist>m` au-dessus du conteneur si le stock est à l'écran ; sinon flèche cardinale (`^ v < >`) clampée au bord de l'écran
+    - texte centré via `TextManager:DrawStringCentre(UIFont.Medium, ...)` ombre noire + jaune
+    - désactivé en phase `idle`/`gameover`, sans maison, ou à moins de 3 tiles du stock
+  - Note : les fonts bitmap PZ ne contiennent pas les glyphe de flèches unicode ; flèche cardinale ASCII (4 directions) utilisée pour fiabilité de rendu
 
 ## Backlog
 
