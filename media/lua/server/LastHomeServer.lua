@@ -131,8 +131,12 @@ local function pickHouseSpawnPoint(house)
         end
     end
 
-    logServer("pickHouseSpawnPoint n'a trouve aucun square utilisable pour " .. formatHouseLabel(house) .. " (candidats=" .. tostring(candidateCount) .. ")")
-    return nil, nil, nil
+    logServer("pickHouseSpawnPoint aucun candidat libre pour " .. formatHouseLabel(house) .. " (candidats=" .. tostring(candidateCount) .. ") -> fallback candidat #" .. tostring(startIndex))
+    -- teleport (setX/setY/setZ) places the player regardless of whether the
+    -- square is "free"; PZ resolves overlap. Better to teleport onto a
+    -- designated spawn point than leave the player at the default spawn.
+    local fallback = candidates[startIndex]
+    return fallback.x, fallback.y, fallback.z or house.centerZ or 0
 end
 
 local function teleportPlayerToHouse(player)
