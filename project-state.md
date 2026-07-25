@@ -20,8 +20,10 @@
 - 📝 Spec **LH-17** written: deduplication of role-application logic into `LastHomeShared`
 - ✅ Spec **LH-13** written and implemented: continuous vanilla/story spawn suppression around the base in Challenge mode
 - ✅ LH-MP-1 implemented: `LastHomeServer.setSelectedHouse(...)` now centralizes server-side house selection for both challenge and future scenario/bootstrap paths (validation, lock, sync, refill, roled-player re-teleport)
+- ✅ LH-MP-2 implemented: `media/lua/server/LastHomeBootstrap.lua` selects the scenario house from `Zomboid/Server/LastHomeHouse.cfg` at server `OnGameStart` and calls `LastHomeServer.setSelectedHouse(id, "scenario")`; `LastHomeShared.applyDefaultSandboxVars()` dedups the challenge sandbox injection (4 `setSandBoxVars` bodies replaced by the shared call); bootstrap dormant in solo Challenges mode via `isChallenge()` guard; hooks `OnGameStart` (not `OnServerStarted`) registered after `LastHomeServer`'s reset via `require "LastHomeServer"` so the reset does not wipe the selected house
+- ✅ LH-MP-3 implemented: `isChallengeHouse()` renamed to `isScenarioHouse()` accepting `source == "challenge" | "scenario"`; all 3 call sites (prep-schedule L700, wave-schedule L751, OnTick periodic L1059) updated so the LH-13 periodic ambient cleanup actually runs in MP sandbox mode (spec mentioned only the OnTick site; all 3 arm/execute the periodic cleanup)
 - ✅ Fixed challenge house-selection race: stale `OnGameStart` handlers from a previously-played challenge leaked into the next launch and could lock the wrong house before the real challenge's `SetHouse` arrived. The client now guards `SendHouseSelection` with `getCore():getChallengeID() == self.id`, and the server lets the last `SetHouse` win as long as waves haven't started.
-- ⏳ Next steps: implement **LH-MP-2** (server bootstrap / house config), then do **in-game verification** (solo/LAN then multiplayer), especially on actual zombie pressure, Villa attraction, spectators, LH-10 pacing, Track A testing, and validation of parasite spawn suppression
+- ⏳ Next steps: write `docs/MULTIPLAYER_SETUP.md` + run **in-game MP verification** (LH-MP-4) on a dedicated/Host server — bootstrap event confirmation (does `OnGameStart` fire on a dedicated server?), map-dep minimal set (`Mods=LastHome` alone vs `+Pillow/Xonic`), roles, teleport, confinement, waves, spectators, late joiners, HUD, ambient cleanup; then Villa attraction, LH-10 pacing, Track A testing, and validation of parasite spawn suppression
 
 ## Completed
 
@@ -40,6 +42,9 @@
 - [x] LH-14 — Firearm priming on role assignment
 - [x] LH-15 — On-screen stock arrow
 - [x] LH-MP-1 — Expose `LastHomeServer.setSelectedHouse(houseId, source)`
+- [x] LH-MP-2 — Server bootstrap `LastHomeBootstrap.lua` + house config
+- [x] LH-MP-3 — Generalize periodic cleanup to scenario houses
+- [ ] LH-MP-4 — MP server setup docs + verification checklist
 - [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`)
 
 ### Implementation
@@ -267,10 +272,39 @@
   - Associated commit:
     - `879c0c8` — `refactor(LH-MP-1): extract setSelectedHouse`
 
+- [x] LH-MP-2 — Server bootstrap + scenario house config
+  - `media/lua/server/LastHomeBootstrap.lua` (new)
+  - `media/lua/shared/LastHomeShared.lua` (`getScenarioHouseId`, `applyDefaultSandboxVars`)
+  - `media/lua/client/LastStand/LastHomeHospital.lua` (and Villa/Prison/School) — dedup
+  - `specs/LH-MP-2-server-bootstrap.md`
+  - Implemented features:
+    - `LastHomeBootstrap.lua` hooks server `OnGameStart`; dormant in solo Challenges mode (`getCore():isChallenge()` guard, logs `Mode Challenge detecte -> bootstrap inactif`)
+    - `LastHomeShared.getScenarioHouseId()` reads `Zomboid/Server/LastHomeHouse.cfg` (first non-empty/non-comment token), resolves the path via `getCore():getMyDocumentFolder()` with a relative fallback, logs the resolved path, validates against the 4 house ids + `random`, defaults to `random`
+    - `LastHomeShared.applyDefaultSandboxVars()` = shared body of the former challenge `setSandBoxVars` (`SandboxVars.Zombies = 6`, `ZombieConfig` multipliers/respawn/rally = 0); best-effort on a dedicated server, LH-13 cleanup compensates
+    - bootstrap resolves `random` via `getRandomHouse()`, then calls `LastHomeServer.setSelectedHouse(resolvedId, "scenario")`
+    - event choice `OnGameStart` (not `OnServerStarted`): `require "LastHomeServer"` registers the reset handler before the bootstrap's `OnGameStart`, so `Server.selectedHouse` reset does not wipe the bootstrap's selection (reset -> bootstrap sets house -> no wipe)
+    - 4 challenge `setSandBoxVars` bodies replaced by the shared call (dedup, behavior unchanged)
+  - Associated commits:
+    - `2d53a06` — `feat(LH-MP-2): server bootstrap + scenario house config`
+    - `8f00c01` — `refactor(LH-MP-2): dedup challenge setSandBoxVars via applyDefaultSandboxVars`
+
+- [x] LH-MP-3 — Generalize periodic cleanup to scenario houses
+  - `media/lua/server/LastHomeWaves.lua`
+  - `specs/LH-MP-3-isScenarioHouse.md`
+  - Implemented features:
+    - `isChallengeHouse()` renamed to `isScenarioHouse()`; accepts `source == "challenge"` or `source == "scenario"`
+    - all 3 call sites updated (prep-schedule L700, wave-schedule L751, OnTick periodic execution L1059) — the spec mentioned only the OnTick site, but `nextAmbientCleanupAt` is armed at prep/wave start too, so all 3 gates must accept `scenario` for the periodic cleanup to actually run in MP
+    - immediate phase-transition cleanups (`prep`/`wave` reasons) remain unconditional and unchanged
+    - `player-fallback` / `rotation` sources still excluded (vanilla population intact)
+  - Associated commit:
+    - `dc3ceae` — `feat(LH-MP-3): generalize periodic cleanup gate to scenario houses`
+
 ## Backlog
 
 ### High priority
-- [ ] LH-MP-2 — Server bootstrap / house config using `LastHomeServer.setSelectedHouse(...)`
+- [x] LH-MP-2 — Server bootstrap / house config using `LastHomeServer.setSelectedHouse(...)` (implemented; pending in-game MP verification in LH-MP-4)
+- [x] LH-MP-3 — Generalize periodic cleanup to scenario houses (implemented; pending in-game MP verification)
+- [ ] LH-MP-4 — Write `docs/MULTIPLAYER_SETUP.md` + run the A-H verification checklist on a dedicated/Host server (no code change expected; failures become follow-up tickets). Must confirm: (a) `OnGameStart` fires on a dedicated server (fallback: move reset + bootstrap to `OnServerStarted`); (b) minimal `Mods=`/`Map=` line per house (`Mods=LastHome` alone vs `+Pillow/Xonic`); (c) `LastHomeHouse.cfg` absolute path resolution via `getCore():getMyDocumentFolder()`
 - [ ] In-game solo/LAN verification of LH-03 through LH-10 (actual timers, skip, spectators, score, house spawn, shared stock, confinement, HUD, solo sync)
 - [ ] In-game multiplayer verification of the role picker, spawn teleports, Builder/house refill, server confinement, and wave skip
 - [ ] Validate in-game the zombie pressure on Villa with sound pulse attraction (range, frequency, horde feel)
