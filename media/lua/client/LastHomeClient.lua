@@ -664,6 +664,73 @@ local function drawWaveHud()
         drawLine(x, y + 8, LastHomeClient.alertText, color)
     end
 end
+local function drawStockArrow()
+    local player = getPlayer()
+    if player == nil then return end
+    local state = LastHomeClient.waveState or {}
+    local house = state.house
+    if house == nil then return end
+    local phase = state.phase
+    if phase == "idle" or phase == "gameover" then return end
+    if house.supply == nil then return end
+
+    local sx = house.supply.x or house.centerX
+    local sy = house.supply.y or house.centerY
+    local sz = house.supply.z or house.centerZ or 0
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+
+    local dx, dy = sx - px, sy - py
+    local dist = math.sqrt(dx * dx + dy * dy)
+    if dist < 3 then return end -- deja sur le stock
+
+    -- Projection monde -> ecran (camera-incluse via IsoCamera offset)
+    if IsoUtils == nil or IsoUtils.XToScreenExact == nil then return end
+    local stockScreenX = IsoUtils.XToScreenExact(sx, sy, sz, 0)
+    local stockScreenY = IsoUtils.YToScreenExact(sx, sy, sz, 0)
+
+    local screenW = getCore():getScreenWidth()
+    local screenH = getCore():getScreenHeight()
+    local margin = 80
+    local onScreen = stockScreenX > margin and stockScreenX < screenW - margin
+        and stockScreenY > margin and stockScreenY < screenH - margin
+
+    local cx, cy = screenW / 2, screenH / 2
+    local arrowX, arrowY, arrowChar
+    if onScreen then
+        -- marqueur au-dessus du stock, fleche vers le bas pointant le conteneur
+        arrowX = stockScreenX
+        arrowY = stockScreenY - 28
+        arrowChar = "v"
+    else
+        -- clamper a l'edge le long de la ligne centre -> stock ecran
+        local ax = stockScreenX - cx
+        local ay = stockScreenY - cy
+        if ax == 0 and ay == 0 then return end
+        local minX, maxX = margin, screenW - margin
+        local minY, maxY = margin, screenH - margin
+        local scale = math.huge
+        if ax > 0 then scale = math.min(scale, (maxX - cx) / ax)
+        elseif ax < 0 then scale = math.min(scale, (minX - cx) / ax) end
+        if ay > 0 then scale = math.min(scale, (maxY - cy) / ay)
+        elseif ay < 0 then scale = math.min(scale, (minY - cy) / ay) end
+        arrowX = cx + ax * scale
+        arrowY = cy + ay * scale
+        -- direction cardinale dominante
+        if math.abs(ax) > math.abs(ay) then
+            arrowChar = ax > 0 and ">" or "<"
+        else
+            arrowChar = ay > 0 and "v" or "^"
+        end
+    end
+
+    local label = string.format("%s %dm", arrowChar, math.floor(dist))
+    local tm = getTextManager()
+    -- ombre + texte centre (jaune)
+    tm:DrawStringCentre(UIFont.Medium, arrowX + 1, arrowY + 1, label, 0, 0, 0, 1)
+    tm:DrawStringCentre(UIFont.Medium, arrowX, arrowY, label, 1, 0.85, 0.25, 1)
+end
+Events.OnPostUIDraw.Add(drawStockArrow)
+
 Events.OnPostUIDraw.Add(drawWaveHud)
 
 local function canSkipToNextWave()

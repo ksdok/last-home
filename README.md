@@ -28,18 +28,20 @@ Mod coop pour Project Zomboid (B41). Les joueurs défendent un bâtiment contre 
 | [LH-12](specs/LH-12-create-horde-from-to.md) | Piste A aggro via `createHordeFromTo` | 📝 |
 | [LH-13](specs/LH-13-suppression-spawns-vanilla.md) | Suppression continue des spawns vanilla/story | ✅ |
 | [LH-14](specs/LH-14-firearm-loadout-priming.md) | Amorçage des armes à feu à l'attribution du rôle | ✅ |
+| [LH-15](specs/LH-15-stock-locator-arrow.md) | Flèche du stock à l'écran | ✅ |
 
 ## État
 
 - ✅ Specs versionnées complètes pour **LH-01** à **LH-08** et **LH-10**
 - 📝 Spec d'exploration rédigée : **LH-12** (aggro via `createHordeFromTo`)
-- ✅ Implémentation de **LH-02** à **LH-08**, **LH-10**, **LH-13** et **LH-14** terminée
+- ✅ Implémentation de **LH-02** à **LH-08**, **LH-10**, **LH-13**, **LH-14** et **LH-15** terminée
 - ✅ Confinement solo fiabilisé (sync dédiée, détection boundary corrigée, HUD IN/OUT)
 - ✅ 4 challenges enregistrés dans le menu (Hôpital, Villa, Prison, École)
 - ✅ Timers LH-10 : prep vague 1 = 2 min, prep suivantes = 5 min, vague = 5 min, skip via touche `K`
 - ✅ Challenges Last Home : zombies vanilla désactivés, nettoyage ambiant autour de la base, Villa forcée au **Sud**
 - ✅ Attraction des vagues recentrée sur des impulsions sonores type alarme vers la base pour fiabiliser la pression zombie
 - ✅ Suppression continue des spawns vanilla/story autour de la base en Challenge (cleanup périodique toutes les 5s, tagging `LH_waveZombie` préservé)
+- ✅ Flèche du stock à l'écran pointant vers le conteneur communautaire avec distance (visible à travers les murs)
 - 📋 Backlog et suivi courant dans [project-state.md](project-state.md)
 
 ## Structure du mod
