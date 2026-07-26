@@ -14,6 +14,7 @@ local Server = {
     nextBuilderRefillAt = nil,
     lastBuilderTickSecond = nil,
     lastHouseSupplyRefillAt = nil,
+    pendingPostSpawnMaintenance = nil,
 }
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
@@ -21,6 +22,9 @@ local ROLE_NAMES = LastHomeRoles.ROLE_NAMES
 local BUILDER_REFILL_ITEMS = LastHomeRoles.BUILDER_REFILL_ITEMS
 local HOUSE_SUPPLY_MULTIPLIER = 8
 local HOUSE_SUPPLY_REFILL_GUARD_SECONDS = 30
+local SPAWN_AMBIENT_CLEANUP_PADDING = 8
+local POST_SPAWN_MAINTENANCE_RETRY_SECONDS = 2
+local POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS = 8
 
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
@@ -163,6 +167,135 @@ local function applyManualTeleportState(player, x, y, z)
     if player.ensureOnTile ~= nil then player:ensureOnTile() end
 end
 
+local function getSpawnCleanupArea(house, spawnData)
+    local padding = house ~= nil and (house.spawnAmbientCleanupPadding or SPAWN_AMBIENT_CLEANUP_PADDING) or SPAWN_AMBIENT_CLEANUP_PADDING
+
+    if house ~= nil and house.boundary ~= nil then
+        local boundary = house.boundary
+        if boundary.minX ~= nil and boundary.maxX ~= nil and boundary.minY ~= nil and boundary.maxY ~= nil then
+            return {
+                minX = boundary.minX - padding,
+                maxX = boundary.maxX + padding,
+                minY = boundary.minY - padding,
+                maxY = boundary.maxY + padding,
+                label = "boundary",
+            }
+        end
+    end
+
+    local bounds = house ~= nil and house.bounds or nil
+    if bounds ~= nil and bounds.min ~= nil and bounds.max ~= nil then
+        return {
+            minX = bounds.min.x - padding,
+            maxX = bounds.max.x + padding,
+            minY = bounds.min.y - padding,
+            maxY = bounds.max.y + padding,
+            label = "bounds",
+        }
+    end
+
+    local x = spawnData ~= nil and spawnData.x or 0
+    local y = spawnData ~= nil and spawnData.y or 0
+    return {
+        minX = x - padding,
+        maxX = x + padding,
+        minY = y - padding,
+        maxY = y + padding,
+        label = "point",
+    }
+end
+
+local function clearAmbientZombiesNearSpawn(house, spawnData, reason)
+    if house == nil or spawnData == nil then return 0 end
+
+    local cell = getCell ~= nil and getCell() or nil
+    if cell == nil or cell.getZombieList == nil then
+        return 0
+    end
+
+    local zombies = cell:getZombieList()
+    if zombies == nil then
+        return 0
+    end
+
+    local area = getSpawnCleanupArea(house, spawnData)
+    local removed = 0
+    for i = zombies:size() - 1, 0, -1 do
+        local zombie = zombies:get(i)
+        if zombie ~= nil and zombie.getSquare ~= nil and zombie:getSquare() ~= nil then
+            local modData = zombie:getModData()
+            local isWaveZombie = modData ~= nil and modData.LH_waveZombie == true and modData.LH_countedDead ~= true
+            if not isWaveZombie then
+                local zx = zombie:getX()
+                local zy = zombie:getY()
+                if zx >= area.minX and zx <= area.maxX and zy >= area.minY and zy <= area.maxY then
+                    zombie:removeFromWorld()
+                    zombie:removeFromSquare()
+                    removed = removed + 1
+                end
+            end
+        end
+    end
+
+    print("[LastHome] Nettoyage zombies spawn (" .. tostring(reason or "unknown") .. ") pour " .. tostring(house.name or house.id or "?") .. " via " .. tostring(area.label) .. " dans [" .. tostring(area.minX) .. "," .. tostring(area.minY) .. "] -> [" .. tostring(area.maxX) .. "," .. tostring(area.maxY) .. "]: " .. tostring(removed) .. " supprimes")
+    return removed
+end
+
+local refillHouseSupplies
+
+local function schedulePostSpawnMaintenance(house, spawnData, username)
+    if house == nil or spawnData == nil then
+        Server.pendingPostSpawnMaintenance = nil
+        return
+    end
+
+    Server.pendingPostSpawnMaintenance = {
+        houseId = house.id,
+        houseName = house.name or house.id or "?",
+        username = username,
+        spawnData = {
+            x = spawnData.x,
+            y = spawnData.y,
+            z = spawnData.z,
+            houseId = spawnData.houseId,
+        },
+        attempts = 0,
+        maxAttempts = POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS,
+        nextAttemptAt = getNowSeconds(),
+        supplyReady = false,
+    }
+end
+
+local function processPostSpawnMaintenance(now)
+    local pending = Server.pendingPostSpawnMaintenance
+    if pending == nil then return end
+    if now < (pending.nextAttemptAt or 0) then return end
+
+    local house = ensureSelectedHouse()
+    if house == nil or house.id ~= pending.houseId then
+        Server.pendingPostSpawnMaintenance = nil
+        return
+    end
+
+    pending.attempts = (pending.attempts or 0) + 1
+    local attemptLabel = "role-spawn#" .. tostring(pending.attempts)
+    clearAmbientZombiesNearSpawn(house, pending.spawnData, attemptLabel)
+
+    if not pending.supplyReady then
+        pending.supplyReady = refillHouseSupplies() == true
+    end
+
+    if pending.supplyReady or pending.attempts >= (pending.maxAttempts or POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS) then
+        if not pending.supplyReady then
+            print("[LastHome] WARN: postSpawnMaintenance - stock toujours introuvable pour " .. tostring(pending.houseName) .. " apres " .. tostring(pending.attempts) .. " tentatives")
+        end
+        Server.pendingPostSpawnMaintenance = nil
+        return
+    end
+
+    pending.nextAttemptAt = now + POST_SPAWN_MAINTENANCE_RETRY_SECONDS
+end
+
 local function teleportPlayerToHouse(player)
     if player == nil then return false, nil end
 
@@ -219,6 +352,8 @@ local function teleportPlayerToHouse(player)
         modData.LH_houseSpawnId = house.id
     end
 
+    clearAmbientZombiesNearSpawn(house, spawnData, "role-spawn")
+    schedulePostSpawnMaintenance(house, spawnData, username)
     logServer("teleport joueur " .. tostring(username) .. " : " .. beforeCoords .. " -> " .. formatCoords(x, y, z) .. " pour " .. formatHouseLabel(house) .. " via " .. tostring(teleportMode))
     return teleported, spawnData
 end
@@ -411,13 +546,67 @@ local function getFirstObjectContainer(square)
     return nil
 end
 
+local function getSupplySearchArea(house)
+    if house == nil then return nil, "?" end
+
+    local boundary = house.boundary
+    if boundary ~= nil and boundary.minX ~= nil and boundary.maxX ~= nil and boundary.minY ~= nil and boundary.maxY ~= nil then
+        return {
+            min = {
+                x = boundary.minX,
+                y = boundary.minY,
+                z = boundary.minZ,
+            },
+            max = {
+                x = boundary.maxX,
+                y = boundary.maxY,
+                z = boundary.maxZ,
+            },
+        }, "boundary"
+    end
+
+    local bounds = house.bounds
+    if bounds ~= nil and bounds.min ~= nil and bounds.max ~= nil then
+        return bounds, "bounds"
+    end
+
+    return nil, "?"
+end
+
+local function getSupplySearchZRange(house, area)
+    local minZ = nil
+    local maxZ = nil
+
+    local function include(value)
+        if value == nil then return end
+        if minZ == nil or value < minZ then minZ = value end
+        if maxZ == nil or value > maxZ then maxZ = value end
+    end
+
+    if area ~= nil then
+        include(area.min ~= nil and area.min.z or nil)
+        include(area.max ~= nil and area.max.z or nil)
+    end
+    if house ~= nil then
+        include(house.centerZ)
+        include(house.supply ~= nil and house.supply.z or nil)
+    end
+
+    if minZ == nil then minZ = 0 end
+    if maxZ == nil then maxZ = minZ end
+
+    minZ = math.max(0, minZ - 1)
+    maxZ = math.max(minZ, maxZ + 2)
+    return minZ, maxZ
+end
+
 local function getPrimaryHouseSupplyContainer()
     local house = ensureSelectedHouse()
     if house == nil then return nil end
 
-    local bounds = house.bounds
-    if bounds == nil or bounds.min == nil or bounds.max == nil then
-        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - pas de bounds pour " .. tostring(house.name or house.id or "?"))
+    local searchArea, searchAreaLabel = getSupplySearchArea(house)
+    if searchArea == nil or searchArea.min == nil or searchArea.max == nil then
+        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - pas de zone de recherche pour " .. tostring(house.name or house.id or "?"))
         return nil
     end
 
@@ -435,22 +624,21 @@ local function getPrimaryHouseSupplyContainer()
         end
     end
 
-    local centerX = house.centerX or bounds.min.x or 0
-    local centerY = house.centerY or bounds.min.y or 0
-    local minZ = bounds.min.z or house.centerZ or 0
-    local maxZ = bounds.max.z or house.centerZ or minZ
+    local anchorX = house.supply ~= nil and house.supply.x or (house.centerX or searchArea.min.x or 0)
+    local anchorY = house.supply ~= nil and house.supply.y or (house.centerY or searchArea.min.y or 0)
+    local minZ, maxZ = getSupplySearchZRange(house, searchArea)
     local bestContainer = nil
     local bestX, bestY, bestZ
     local bestDistance = nil
 
     for z = minZ, maxZ do
-        for x = bounds.min.x, bounds.max.x do
-            for y = bounds.min.y, bounds.max.y do
+        for x = searchArea.min.x, searchArea.max.x do
+            for y = searchArea.min.y, searchArea.max.y do
                 local square = cell:getGridSquare(x, y, z)
                 local container = getFirstObjectContainer(square)
                 if container ~= nil then
-                    local dx = centerX - x
-                    local dy = centerY - y
+                    local dx = anchorX - x
+                    local dy = anchorY - y
                     local distance = (dx * dx) + (dy * dy)
                     if bestDistance == nil or distance < bestDistance then
                         bestDistance = distance
@@ -469,18 +657,18 @@ local function getPrimaryHouseSupplyContainer()
         local cur = house.supply or {}
         if cur.x ~= bestX or cur.y ~= bestY or (cur.z or 0) ~= (bestZ or 0) then
             house.supply = { x = bestX, y = bestY, z = bestZ }
-            print("[LastHome] getPrimaryHouseSupplyContainer - fallback supply pour " .. tostring(house.name or house.id or "?") .. " -> (" .. tostring(bestX) .. "," .. tostring(bestY) .. "," .. tostring(bestZ or 0) .. ")")
+            print("[LastHome] getPrimaryHouseSupplyContainer - fallback supply via " .. tostring(searchAreaLabel) .. " pour " .. tostring(house.name or house.id or "?") .. " -> (" .. tostring(bestX) .. "," .. tostring(bestY) .. "," .. tostring(bestZ or 0) .. ")")
             syncSelectedHouse()
         end
     else
         local houseName = house.name or house.id or "?"
-        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - aucun conteneur trouve pour " .. tostring(houseName) .. " dans bounds [" .. tostring(bounds.min.x) .. "," .. tostring(bounds.min.y) .. "," .. tostring(minZ) .. "] -> [" .. tostring(bounds.max.x) .. "," .. tostring(bounds.max.y) .. "," .. tostring(maxZ) .. "]")
+        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - aucun conteneur trouve pour " .. tostring(houseName) .. " dans " .. tostring(searchAreaLabel) .. " [" .. tostring(searchArea.min.x) .. "," .. tostring(searchArea.min.y) .. "," .. tostring(minZ) .. "] -> [" .. tostring(searchArea.max.x) .. "," .. tostring(searchArea.max.y) .. "," .. tostring(maxZ) .. "]")
     end
 
     return bestContainer
 end
 
-local function refillHouseSupplies()
+refillHouseSupplies = function()
     local supplyContainer = getPrimaryHouseSupplyContainer()
     if supplyContainer == nil then
         print("[LastHome] WARN: refillHouseSupplies - aucun conteneur de ravitaillement")
@@ -552,6 +740,8 @@ local function onBuilderRefillTick()
     local now = getNowSeconds()
     if now == Server.lastBuilderTickSecond then return end
     Server.lastBuilderTickSecond = now
+
+    processPostSpawnMaintenance(now)
 
     if Server.nextBuilderRefillAt == nil then
         if Server.selectedHouse ~= nil then
@@ -802,6 +992,7 @@ local function onGameStart()
     Server.nextBuilderRefillAt = nil
     Server.lastBuilderTickSecond = nil
     Server.lastHouseSupplyRefillAt = nil
+    Server.pendingPostSpawnMaintenance = nil
 
     print("[LastHome] Attente de la maison du challenge avant initialisation finale")
 end

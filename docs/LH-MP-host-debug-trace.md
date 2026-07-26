@@ -160,24 +160,29 @@ and `luac -p`-checked.
    `getFileReader`/`fileExists` is NOT `/Users/kim/Zomboid/`. The house is
    therefore random each session. Need the correct path (or `getServerOptions`
    / absolute path via `getCore():getMyDocumentFolder()` + a Java read).
-2. **Stock container not found for all 4 houses.**
+2. **Zombie cleanup around the spawn is still incomplete.** In the latest Host
+   MP validation, the role spawn now works, but zombies can still remain around
+   the player at/near the spawn area when the scenario starts. Need an
+   additional cleanup pass tied to the chosen house / role spawn, not only the
+   existing prep/wave ambient cleanup.
+3. **Stock container not found for all 4 houses / stock area stays empty.**
    `getPrimaryHouseSupplyContainer` scans only the spawn-derived `bounds`
    (~10×8 tiles), not the building `boundary`. Log:
    `WARN: getPrimaryHouseSupplyContainer - aucun conteneur trouve pour
    <house> dans bounds [...]`. Same bug class as the Villa backlog item;
    affects Hospital/Villa/Prison/School. Fix: widen the fallback scan to
    `boundary` and cache the result. Breaks LH-15 stock arrow + community
-   refill.
-3. **Premature GAME OVER on death before scenario start.** A player dying
+   refill, and leaves the stock location empty in-game.
+4. **Premature GAME OVER on death before scenario start.** A player dying
    before picking a role / before `started=true` triggers `handlePlayerDeath`
    → game over with score 0. `handlePlayerDeath` should ignore deaths while
    `Server.started == false` (or while the player has no role).
-4. **Challenge translations missing.** `ERROR: Missing translation
+5. **Challenge translations missing.** `ERROR: Missing translation
    "Challenge_LastHome*_name/_desc"` (×8). Cosmetic; the Challenges menu
    entries lack translation keys.
-5. **DEBUG=true commit (`d6b6b68`) must be reverted before merging to
+6. **DEBUG=true commit (`d6b6b68`) must be reverted before merging to
    `main`.**
-6. **Dedicated-server (non-Host) support.** The bootstrap is on `OnGameStart`
+7. **Dedicated-server (non-Host) support.** The bootstrap is on `OnGameStart`
    which fires on Host but may not on a pure dedicated server. Deferred (see
    Bug 3 note).
 
