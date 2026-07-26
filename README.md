@@ -35,6 +35,7 @@ Co-op mod for Project Zomboid (B41). Players defend a building against growing w
 | └ [LH-MP-2](specs/LH-MP-2-server-bootstrap.md) | Server bootstrap `LastHomeBootstrap.lua` + house config | 📝 |
 | └ [LH-MP-3](specs/LH-MP-3-isScenarioHouse.md) | Generalize periodic cleanup to scenario houses | 📝 |
 | └ [LH-MP-4](specs/LH-MP-4-mp-verification-docs.md) | MP server setup docs + verification checklist | 📝 |
+| └ [LH-MP-5](specs/LH-MP-5-house-picker-before-role-picker.md) | House picker before the role picker | 📝 |
 
 ## Status
 
