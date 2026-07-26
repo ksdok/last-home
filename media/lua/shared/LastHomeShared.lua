@@ -1,7 +1,7 @@
 LastHomeShared = LastHomeShared or {}
 
 if LastHomeShared.DEBUG == nil then
-    LastHomeShared.DEBUG = false
+    LastHomeShared.DEBUG = true
 end
 
 local NOW_SOURCE = nil
@@ -621,23 +621,26 @@ function LastHomeShared.getScenarioHouseId()
                        elementary_school = true }
     local defaultId = "random"
 
-    local base = nil
-    local core = getCore()
-    if core ~= nil and core.getMyDocumentFolder ~= nil then
-        base = core:getMyDocumentFolder()
-    end
-    local path = (base ~= nil and (base .. "/Server/LastHomeHouse.cfg")
-                or "Zomboid/Server/LastHomeHouse.cfg")
+    -- PZ's getFileReader / fileExists resolve relative to the user Zomboid
+    -- data folder, so a relative "Server/LastHomeHouse.cfg" maps to
+    -- <userDir>/Server/LastHomeHouse.cfg. Do NOT use `io` (nil in Kahlua).
+    local relPath = "Server/LastHomeHouse.cfg"
 
-    local f = io.open(path, "r")
-    if f == nil then
-        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(path) .. ") -> random")
+    if fileExists == nil or not fileExists(relPath) then
+        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(relPath) .. ") -> random")
+        return defaultId
+    end
+
+    local reader = getFileReader(relPath, false)
+    if reader == nil then
+        print("[LastHome] LastHomeHouse.cfg non lisible (path=" .. tostring(relPath) .. ") -> random")
         return defaultId
     end
 
     local result = defaultId
     local found = false
-    for line in f:lines() do
+    local line = reader:readLine()
+    while line ~= nil do
         local trimmed = line:match("^%s*(.-)%s*$")
         if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
             if trimmed == "random" then
@@ -651,11 +654,12 @@ function LastHomeShared.getScenarioHouseId()
             found = true
             break
         end
+        line = reader:readLine()
     end
-    f:close()
+    reader:close()
 
     if not found then
-        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(path) .. ") -> random")
+        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(relPath) .. ") -> random")
     end
     return result
 end

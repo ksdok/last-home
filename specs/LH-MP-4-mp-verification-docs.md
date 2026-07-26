@@ -121,12 +121,14 @@ follow-up ticket (do not mark this ticket complete with failures).
       `Maison selectionnee (source=scenario): Villa`.
 - [ ] A3. `Server.house.source == "scenario"` after the bootstrap runs (check
       via a debug log).
-- [ ] A4. **Bootstrap event confirmation:** confirm `OnGameStart` fires on
-      the dedicated server and the bootstrap runs (log `LastHomeBootstrap
-      OnGameStart`). If `OnGameStart` does **not** fire on the dedicated
-      server, apply the LH-MP-2 fallback: move **both** the `LastHomeServer`
-      state reset and the bootstrap to `OnServerStarted` (reset before
-      bootstrap), and re-verify A1-A3. Document which event is used.
+- [x] A4. **Bootstrap event confirmation (resolved 25-07-26):** `OnGameStart`
+      does **not** fire on the MP server process (confirmed by server log
+      `25-07-26_23-26-48`: bootstrap loads but never runs, `Server.house` stays
+      nil). Fix applied on `fix/lh-mp-2-bootstrap-on-server-started`: the
+      bootstrap now hooks `Events.OnServerStarted` (with a `bootstrapRan`
+      one-shot guard). Re-verify A1-A3 with the fix: the server log must show
+      `LastHomeBootstrap OnServerStarted` then `Selection scenario house=...`
+      then `Maison selectionnee (source=scenario): ...`.
 - [ ] A5. Solo Challenges mode still works: launching "Last Home: Hopital"
       from the Challenges menu selects the hospital with `source=challenge`,
       and the bootstrap does not double-select (logs `Mode Challenge

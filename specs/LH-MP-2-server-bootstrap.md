@@ -18,31 +18,35 @@ This bootstrap must **not** run when the game is a Challenge
 (`getCore():isChallenge()`), to avoid double-selecting the house against the
 challenge path.
 
-### Bootstrap event decision: `OnGameStart` (not `OnServerStarted`)
+### Bootstrap event decision: `OnServerStarted` (not `OnGameStart`) — VERIFIED in-game
 
-The bootstrap hooks `Events.OnGameStart`, registered **after** the existing
-`LastHomeServer.onGameStart` reset handler (PZ fires `OnGameStart` handlers in
-registration order). Rationale:
+The bootstrap hooks `Events.OnServerStarted`, **not** `Events.OnGameStart`.
 
-- The existing reset wipes `Server.selectedHouse = nil` on `OnGameStart`.
-- `OnServerStarted` fires **before** `OnGameStart`, so a bootstrap on
-  `OnServerStarted` would have its selected house wiped by the subsequent
-  reset.
-- Registering the bootstrap on `OnGameStart` after the reset gives the
-  correct sequence: reset -> bootstrap sets house -> no wipe.
+**Verified on 25-07-26 (MP Host server):** `Events.OnGameStart` is a
+**client-side** "entered the game" event. It does **not** fire on the MP
+server process (Host or dedicated). The server log
+(`25-07-26_23-26-48_DebugLog-server.txt`) shows `LastHomeBootstrap.lua`
+loads and prints `LastHomeBootstrap charge`, but the `OnGameStart` handler
+never runs — no `LastHomeBootstrap OnGameStart` / `Selection scenario
+house=` / `Maison selectionnee` lines, and `Server.house` stays `nil`
+(`[LastHome][Boundary] ... house=house=nil`). Meanwhile `Events.OnTick`
+fires correctly on the server.
 
-Fallback (validated in LH-MP-4): if `OnGameStart` turns out not to fire on a
-dedicated server, move **both** the reset (from `LastHomeServer.lua`) and this
-bootstrap to `OnServerStarted`, keeping the reset-before-bootstrap order.
+`Events.OnServerStarted` fires on the MP server once it has finished
+starting up (before players connect) — the correct hook for server-side
+house selection.
 
-Implementation note: to guarantee registration order, this file's
-`Events.OnGameStart.Add(...)` must execute after `LastHomeServer.lua`'s
-`Events.OnGameStart.Add(...)`. PZ loads `media/lua/server/` files in
-alphabetical order, and `LastHomeBootstrap.lua` sorts after
-`LastHomeServer.lua`, so the bootstrap registers after the reset by default.
-The implementer must verify this load order and, if not guaranteed, force it
-with a `require "LastHomeServer"` at the top of the bootstrap file (already
-present) so the reset handler is registered first.
+The former `OnGameStart` ordering concern (the `LastHomeServer.onGameStart`
+reset wiping `Server.selectedHouse`) is **moot in MP**: that reset is
+registered on `OnGameStart`, which does not fire on the MP server, so there
+is no wipe. The `Server` table starts clean on a fresh server process.
+
+Solo Challenges mode is unaffected: `isChallenge()` guard returns true and
+the bootstrap is dormant; the challenge runtime + client `SetHouse` drive
+house selection as before.
+
+A `bootstrapRan` one-shot guard protects against double execution if the
+event were to fire more than once.
 
 ## Goal
 
@@ -62,46 +66,60 @@ function LastHomeShared.getScenarioHouseId()
                        elementary_school = true }
     local defaultId = "random"
 
-    -- Resolve the PZ user-data dir, then Zomboid/Server/LastHomeHouse.cfg.
-    -- Preferred: getCore():getMyDocumentFolder() (PZ B41) returns the user
-    -- data root, e.g. "<user>/Zomboid". Build the absolute path:
-    --   <myDocumentFolder> .. "/Server/LastHomeHouse.cfg"
-    -- If that API is unavailable, fall back to a relative path
-    -- "Zomboid/Server/LastHomeHouse.cfg" (works when the server CWD is the
-    -- PZ user-data dir, which is the common dedicated-server case).
-    local base = nil
-    local core = getCore()
-    if core ~= nil and core.getMyDocumentFolder ~= nil then
-        base = core:getMyDocumentFolder()
-    end
-    local path = (base ~= nil and (base .. "/Server/LastHomeHouse.cfg")
-                or "Zomboid/Server/LastHomeHouse.cfg")
+    -- PZ's getFileReader / fileExists resolve relative to the user Zomboid
+    -- data folder, so "Server/LastHomeHouse.cfg" maps to
+    -- <userDir>/Server/LastHomeHouse.cfg. Do NOT use `io` (nil in Kahlua).
+    local relPath = "Server/LastHomeHouse.cfg"
 
-    local f = io.open(path, "r")  -- io is available server-side in PZ B41
-    if f ~= nil then
-        for line in f:lines() do
-            local trimmed = line:match("^%s*(.-)%s*$")
-            if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
-                f:close()
-                if trimmed == "random" then return defaultId end
-                if validIds[trimmed] then return trimmed end
-                print("[LastHome] LastHomeHouse.cfg valeur invalide: " .. tostring(trimmed) .. " -> random")
-                return defaultId
-            end
-        end
-        f:close()
-    else
-        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(path) .. ") -> random")
+    if fileExists == nil or not fileExists(relPath) then
+        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(relPath) .. ") -> random")
+        return defaultId
     end
-    return defaultId
+
+    local reader = getFileReader(relPath, false)
+    if reader == nil then
+        print("[LastHome] LastHomeHouse.cfg non lisible (path=" .. tostring(relPath) .. ") -> random")
+        return defaultId
+    end
+
+    local result = defaultId
+    local found = false
+    local line = reader:readLine()
+    while line ~= nil do
+        local trimmed = line:match("^%s*(.-)%s*$")
+        if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
+            if trimmed == "random" then
+                result = defaultId
+            elseif validIds[trimmed] then
+                result = trimmed
+            else
+                print("[LastHome] LastHomeHouse.cfg valeur invalide: " .. tostring(trimmed) .. " -> random")
+                result = defaultId
+            end
+            found = true
+            break
+        end
+        line = reader:readLine()
+    end
+    reader:close()
+
+    if not found then
+        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(relPath) .. ") -> random")
+    end
+    return result
 end
 ```
 
-> Implementer note: `io.open` works in PZ server Lua. Resolve the path via
-> `getCore():getMyDocumentFolder()` first (absolute, dedicated-server-safe),
-> then fall back to the relative path. The `random` fallback is the contract if
-> the file is absent, unreadable, or contains an invalid token. This path
-> strategy is an **acceptance criterion**, not best-effort (see below).
+> Implementer note: PZ's Kahlua Lua runtime has **no `io` library** (`io` is
+> nil -> `io.open` throws "attempted index: open of non-table: null",
+> confirmed in-game 25-07-26). Use the PZ-native globals `fileExists(path)` and
+> `getFileReader(path, createIfNull)` (returns a Java `BufferedReader`), then
+> `reader:readLine()` / `reader:close()`. These resolve `path` **relative to the
+> user Zomboid data folder**, so `"Server/LastHomeHouse.cfg"` maps to
+> `<userDir>/Server/LastHomeHouse.cfg` (the same dir as `LastHome.ini`). The
+> `random` fallback is the contract if the file is absent, unreadable, or
+> contains an invalid token. This path strategy is an **acceptance
+> criterion**, not best-effort (see below).
 
 ### 2. `LastHomeShared.applyDefaultSandboxVars()` in `media/lua/shared/LastHomeShared.lua`
 
@@ -145,13 +163,18 @@ require "LastHomeServer"
 
 print("[LastHome] LastHomeBootstrap charge")
 
+local bootstrapRan = false
+
 local function isChallengeMode()
     local core = getCore()
     return core ~= nil and core.isChallenge ~= nil and core:isChallenge()
 end
 
-local function onGameStart()
-    print("[LastHome] LastHomeBootstrap OnGameStart")
+local function runBootstrap()
+    if bootstrapRan then return end
+    bootstrapRan = true
+
+    print("[LastHome] LastHomeBootstrap OnServerStarted")
     -- Never compete with the challenge runtime (solo Challenges mode).
     if isChallengeMode() then
         print("[LastHome] Mode Challenge detecte -> bootstrap inactif")
@@ -178,8 +201,13 @@ local function onGameStart()
     LastHomeServer.setSelectedHouse(resolvedId, "scenario")
 end
 
-Events.OnGameStart.Add(onGameStart)
+Events.OnServerStarted.Add(runBootstrap)
 ```
+
+> Note: the bootstrap uses `OnServerStarted` (not `OnGameStart`) because
+> `OnGameStart` is a client-side event that does not fire on the MP server
+> process — verified in-game on 25-07-26. See the "Bootstrap event decision"
+> section above.
 
 ## Files impacted
 
@@ -204,11 +232,11 @@ Events.OnGameStart.Add(onGameStart)
    back to `random` and selects one of the 4 houses, logging the resolved
    path and the fallback reason.
 4. **Config path resolution is deterministic (not best-effort):**
-   `getScenarioHouseId()` resolves the file via `getCore():getMyDocumentFolder()`
-   first and falls back to the relative `Zomboid/Server/LastHomeHouse.cfg`;
-   the resolved path is logged on every read attempt (success, missing, or
-   invalid). A test placing the file at the absolute path is documented in
-   LH-MP-4 and passes.
+   `getScenarioHouseId()` uses PZ-native `fileExists` + `getFileReader` (NOT
+   `io`, which is nil in Kahlua) with the relative path `Server/LastHomeHouse.cfg`,
+   which resolves to `<userDir>/Server/LastHomeHouse.cfg`; the resolved path is
+   logged on every read attempt (missing, unreadable, or invalid). A test
+   placing the file at that path is documented in LH-MP-4 and passes.
 5. `LastHomeShared.applyDefaultSandboxVars()` sets `SandboxVars.Zombies = 6`
    and all `ZombieConfig` multipliers to 0 when called.
 6. In solo Challenges mode, `isChallengeMode()` is true and the bootstrap
@@ -217,16 +245,19 @@ Events.OnGameStart.Add(onGameStart)
    confirms the early return.
 7. The 4 challenge entries in the Challenges menu still launch and select
    the correct house.
-8. The bootstrap's `OnGameStart` handler is registered after the existing
-   `LastHomeServer.onGameStart` reset handler (verified by load order or by
-   `require "LastHomeServer"` at the top of the bootstrap file), so the reset
-   does not wipe the selected house.
+8. The bootstrap hooks `Events.OnServerStarted` (verified: `OnGameStart` does
+   not fire on the MP server process). A `bootstrapRan` guard prevents double
+   execution. The `LastHomeServer` reset on `OnGameStart` is moot in MP (it
+   does not fire on the server) and does not wipe the selected house.
 
 ## Pitfalls (for the implementer)
 
-- `io.open` path must resolve to the PZ user data dir. If `Zomboid/Server/`
-  is relative to the working dir, confirm against an existing PZ server
-  install; otherwise use the PZ file API. Keep the `random` fallback robust.
+- **Do NOT use `io`** -- it is nil in PZ's Kahlua Lua; `io.open` throws
+  `attempted index: open of non-table: null` (confirmed in-game 25-07-26).
+  Use PZ's `fileExists(path)` + `getFileReader(path, false)` + `reader:readLine()`.
+  The path is relative to the user Zomboid data folder, so
+  `"Server/LastHomeHouse.cfg"` maps to `<userDir>/Server/LastHomeHouse.cfg`.
+  Keep the `random` fallback robust.
 - `getCore():isChallenge()` may be `isChallenge()` (method) or a field;
   guard with nil-checks as in the example.
 - Do **not** call `setSelectedHouse` after waves have started (the guard

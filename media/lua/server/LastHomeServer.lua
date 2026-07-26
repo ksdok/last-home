@@ -131,44 +131,96 @@ local function pickHouseSpawnPoint(house)
         end
     end
 
-    logServer("pickHouseSpawnPoint n'a trouve aucun square utilisable pour " .. formatHouseLabel(house) .. " (candidats=" .. tostring(candidateCount) .. ")")
-    return nil, nil, nil
+    logServer("pickHouseSpawnPoint aucun candidat libre pour " .. formatHouseLabel(house) .. " (candidats=" .. tostring(candidateCount) .. ") -> fallback candidat #" .. tostring(startIndex))
+    -- teleport (setX/setY/setZ) places the player regardless of whether the
+    -- square is "free"; PZ resolves overlap. Better to teleport onto a
+    -- designated spawn point than leave the player at the default spawn.
+    local fallback = candidates[startIndex]
+    return fallback.x, fallback.y, fallback.z or house.centerZ or 0
+end
+
+local function applyManualTeleportState(player, x, y, z)
+    player:setX(x)
+    player:setY(y)
+    player:setZ(z)
+
+    if player.setLx ~= nil then player:setLx(x) end
+    if player.setLy ~= nil then player:setLy(y) end
+    if player.setLz ~= nil then player:setLz(z) end
+    if player.setNx ~= nil then player:setNx(x) end
+    if player.setNy ~= nil then player:setNy(y) end
+    if player.setScriptnx ~= nil then player:setScriptnx(x) end
+    if player.setScriptny ~= nil then player:setScriptny(y) end
+
+    local cell = getCell ~= nil and getCell() or nil
+    local square = cell ~= nil and cell.getGridSquare ~= nil and cell:getGridSquare(x, y, z) or nil
+    if square ~= nil then
+        if player.setCurrent ~= nil then player:setCurrent(square) end
+        if player.setLast ~= nil then player:setLast(square) end
+    end
+
+    if player.setMovingSquareNow ~= nil then player:setMovingSquareNow() end
+    if player.ensureOnTile ~= nil then player:ensureOnTile() end
 end
 
 local function teleportPlayerToHouse(player)
-    if player == nil then return false end
+    if player == nil then return false, nil end
 
     local username = player:getUsername() or "?"
     local modData = player:getModData()
     if modData ~= nil and (modData.LH_dead or modData.LH_spectator) then
         logServer("teleport ignore pour " .. tostring(username) .. " (dead=" .. tostring(modData.LH_dead) .. ", spectator=" .. tostring(modData.LH_spectator) .. ")")
-        return false
+        return false, nil
     end
 
     local house = ensureSelectedHouse()
-    if house == nil then return false end
+    if house == nil then return false, nil end
     if modData ~= nil and modData.LH_houseSpawnId == house.id then
         logServer("teleport ignore pour " .. tostring(username) .. " - deja spawne sur " .. formatHouseLabel(house) .. " depuis " .. formatPlayerCoords(player))
-        return false
+        return false, nil
     end
 
     local beforeCoords = formatPlayerCoords(player)
     local x, y, z = pickHouseSpawnPoint(house)
     if x == nil or y == nil or z == nil then
         print("[LastHome] WARN: pickHouseSpawnPoint a echoue pour " .. tostring(username) .. " (maison=" .. tostring(house.name or house.id or "?") .. ", candidats=" .. tostring(getHouseSpawnCandidates ~= nil and #(getHouseSpawnCandidates(house) or {}) or 0) .. ")")
-        return false
+        return false, nil
     end
 
-    player:setX(x)
-    player:setY(y)
-    player:setZ(z)
+    local spawnData = {
+        x = x,
+        y = y,
+        z = z,
+        houseId = house.id,
+    }
+
+    local teleported = false
+    local teleportMode = "manual"
+    if GameServer ~= nil and GameServer.sendTeleport ~= nil then
+        local ok, err = pcall(function()
+            GameServer.sendTeleport(player, x, y, z)
+        end)
+        if ok then
+            teleported = true
+            teleportMode = "GameServer.sendTeleport"
+        else
+            teleportMode = "manual(GameServer.sendTeleport error=" .. tostring(err) .. ")"
+        end
+    else
+        teleportMode = "manual(GameServer.sendTeleport indisponible)"
+    end
+
+    if not teleported then
+        applyManualTeleportState(player, x, y, z)
+        teleported = true
+    end
 
     if modData ~= nil then
         modData.LH_houseSpawnId = house.id
     end
 
-    logServer("teleport joueur " .. tostring(username) .. " : " .. beforeCoords .. " -> " .. formatCoords(x, y, z) .. " pour " .. formatHouseLabel(house))
-    return true
+    logServer("teleport joueur " .. tostring(username) .. " : " .. beforeCoords .. " -> " .. formatCoords(x, y, z) .. " pour " .. formatHouseLabel(house) .. " via " .. tostring(teleportMode))
+    return teleported, spawnData
 end
 
 local function warnTeleportFailure(player, context)
@@ -300,21 +352,15 @@ local function applyRole(player, roleKey)
         return false
     end
 
-    local inv = player:getInventory()
-    local roleBag = nil
-
-    if def.equipped and def.equipped.bag then
-        roleBag = inv:AddItem(def.equipped.bag)
-    end
-
-    addRoleItems(inv, roleBag, def.equipped and def.equipped.bag or nil, def.items, def.bagContents)
-    primeRoleLoadout(inv)
-
+    -- MP: items + equipment are applied CLIENT-SIDE on RoleAssigned (applyRoleLocally).
+    -- Server-side inventory/equipment grants do not reliably replicate to the
+    -- client in MP, and adding them on both sides would duplicate. The client's
+    -- inventory is the authoritative synced copy (client -> server). The server
+    -- keeps the authoritative parts: skills, stats, carry (these replicate),
+    -- modData.LH_role, and the role-loadout tracking.
     for _, skillDef in ipairs(def.skills or {}) do
         applyPerkLevel(player, skillDef[1], skillDef[2])
     end
-
-    equipRoleItems(player, inv, def.equipped)
     applyRoleStats(player, def.stats)
     applyCarryProfile(player, roleKey)
 
@@ -525,12 +571,23 @@ local function onBuilderRefillTick()
 end
 Events.OnTick.Add(onBuilderRefillTick)
 
-local function sendRoleAssigned(username, roleKey)
-    sendServerCommand("LastHome", "RoleAssigned", {
+local function sendRoleAssigned(username, roleKey, options)
+    local payload = {
         username = username,
         role = roleKey,
         roleName = ROLE_NAMES[roleKey] or roleKey,
-    })
+        applyItems = options ~= nil and options.applyItems == true,
+    }
+
+    local spawn = options ~= nil and options.spawn or nil
+    if spawn ~= nil then
+        payload.spawnX = spawn.x
+        payload.spawnY = spawn.y
+        payload.spawnZ = spawn.z
+        payload.houseId = spawn.houseId
+    end
+
+    sendServerCommand("LastHome", "RoleAssigned", payload)
 end
 
 local function notifyWavesRoleAssigned()
@@ -550,10 +607,10 @@ local function sendRoleUnavailable(username, text)
 end
 
 local function restoreAssignedRole(player)
-    if player == nil then return nil end
+    if player == nil then return nil, nil end
 
     local username = player:getUsername()
-    if username == nil then return nil end
+    if username == nil then return nil, nil end
 
     local roleKey = Server.assignedRoles[username]
     if roleKey == nil then
@@ -566,13 +623,14 @@ local function restoreAssignedRole(player)
 
     if roleKey ~= nil and ROLE_DEFS[roleKey] ~= nil then
         applyRole(player, roleKey)
-        if not teleportPlayerToHouse(player) then
+        local teleported, spawn = teleportPlayerToHouse(player)
+        if not teleported then
             warnTeleportFailure(player, "restoreAssignedRole")
         end
-        return roleKey
+        return roleKey, spawn
     end
 
-    return nil
+    return nil, nil
 end
 
 function LastHomeServer.setSelectedHouse(houseId, source, actorUsername)
@@ -679,9 +737,12 @@ local function onClientCommand(module, command, player, data)
         logServer("Commande RolePickerReady recue de " .. tostring(username) .. " depuis " .. formatPlayerCoords(player))
         ensureSelectedHouse()
 
-        local roleKey = restoreAssignedRole(player)
+        local roleKey, spawn = restoreAssignedRole(player)
         if roleKey ~= nil then
-            sendRoleAssigned(username, roleKey)
+            sendRoleAssigned(username, roleKey, {
+                applyItems = false,
+                spawn = spawn,
+            })
             notifyWavesRoleAssigned()
             return
         end
@@ -696,9 +757,12 @@ local function onClientCommand(module, command, player, data)
 
     logServer("Commande ChooseRole recue de " .. tostring(username) .. " -> " .. tostring(data and data.roleKey or "nil") .. " depuis " .. formatPlayerCoords(player))
 
-    local existingRole = restoreAssignedRole(player)
+    local existingRole, existingSpawn = restoreAssignedRole(player)
     if existingRole ~= nil then
-        sendRoleAssigned(username, existingRole)
+        sendRoleAssigned(username, existingRole, {
+            applyItems = false,
+            spawn = existingSpawn,
+        })
         notifyWavesRoleAssigned()
         return
     end
@@ -710,7 +774,8 @@ local function onClientCommand(module, command, player, data)
     end
 
     local granted = applyRole(player, roleKey)
-    if not teleportPlayerToHouse(player) then
+    local teleported, spawn = teleportPlayerToHouse(player)
+    if not teleported then
         warnTeleportFailure(player, "ChooseRole")
     end
 
@@ -720,7 +785,10 @@ local function onClientCommand(module, command, player, data)
         print("[LastHome] Role resynchronise: " .. tostring(username) .. " = " .. tostring(ROLE_NAMES[roleKey] or roleKey))
     end
 
-    sendRoleAssigned(username, roleKey)
+    sendRoleAssigned(username, roleKey, {
+        applyItems = granted,
+        spawn = spawn,
+    })
     notifyWavesRoleAssigned()
 end
 Events.OnClientCommand.Add(onClientCommand)

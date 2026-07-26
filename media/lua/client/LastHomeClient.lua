@@ -8,6 +8,7 @@ print("[LastHome] LastHomeClient charge")
 
 local roleRequestSent = false
 local soloPickerFallbackAt = nil
+local mpRolePickerRetryAt = nil
 local soloFallbackTickRegistered = false
 local soloStateLastSyncSecond = nil
 local skipWaveRequested = false
@@ -117,33 +118,51 @@ local function unregisterSoloFallbackTick()
 end
 
 LastHomeClient.TickRolePickerFallback = function()
-    if soloPickerFallbackAt == nil then
-        unregisterSoloFallbackTick()
-        return
-    end
-
-    if not isSinglePlayerRuntime() then
-        logClient("Fallback solo annule: runtime reseau detecte")
-        soloPickerFallbackAt = nil
-        unregisterSoloFallbackTick()
-        return
-    end
-
     local player = getPlayer()
     if player == nil then return end
-    if player:getModData().LH_role ~= nil then
+    local modData = player:getModData()
+    if modData ~= nil and modData.LH_role ~= nil then
         soloPickerFallbackAt = nil
+        mpRolePickerRetryAt = nil
         unregisterSoloFallbackTick()
         return
     end
 
     if LastHomeRolePicker.isVisible() then
         soloPickerFallbackAt = nil
+        mpRolePickerRetryAt = nil
         unregisterSoloFallbackTick()
         return
     end
 
-    if getNowSeconds() >= soloPickerFallbackAt then
+    local now = getNowSeconds()
+
+    -- MP retry: the initial RolePickerReady (sent at OnCreatePlayer/OnGameStart)
+    -- can be lost because the client-server connection is not yet established.
+    -- Re-send every 3s until the server responds (OpenRolePicker -> picker visible)
+    -- or a role is assigned.
+    if not isSinglePlayerRuntime() then
+        if mpRolePickerRetryAt == nil then
+            unregisterSoloFallbackTick()
+            return
+        end
+        if now >= mpRolePickerRetryAt then
+            logClient("Retry MP: renvoi RolePickerReady (joueur=" .. tostring(player:getUsername() or "?") .. ")")
+            sendClientCommand("LastHome", "RolePickerReady", {
+                username = player:getUsername(),
+            })
+            mpRolePickerRetryAt = now + 3
+        end
+        return
+    end
+
+    -- Solo fallback
+    if soloPickerFallbackAt == nil then
+        unregisterSoloFallbackTick()
+        return
+    end
+
+    if now >= soloPickerFallbackAt then
         logClient("Fallback solo declenche -> ouverture locale du role picker")
         soloPickerFallbackAt = nil
         unregisterSoloFallbackTick()
@@ -272,7 +291,7 @@ function LastHomeClient.applyRoleLocally(player, roleKey)
     if def == nil then return false end
 
     local modData = player:getModData()
-    if modData.LH_role ~= nil then return false end
+    if modData.LH_localRoleApplied == roleKey then return false end
 
     logClient("applyRoleLocally start - role=" .. tostring(roleKey) .. ", joueur=" .. tostring(player:getUsername() or "?") .. ", coords=" .. formatPlayerCoords(player))
 
@@ -318,9 +337,20 @@ local function requestRolePicker()
 
     roleRequestSent = true
 
-    if isSinglePlayerRuntime() and soloPickerFallbackAt == nil then
-        soloPickerFallbackAt = getNowSeconds() + 3
-        logClient("requestRolePicker - fallback solo arme pour t=" .. tostring(soloPickerFallbackAt))
+    if isSinglePlayerRuntime() then
+        if soloPickerFallbackAt == nil then
+            soloPickerFallbackAt = getNowSeconds() + 3
+            logClient("requestRolePicker - fallback solo arme pour t=" .. tostring(soloPickerFallbackAt))
+            ensureSoloFallbackTickRegistered()
+        end
+    else
+        -- MP: OnCreatePlayer/OnGameStart fire during local setup, BEFORE the
+        -- client-server connection is established, so the first sendClientCommand
+        -- can be lost. Arm a retry; the tick re-sends RolePickerReady every 3s
+        -- until the server responds (OpenRolePicker -> picker visible) or a role
+        -- is assigned.
+        mpRolePickerRetryAt = getNowSeconds() + 3
+        logClient("requestRolePicker - retry MP arme pour t=" .. tostring(mpRolePickerRetryAt))
         ensureSoloFallbackTickRegistered()
     end
 
@@ -353,6 +383,67 @@ end
 local function isLocalUser(data)
     local player = getPlayer()
     return player ~= nil and data ~= nil and data.username == player:getUsername()
+end
+
+local function applyManualTeleportState(player, x, y, z)
+    player:setX(x)
+    player:setY(y)
+    player:setZ(z)
+
+    if player.setLx ~= nil then player:setLx(x) end
+    if player.setLy ~= nil then player:setLy(y) end
+    if player.setLz ~= nil then player:setLz(z) end
+    if player.setNx ~= nil then player:setNx(x) end
+    if player.setNy ~= nil then player:setNy(y) end
+    if player.setScriptnx ~= nil then player:setScriptnx(x) end
+    if player.setScriptny ~= nil then player:setScriptny(y) end
+
+    local cell = getCell ~= nil and getCell() or nil
+    local square = cell ~= nil and cell.getGridSquare ~= nil and cell:getGridSquare(x, y, z) or nil
+    if square ~= nil then
+        if player.setCurrent ~= nil then player:setCurrent(square) end
+        if player.setLast ~= nil then player:setLast(square) end
+    end
+
+    if player.setMovingSquareNow ~= nil then player:setMovingSquareNow() end
+    if player.ensureOnTile ~= nil then player:ensureOnTile() end
+end
+
+local function applyRoleAssignedTeleport(player, data)
+    if player == nil or data == nil then return false end
+
+    local x = data.spawnX
+    local y = data.spawnY
+    local z = data.spawnZ
+    if x == nil or y == nil or z == nil then
+        return false
+    end
+
+    local beforeCoords = formatPlayerCoords(player)
+    local teleported = false
+    local teleportMode = "manual"
+
+    if GameClient ~= nil and GameClient.sendTeleport ~= nil then
+        local ok, err = pcall(function()
+            GameClient.sendTeleport(player, x, y, z)
+        end)
+        if ok then
+            teleported = true
+            teleportMode = "GameClient.sendTeleport"
+        else
+            teleportMode = "manual(GameClient.sendTeleport error=" .. tostring(err) .. ")"
+        end
+    else
+        teleportMode = "manual(GameClient.sendTeleport indisponible)"
+    end
+
+    if not teleported then
+        applyManualTeleportState(player, x, y, z)
+        teleported = true
+    end
+
+    logClient("RoleAssigned teleport client " .. beforeCoords .. " -> " .. formatCoords(x, y, z) .. " via " .. tostring(teleportMode))
+    return teleported
 end
 
 local function showAlert(data)
@@ -850,9 +941,27 @@ local function onServerCommand(module, command, data)
     elseif command == "RoleAssigned" then
         local player = getPlayer()
         if player ~= nil and data ~= nil and data.username == player:getUsername() then
-            player:getModData().LH_role = data.role
+            -- MP: the server remains authoritative for role selection/state, but
+            -- the client applies inventory/equipment locally (vanilla pattern)
+            -- and mirrors the spawn coords chosen by the server. Using LH_role as
+            -- the local-apply guard is unsafe in MP because the server can sync it
+            -- before RoleAssigned reaches the client.
+            local teleported = applyRoleAssignedTeleport(player, data)
+            local applied = false
+            if data.applyItems == true then
+                applied = LastHomeClient.applyRoleLocally(player, data.role)
+            end
+
+            local modData = player:getModData()
+            if modData.LH_role ~= data.role then
+                modData.LH_role = data.role
+            end
+            if data.houseId ~= nil then
+                modData.LH_houseSpawnId = data.houseId
+            end
+
             showRoleAssigned(data.roleName or data.role)
-            print("[LastHome] Client: role recu - " .. tostring(data.roleName or data.role))
+            print("[LastHome] Client: role recu - " .. tostring(data.roleName or data.role) .. " (applyItems=" .. tostring(data.applyItems == true) .. ", applique localement=" .. tostring(applied) .. ", teleport client=" .. tostring(teleported) .. ")")
         end
     elseif command == "RoleDenied" or command == "RoleUnavailable" then
         roleRequestSent = false
