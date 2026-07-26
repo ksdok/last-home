@@ -18,7 +18,7 @@
 - ✅ Villa stabilized: waves forced to **South**, ground-level spawns, wave attraction refocused on alarm-like sound pulses toward the base
 - ✅ Spec **LH-12** written to test Track A on wave aggro via `createHordeFromTo` — resolved in-game (god mode was blocking the zombie AI)
 - 📝 Spec **LH-17** written: deduplication of role-application logic into `LastHomeShared`
-- 📝 Spec **LH-MP-5** written: house picker before the role picker in MP sandbox / Host mode
+- ✅ **LH-MP-5** implemented: house picker before the role picker in MP sandbox / Host mode (`LastHomeHouse.cfg = picker` defers server auto-selection; first eligible player gets an in-game house picker, then the role picker fans out to everyone)
 - ✅ Spec **LH-13** written and implemented: continuous vanilla/story spawn suppression around the base in Challenge mode
 - ✅ LH-MP-1 implemented: `LastHomeServer.setSelectedHouse(...)` now centralizes server-side house selection for both challenge and future scenario/bootstrap paths (validation, lock, sync, refill, roled-player re-teleport)
 - ✅ LH-MP-2 implemented: `media/lua/server/LastHomeBootstrap.lua` selects the scenario house from `Zomboid/Server/LastHomeHouse.cfg` at server `OnGameStart` and calls `LastHomeServer.setSelectedHouse(id, "scenario")`; `LastHomeShared.applyDefaultSandboxVars()` dedups the challenge sandbox injection (4 `setSandBoxVars` bodies replaced by the shared call); bootstrap dormant in solo Challenges mode via `isChallenge()` guard; hooks `OnGameStart` (not `OnServerStarted`) registered after `LastHomeServer`'s reset via `require "LastHomeServer"` so the reset does not wipe the selected house
@@ -302,13 +302,32 @@
   - Associated commit:
     - `dc3ceae` — `feat(LH-MP-3): generalize periodic cleanup gate to scenario houses`
 
+- [x] LH-MP-5 — House picker before the role picker (MP sandbox / Host)
+  - `media/lua/shared/LastHomeShared.lua` (`getScenarioHouseId` accepts `picker`; new `getHousePickerEntries`)
+  - `media/lua/server/LastHomeServer.lua` (`enterHousePickerMode`, `routeRolePickerReadyIntoHousePicker`, `handleChooseHouse`, chooser claim/release, `ensureSelectedHouse` gated, `onGameStart` reset)
+  - `media/lua/server/LastHomeBootstrap.lua` (cfg `picker` -> `enterHousePickerMode()` on MP server, random fallback in solo)
+  - `media/lua/server/LastHomeWaves.lua` (`isScenarioHouse` accepts `scenario-picker` so LH-13 periodic cleanup still runs)
+  - `media/lua/client/LastHomeHousePicker.lua` **(new)** — small ISPanel with 4 house buttons, debounce, idempotent open
+  - `media/lua/client/LastHomeClient.lua` (`cancelRolePickerRetry`, `OpenHousePicker` / `HouseSelectionWaiting` / `HouseChosen` / `HousePickerError` handlers)
+  - `specs/LH-MP-5-house-picker-before-role-picker.md`, `README.md`, `project-state.md`
+  - Implemented features:
+    - `LastHomeHouse.cfg = picker` defers server auto-selection; the server enters a pending house-selection state (`Server.housePickerMode`)
+    - `RolePickerReady` is routed into the house picker when pending: the first eligible non-spectator unassigned player becomes the chooser (`Server.houseChooserUsername`) and receives `OpenHousePicker`; other players receive `HouseSelectionWaiting`
+    - `ChooseHouse` is authoritative: only the active chooser, only before waves start, only once; applies via `LastHomeServer.setSelectedHouse(id, "scenario-picker", username)`
+    - on accept: broadcasts `HouseChosen`, then fans out `OpenRolePicker` to the chooser + every waiting unassigned player (house picker first, role picker second)
+    - chooser claim is released if that player goes offline, so a waiting player can claim it on the next `RolePickerReady`
+    - `ensureSelectedHouse()` no longer falls back to a random pick while in picker mode (teleport/refill/restore wait for the pending choice)
+    - solo Challenges unchanged (bootstrap dormant via `isChallenge()`); solo sandbox with `picker` cfg falls back to `random` (no MP command transport)
+    - cfg `hospital`/`villa`/`prison`/`elementary_school`/`random` behavior unchanged
+  - Pending in-game MP verification (LH-MP-4): house picker open/claim, `ChooseHouse` rejection for non-choosers, role picker fan-out after choice, late joiners before/after choice, reconnect of chooser
+
 ## Backlog
 
 ### High priority
 - [x] LH-MP-2 — Server bootstrap / house config using `LastHomeServer.setSelectedHouse(...)` (implemented; pending in-game MP verification in LH-MP-4)
 - [x] LH-MP-3 — Generalize periodic cleanup to scenario houses (implemented; pending in-game MP verification)
 - [ ] LH-MP-4 — Write `docs/MULTIPLAYER_SETUP.md` + run the A-H verification checklist on a dedicated/Host server (no code change expected; failures become follow-up tickets). Must confirm: (a) `OnGameStart` fires on a dedicated server (fallback: move reset + bootstrap to `OnServerStarted`); (b) minimal `Mods=`/`Map=` line per house (`Mods=LastHome` alone vs `+Pillow/Xonic`); (c) `LastHomeHouse.cfg` absolute path resolution via `getCore():getMyDocumentFolder()`
-- [ ] LH-MP-5 — Add a house picker before the role picker in MP sandbox / Host mode (`LastHomeHouse.cfg = picker`, interactive in-game house selection before roles). Spec written: `specs/LH-MP-5-house-picker-before-role-picker.md`
+- [x] LH-MP-5 — Add a house picker before the role picker in MP sandbox / Host mode (`LastHomeHouse.cfg = picker`, interactive in-game house selection before roles). Spec written: `specs/LH-MP-5-house-picker-before-role-picker.md`
 - [ ] In-game solo/LAN verification of LH-03 through LH-10 (actual timers, skip, spectators, score, house spawn, shared stock, confinement, HUD, solo sync)
 - [ ] In-game multiplayer verification of the role picker, spawn teleports, Builder/house refill, server confinement, and wave skip
 - [ ] Validate / finish the remaining Host MP spawn-area issues:

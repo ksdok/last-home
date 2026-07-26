@@ -576,7 +576,8 @@ end
 local function isScenarioHouse()
     return Server.house ~= nil
         and (Server.house.source == "challenge"
-          or Server.house.source == "scenario")
+          or Server.house.source == "scenario"
+          or Server.house.source == "scenario-picker")
 end
 
 local function clearAmbientZombiesNearHouse(reason)

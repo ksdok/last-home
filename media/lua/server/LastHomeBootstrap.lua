@@ -56,6 +56,18 @@ local function onGameStart()
     local houseId = LastHomeShared.getScenarioHouseId()
     print("[LastHome] Selection scenario house=" .. tostring(houseId))
 
+    -- LH-MP-5: `picker` defers house selection to an interactive in-game
+    -- choice. Only meaningful on an MP server (Host/dedicated); in solo the
+    -- house picker UI has no server command transport, so fall back to random.
+    if houseId == "picker" then
+        if GameServer ~= nil then
+            LastHomeServer.enterHousePickerMode()
+            return
+        end
+        print("[LastHome] picker cfg ignore en solo -> random")
+        houseId = "random"
+    end
+
     local resolvedId = houseId
     if houseId == "random" then
         local house = LastHomeShared.getRandomHouse()

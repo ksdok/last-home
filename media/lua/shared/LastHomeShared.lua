@@ -471,6 +471,17 @@ function LastHomeShared.getRandomHouse()
     return LastHomeShared.cloneHouse(HOUSE_DEFS[index])
 end
 
+function LastHomeShared.getHousePickerEntries()
+    local result = {}
+    for _, house in ipairs(HOUSE_DEFS) do
+        result[#result + 1] = {
+            id = house.id,
+            name = house.name or house.id or "?",
+        }
+    end
+    return result
+end
+
 function LastHomeShared.getHouseSpawnCandidates(house)
     local result = {}
     if house == nil then return result end
@@ -613,7 +624,11 @@ end
 --
 -- File: <userDir>/Server/LastHomeHouse.cfg  (or relative Zomboid/Server/...)
 -- Format: first non-empty, non-comment line is the token.
--- Valid: hospital | villa | prison | elementary_school | random
+-- Valid: hospital | villa | prison | elementary_school | random | picker
+--   - picker: do NOT auto-select a house; the server enters a pending
+--     selection state and waits for an interactive in-game choice (LH-MP-5).
+--     Only meaningful on an MP server (Host/dedicated); in solo it falls
+--     back to random (the bootstrap resolves it).
 -- Missing/unreadable/invalid -> "random".
 -- The resolved path is logged on every read attempt.
 function LastHomeShared.getScenarioHouseId()
@@ -645,6 +660,8 @@ function LastHomeShared.getScenarioHouseId()
         if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
             if trimmed == "random" then
                 result = defaultId
+            elseif trimmed == "picker" then
+                result = "picker"
             elseif validIds[trimmed] then
                 result = trimmed
             else
