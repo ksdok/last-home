@@ -1,4 +1,5 @@
--- Last Home - LH-MP-2: server bootstrap for multiplayer sandbox hosting.
+-- Last Home - LH-MP-2 / LH-MP-5: server bootstrap for multiplayer sandbox
+-- hosting.
 --
 -- In solo Challenges mode, the challenge runtime calls setSandBoxVars() and
 -- the challenge's client OnGameStart sends SetHouse. Neither runs on an MP
@@ -6,24 +7,44 @@
 -- mod is launchable from the multiplayer Host menu
 -- (Map = Muldraugh, KY + Mods = LastHome).
 --
--- Event choice: OnGameStart -- VERIFIED in-game (Host).
---   - OnGameStart fires on the MP Host integrated server (confirmed by the
---     25-07-26 23:24 client DebugLog: "LastHomeBootstrap OnGameStart" then the
---     io.open crash). It logs to the client DebugLog.txt, NOT to
---     DebugLog-server.txt -- which is why an earlier read of the server log
---     wrongly suggested it did not fire.
---   - `require "LastHomeServer"` (below) executes LastHomeServer.lua
---     top-to-bottom and registers its reset handler (which wipes
---     Server.selectedHouse) BEFORE this file registers its own OnGameStart
---     handler, guaranteeing: reset -> bootstrap sets house -> no further wipe.
---   - A `bootstrapRan` guard protects against double execution.
---   - Solo Challenges mode: isChallenge() guard -> dormant; the challenge
---     runtime + client SetHouse drive house selection as before.
---   - NOTE for dedicated servers (not Host): OnGameStart may NOT fire on a
---     pure dedicated server process. If that case must be supported, register
---     on OnServerStarted too (with the guard) and make the LastHomeServer
---     reset preserve a house already selected with source == "scenario".
---     Out of scope for the current Host-focused fix.
+-- ============================================================
+-- CRITICAL: two Lua VMs in Host mode (verified in-game 27-07-26)
+-- ============================================================
+-- In MP Host (and dedicated) mode, Project Zomboid runs TWO separate Lua VMs
+-- in the same process:
+--   - the CLIENT VM (logs to Console.txt / client DebugLog.txt)
+--   - the SERVER VM (logs to DebugLog-server.txt)
+-- `media/lua/server/` files load in BOTH VMs, but the events they receive
+-- differ per VM:
+--   - Events.OnGameStart        -> CLIENT VM only (does NOT fire in server VM)
+--   - Events.OnServerStarted    -> SERVER VM only
+--   - Events.OnClientCommand     -> SERVER VM only  (authoritative game state)
+--   - Events.OnTick (server)     -> SERVER VM
+-- The authoritative LastHomeServer.Server.* state lives in the SERVER VM.
+--
+-- A previous revision (commit 6aab85e) registered this bootstrap on
+-- OnGameStart, claiming "OnGameStart fires on the MP Host integrated server".
+-- That was a misdiagnosis: OnGameStart fires in the CLIENT VM, where it set
+-- Server.selectedHouse / applyDefaultSandboxVars / enterHousePickerMode -- all
+-- in the CLIENT VM's copy, which the SERVER VM's OnClientCommand never reads.
+-- Result (27-07-26 session): the server fell back to a random house
+-- (ensureSelectedHouse rotation), the house picker never opened, and
+-- SandboxVars.Zombies was never suppressed server-side -> vanilla zombies at
+-- the initial MP spawn before role/teleport.
+--
+-- Fix: register on Events.OnServerStarted (fires in the SERVER VM, verified
+-- in-game on 25-07-26: "LastHomeBootstrap OnServerStarted" -> "Selection
+-- scenario house=..." -> "Maison selectionnee (source=scenario)" all in
+-- DebugLog-server.txt). We ALSO keep Events.OnGameStart as a fallback for SOLO
+-- sandbox (no server VM exists in solo, so OnServerStarted does not fire and
+-- OnGameStart in the single VM is authoritative). A per-VM `bootstrapRan`
+-- guard prevents double execution within a VM.
+--
+-- Ordering: `require "LastHomeServer"` (below) loads LastHomeServer.lua first,
+-- which registers its reset handler on OnServerStarted (and OnGameStart). This
+-- file then registers its bootstrap handler on the same events. PZ fires
+-- same-event handlers in registration order, so in each VM: reset -> bootstrap
+-- -> no wipe of the bootstrap's selection.
 
 require "LastHomeShared"
 require "LastHomeServer"
@@ -37,11 +58,11 @@ local function isChallengeMode()
     return core ~= nil and core.isChallenge ~= nil and core:isChallenge()
 end
 
-local function onGameStart()
+local function runBootstrap(eventName)
     if bootstrapRan then return end
     bootstrapRan = true
 
-    print("[LastHome] LastHomeBootstrap OnGameStart")
+    print("[LastHome] LastHomeBootstrap " .. tostring(eventName))
 
     -- Never compete with the challenge runtime (solo Challenges mode).
     if isChallengeMode() then
@@ -50,6 +71,7 @@ local function onGameStart()
     end
 
     -- Best-effort sandbox injection (LH-13 periodic cleanup compensates).
+    -- Must run in the SERVER VM so it affects server-side zombie spawning.
     LastHomeShared.applyDefaultSandboxVars()
 
     -- Select the house from config (random fallback).
@@ -81,4 +103,15 @@ local function onGameStart()
     LastHomeServer.setSelectedHouse(resolvedId, "scenario")
 end
 
+local function onServerStarted()
+    runBootstrap("OnServerStarted")
+end
+
+local function onGameStart()
+    -- Solo-sandbox fallback: in solo there is no server VM, so OnServerStarted
+    -- does not fire; OnGameStart runs in the single (authoritative) VM.
+    runBootstrap("OnGameStart")
+end
+
+Events.OnServerStarted.Add(onServerStarted)
 Events.OnGameStart.Add(onGameStart)

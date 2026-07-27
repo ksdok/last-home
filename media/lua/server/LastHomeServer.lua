@@ -1253,8 +1253,8 @@ local function onClientCommand(module, command, player, data)
 end
 Events.OnClientCommand.Add(onClientCommand)
 
-local function onGameStart()
-    print("[LastHome] LastHomeServer OnGameStart")
+local function resetState(eventName)
+    print("[LastHome] LastHomeServer " .. tostring(eventName) .. " - reset etat serveur")
     Server.assignedRoles = {}
     Server.roleLoadouts = {}
     Server.selectedHouse = nil
@@ -1268,5 +1268,10 @@ local function onGameStart()
 
     print("[LastHome] Attente de la maison du challenge avant initialisation finale")
 end
-Events.OnGameStart.Add(onGameStart)
-print("[LastHome] LastHomeServer pret - handlers: OnGameStart, OnClientCommand, OnTick")
+-- LH-MP-2/LH-MP-5: register the reset on BOTH OnServerStarted (SERVER VM,
+-- authoritative) and OnGameStart (CLIENT VM / solo). LastHomeServer.lua loads
+-- before LastHomeBootstrap.lua (which `require`s it), so in each VM the
+-- reset handler runs BEFORE the bootstrap handler on the same event.
+Events.OnServerStarted.Add(function() resetState("OnServerStarted") end)
+Events.OnGameStart.Add(function() resetState("OnGameStart") end)
+print("[LastHome] LastHomeServer pret - handlers: OnServerStarted, OnGameStart, OnClientCommand, OnTick")
