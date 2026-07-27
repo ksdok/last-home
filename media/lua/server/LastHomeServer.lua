@@ -15,6 +15,9 @@ local Server = {
     lastBuilderTickSecond = nil,
     lastHouseSupplyRefillAt = nil,
     pendingPostSpawnMaintenance = nil,
+    -- LH-18: set if the stock crate spawn fails permanently (e.g. invalid
+    -- sprite) so we stop retrying every tick.
+    stockSpawnFailed = false,
 }
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
@@ -120,10 +123,14 @@ end
 -- and it is not already present. Returns true once the crate exists (found or
 -- just spawned), false if the chunk is not loaded yet (caller retries).
 local function ensureStockContainerSpawned(house)
-    if house == nil or house.supply == nil then return false end
+    if house == nil or house.supply == nil then return nil end
+
+    -- Permanent failure (e.g. invalid sprite / IsoObject.new unusable):
+    -- stop retrying to avoid spamming the log every tick.
+    if Server.stockSpawnFailed then return nil end
 
     local cell = getCell ~= nil and getCell() or nil
-    if cell == nil or cell.getGridSquare == nil then return false end
+    if cell == nil or cell.getGridSquare == nil then return nil end
 
     local sx = LastHomeShared.round(house.supply.x)
     local sy = LastHomeShared.round(house.supply.y)
@@ -132,12 +139,12 @@ local function ensureStockContainerSpawned(house)
     local square = cell:getGridSquare(sx, sy, sz)
     if square == nil then
         -- Chunk not loaded yet (no player near the house). Retry later.
-        return false
+        return nil
     end
 
     local existing = findStockContainerOnSquare(square)
     if existing ~= nil then
-        return true
+        return existing
     end
 
     local sprite = LastHomeShared.LH_STOCK_SPRITE or "carpentry_02_53"
@@ -148,8 +155,9 @@ local function ensureStockContainerSpawned(house)
         return IsoObject.new(square, sprite, "LastHomeStock")
     end)
     if not ok or isoObject == nil then
-        print("[LastHome] WARN: ensureStockContainerSpawned - IsoObject.new a echoue pour " .. tostring(house.name or house.id or "?") .. " a (" .. tostring(sx) .. "," .. tostring(sy) .. "," .. tostring(sz) .. "): " .. tostring(isoObject))
-        return false
+        Server.stockSpawnFailed = true
+        print("[LastHome] ERROR: ensureStockContainerSpawned - IsoObject.new a echoue pour " .. tostring(house.name or house.id or "?") .. " a (" .. tostring(sx) .. "," .. tostring(sy) .. "," .. tostring(sz) .. ") sprite=" .. tostring(sprite) .. " err=" .. tostring(isoObject) .. " - arret des retries")
+        return nil
     end
 
     local container = ItemContainer.new(containerType, square, isoObject, capacity, capacity)
@@ -167,7 +175,7 @@ local function ensureStockContainerSpawned(house)
     end
 
     print("[LastHome] Stock crate spawn a (" .. tostring(sx) .. "," .. tostring(sy) .. "," .. tostring(sz) .. ") pour " .. tostring(house.name or house.id or "?"))
-    return true
+    return container
 end
 
 local function isUsableSpawnSquare(square)
@@ -622,30 +630,17 @@ local function getPrimaryHouseSupplyContainer()
     local house = ensureSelectedHouse()
     if house == nil then return nil end
 
-    local cell = getCell ~= nil and getCell() or nil
-    if cell == nil then
-        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - getCell() est nil")
-        return nil
+    -- LH-18: spawn (idempotent) the dedicated stock crate at house.supply and
+    -- return it. No fallback to the map container (poubelle): while the chunk
+    -- is not loaded yet the crate cannot exist, so we return nil and the
+    -- post-spawn maintenance retries until the chunk loads. ensureStockContainerSpawned
+    -- returns the found/spawned container directly (no second lookup).
+    local stockContainer = ensureStockContainerSpawned(house)
+    if stockContainer ~= nil then
+        return stockContainer
     end
 
-    -- LH-18: spawn (idempotent) the dedicated stock crate at house.supply, then
-    -- return it. No fallback to the map container (poubelle): while the chunk is
-    -- not loaded yet the crate cannot exist, so we return nil and the
-    -- post-spawn maintenance retries until the chunk loads.
-    ensureStockContainerSpawned(house)
-
-    if house.supply ~= nil then
-        local sx = LastHomeShared.round(house.supply.x)
-        local sy = LastHomeShared.round(house.supply.y)
-        local sz = LastHomeShared.round(house.supply.z or house.centerZ or 0)
-        local square = cell:getGridSquare(sx, sy, sz)
-        local stockContainer = findStockContainerOnSquare(square)
-        if stockContainer ~= nil then
-            return stockContainer
-        end
-    end
-
-    print("[LastHome] WARN: getPrimaryHouseSupplyContainer - caisse de stock dediee introuvable pour " .. tostring(house.name or house.id or "?") .. " (chunk non charge ?)")
+    print("[LastHome] WARN: getPrimaryHouseSupplyContainer - caisse de stock dediee introuvable pour " .. tostring(house.name or house.id or "?") .. " (chunk non charge ou spawn echec)")
     return nil
 end
 
@@ -966,6 +961,7 @@ local function resetState(eventName)
     Server.lastBuilderTickSecond = nil
     Server.lastHouseSupplyRefillAt = nil
     Server.pendingPostSpawnMaintenance = nil
+    Server.stockSpawnFailed = false
 
     print("[LastHome] Attente de la selection du lieu (scenario) avant initialisation finale")
 end
