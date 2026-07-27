@@ -90,6 +90,12 @@ local function runBootstrap(eventName)
 
     -- Select the house from config (random fallback).
     local houseId = LastHomeShared.getScenarioHouseId()
+    if houseId == nil then
+        -- File-I/O env not ready yet (early OnServerStarted). Do NOT fall back
+        -- to random here; the OnTick retry will read the cfg once the env is ready.
+        print("[LastHome] LastHomeBootstrap " .. tostring(eventName) .. " -> cfg non lisible (env I/O pas pret), defere")
+        return
+    end
     print("[LastHome] Selection scenario house=" .. tostring(houseId))
 
     -- LH-MP-5: `picker` defers house selection to an interactive in-game
@@ -134,5 +140,25 @@ local function onGameStart()
     runBootstrap("OnGameStart")
 end
 
+-- Deferred retry: some Lua file-I/O globals (getFileReader / fileExists) and
+-- getCore() may not be ready yet at OnServerStarted in the SERVER VM (verified
+-- 27-07-26: userDir=? and cfg introuvable at OnServerStarted). Retry on the
+-- server tick until the scenario is bootstrapped (selectedHouse set OR picker
+-- mode active), then go idle (cheap guard, no OnTick.Remove which may not exist
+-- in B41). Throttled to once per second. Server-VM only (skip the client VM to
+-- avoid divergent state).
+local lastBootstrapTickAt = 0
+local function onTickBootstrapRetry()
+    if isClientVM() then return end
+    if LastHomeServer.hasSelectedHouse() or LastHomeServer.isHousePickerMode() then
+        return
+    end
+    local now = LastHomeShared.getNowSeconds()
+    if now == lastBootstrapTickAt then return end
+    lastBootstrapTickAt = now
+    runBootstrap("OnTick")
+end
+
 Events.OnServerStarted.Add(onServerStarted)
 Events.OnGameStart.Add(onGameStart)
+Events.OnTick.Add(onTickBootstrapRetry)

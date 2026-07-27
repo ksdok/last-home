@@ -638,13 +638,19 @@ end
 -- We therefore build an absolute path from getCore():getMyDocumentFolder()
 -- and try a small candidate list, opening the first one that yields a reader.
 local function openFirstExisting(paths)
+    print("[LastHome] openFirstExisting: type(getFileReader)=" .. tostring(type(getFileReader)) .. ", type(fileExists)=" .. tostring(type(fileExists)))
     for _, path in ipairs(paths) do
         local ok, reader = pcall(function() return getFileReader(path, false) end)
-        if ok and reader ~= nil then
-            -- Probe: a non-existent file can return a non-nil reader that
-            -- throws on readLine in some Kahlua builds; guard the first read.
+        if not ok then
+            print("[LastHome]   getFileReader(" .. tostring(path) .. ") a lance: " .. tostring(reader))
+        elseif reader == nil then
+            print("[LastHome]   getFileReader(" .. tostring(path) .. ") = nil")
+        else
             local probeOk, probeLine = pcall(function() return reader:readLine() end)
-            if probeOk then
+            if not probeOk then
+                print("[LastHome]   readLine(" .. tostring(path) .. ") a lance: " .. tostring(probeLine))
+            else
+                print("[LastHome]   OK path=" .. tostring(path) .. " firstLine=" .. tostring(probeLine))
                 return reader, path, probeLine
             end
         end
@@ -657,10 +663,20 @@ function LastHomeShared.getScenarioHouseId()
                        elementary_school = true }
     local defaultId = "random"
 
-    local userDir = "?"
-    if getCore ~= nil and getCore() ~= nil and getCore().getMyDocumentFolder ~= nil then
-        userDir = getCore():getMyDocumentFolder() or "?"
+    -- Env-readiness gate: if the file-I/O global is not registered yet (early
+    -- OnServerStarted), defer instead of falling back to random so the bootstrap
+    -- tick can retry once the env is ready. Returns nil = "defer".
+    if type(getFileReader) ~= "function" then
+        print("[LastHome] getScenarioHouseId: getFileReader indisponible (type=" .. tostring(type(getFileReader)) .. ") -> defer")
+        return nil
     end
+
+    local userDir = "?"
+    pcall(function()
+        if getCore ~= nil and getCore() ~= nil then
+            userDir = getCore():getMyDocumentFolder() or "?"
+        end
+    end)
     print("[LastHome] getScenarioHouseId userDir=" .. tostring(userDir))
 
     local candidates = {
@@ -670,7 +686,7 @@ function LastHomeShared.getScenarioHouseId()
 
     local reader, usedPath, firstLine = openFirstExisting(candidates)
     if reader == nil then
-        print("[LastHome] LastHomeHouse.cfg introuvable (userDir=" .. tostring(userDir) .. ", candidates: " .. table.concat(candidates, " | ") .. ") -> random")
+        print("[LastHome] LastHomeHouse.cfg introuvable (userDir=" .. tostring(userDir) .. ") -> random")
         return defaultId
     end
     print("[LastHome] LastHomeHouse.cfg ouvert (path=" .. tostring(usedPath) .. ")")
