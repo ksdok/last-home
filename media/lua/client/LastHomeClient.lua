@@ -534,14 +534,22 @@ local function drawWaveHud()
     end
 
     if state.phase == "prep" then
-        drawLine(x, y, string.format("Preparation - Vague %d dans %s", state.nextWave or 1, formatClock(remainingSeconds)), ALERT_COLORS.info)
-        y = y + 16
+        local isWave1Prep = (state.currentWave or 0) == 0 and (state.phaseEndsAt or 0) <= 0
+        if isWave1Prep then
+            drawLine(x, y, "Appuyez sur K pour lancer la vague 1", ALERT_COLORS.warning)
+            y = y + 16
+        else
+            drawLine(x, y, string.format("Preparation - Vague %d dans %s", state.nextWave or 1, formatClock(remainingSeconds)), ALERT_COLORS.info)
+            y = y + 16
+        end
         drawLine(x, y, "Direction: " .. tostring(state.directionsText or "?"), ALERT_COLORS.info)
         y = y + 16
         drawLine(x, y, "Taille estimee: ~" .. tostring(state.estimatedCount or 0) .. " zombies", ALERT_COLORS.info)
         y = y + 16
-        drawLine(x, y, "[K] Lancer la prochaine vague", ALERT_COLORS.warning)
-        y = y + 16
+        if not isWave1Prep then
+            drawLine(x, y, "[K] Lancer la prochaine vague", ALERT_COLORS.warning)
+            y = y + 16
+        end
     elseif state.phase == "wave" then
         drawLine(x, y, string.format("Vague %d active - %s restantes", state.currentWave or 0, formatClock(remainingSeconds)), ALERT_COLORS.warning)
         y = y + 16

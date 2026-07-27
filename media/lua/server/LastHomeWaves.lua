@@ -643,8 +643,13 @@ local function startPrepPhase()
     Server.started = true
     Server.waveActive = false
     Server.phase = "prep"
-    Server.phaseDurationSeconds = prepDurationSeconds
-    Server.phaseEndsAt = getNowSeconds() + prepDurationSeconds
+    if nextWave == 1 then
+        Server.phaseDurationSeconds = 0
+        Server.phaseEndsAt = 0
+    else
+        Server.phaseDurationSeconds = prepDurationSeconds
+        Server.phaseEndsAt = getNowSeconds() + prepDurationSeconds
+    end
     Server.oneMinuteWarningSent = false
     Server.pendingDirections = calculateDirections(nextWave)
     Server.pendingEstimate = calculateZombieCount(nextWave, getAlivePlayerCount())
@@ -654,14 +659,22 @@ local function startPrepPhase()
     resetSpectatorWaveUsage()
     syncWaveState()
 
-    print("[LastHome] Phase PREP - vague " .. tostring(nextWave) .. ", " .. tostring(getAlivePlayerCount()) .. " joueurs, " .. tostring(Server.pendingEstimate) .. " zombies estimes, direction(s): " .. formatDirections(Server.pendingDirections) .. ", duree=" .. tostring(prepDurationSeconds) .. "s")
+    local prepLabel = nextWave == 1 and "manuelle" or (tostring(prepDurationSeconds) .. "s")
+    print("[LastHome] Phase PREP - vague " .. tostring(nextWave) .. ", " .. tostring(getAlivePlayerCount()) .. " joueurs, " .. tostring(Server.pendingEstimate) .. " zombies estimes, direction(s): " .. formatDirections(Server.pendingDirections) .. ", duree=" .. prepLabel)
 
     local houseLabel = ""
     if Server.house ~= nil and Server.house.name ~= nil then
         houseLabel = "\nBase: " .. tostring(Server.house.name)
     end
 
-    broadcastAlert(string.format("[Last Home] Vague %d dans %s%s\nDirection: %s\nTaille estimee: ~%d zombies", nextWave, formatDurationLabel(prepDurationSeconds), houseLabel, formatDirections(Server.pendingDirections), Server.pendingEstimate), "info")
+    local prepMessage
+    if nextWave == 1 then
+        prepMessage = string.format("[Last Home] Vague %d en attente%s\nAppuyez sur K pour la lancer\nDirection: %s\nTaille estimee: ~%d zombies", nextWave, houseLabel, formatDirections(Server.pendingDirections), Server.pendingEstimate)
+    else
+        prepMessage = string.format("[Last Home] Vague %d dans %s%s\nDirection: %s\nTaille estimee: ~%d zombies", nextWave, formatDurationLabel(prepDurationSeconds), houseLabel, formatDirections(Server.pendingDirections), Server.pendingEstimate)
+    end
+
+    broadcastAlert(prepMessage, "info")
     return true
 end
 
@@ -726,6 +739,9 @@ function LastHomeWaves.skipToNextWave(player)
     if Server.gameOver or not Server.started or Server.phase ~= "prep" then
         return false
     end
+    if player ~= nil and not isPlayerAlive(player) then
+        return false
+    end
 
     local username = "solo"
     if player ~= nil and player.getUsername ~= nil then
@@ -763,6 +779,10 @@ local function handlePlayerDeath(player, x, y, z)
     broadcastAlert("[Last Home] " .. tostring(username) .. " est mort et devient spectateur.", "danger")
 
     if getAlivePlayerCount() <= 0 then
+        if Server.phase == "prep" and Server.currentWave == 0 then
+            print("[LastHome] Tous les joueurs sont morts pendant la prep de la vague 1 - attente manuelle conservee")
+            return
+        end
         triggerGameOver()
     end
 end
@@ -890,7 +910,7 @@ local function updatePhaseState(now)
         end
     end
 
-    if Server.phase == "prep" and remaining <= 0 then
+    if Server.phase == "prep" and remaining <= 0 and Server.currentWave > 0 then
         startWave(false)
         return
     end

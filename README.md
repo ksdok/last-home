@@ -58,19 +58,19 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | [LH-21](specs/LH-21-suppression-fleche-stock.md) | Supprimer la flèche du stock communautaire | ✅ |
 | [LH-22](specs/LH-22-agent-brita-tournevis.md) | Rôle 007 Agent + dépendance Brita + tournevis pour tous | 📝 |
 | [LH-23](specs/LH-23-relook-brita-10-roles.md) | Relook Brita de 10 rôles (armes + armure tactique) | 📝 |
-| [LH-24](specs/LH-24-declenchement-manuel-vague-1.md) | Déclenchement manuel de la 1ère vague (pas de timer) | 📝 |
+| [LH-24](specs/LH-24-declenchement-manuel-vague-1.md) | Déclenchement manuel de la 1ère vague (pas de timer) | ✅ |
 | [LH-25](specs/LH-25-mod-roles-seul.md) | Mod séparé : choix de rôle seul (role picker standalone) | 📝 |
 
 ## Status
 
 - ✅ Versioned specs complete for **LH-01** through **LH-08** and **LH-10**
 - 📝 Exploration spec written: **LH-12** (aggro via `createHordeFromTo`)
-- ✅ Implementation of **LH-02** through **LH-08**, **LH-10**, **LH-13**, **LH-14**, **LH-19**, **LH-20** and **LH-21** complete (**LH-15** removed by **LH-21**)
+- ✅ Implementation of **LH-02** through **LH-08**, **LH-10**, **LH-13**, **LH-14**, **LH-19**, **LH-20**, **LH-21** and **LH-24** complete (**LH-15** removed by **LH-21**)
 - 🧪 **LH-22** code integrated: new **007 Agent** role and `Base.Screwdriver` added to all applicable roles; the `mod.info` `require=` line for Brita/Arsenal was **removed** (mod not yet on the Workshop — Brita/Arsenal are optional today); in-game Brita validation still pending
 - 🧪 **LH-23** code integrated: 10 existing roles now use the validated Brita/Arsenal tactical loadouts; `rambo` and `samourai` also gained `setUnlimitedCarry`. In-game validation remains pending (attachments, priming, Tail/Nose worn slots)
 - ✅ MP-only delivery (LH-MP-6): the Challenges menu entries were removed; the mod runs from the multiplayer Host menu / solo sandbox, with the building hardcoded via `LastHomeShared.SCENARIO_HOUSE` (currently `elementary_school`)
 - ✅ Two-VM bootstrap fix: `OnServerStarted` runs the bootstrap in the SERVER VM (authoritative); `OnGameStart` is the solo-sandbox fallback (gated by `isClient()`). `applyDefaultSandboxVars` runs server-side so vanilla zombies are suppressed at the initial MP spawn
-- ✅ LH-10 timers: prep wave 1 = 2 min, subsequent prep = 5 min, wave = 5 min, skip via `K` key
+- ✅ LH-10/LH-24 timers: prep wave 1 waits for a manual `K` trigger (no auto-start), subsequent prep = 5 min, wave = 5 min, skip via `K` key
 - ✅ Wave attraction refocused on alarm-like sound pulses toward the base to make zombie pressure reliable
 - ✅ Continuous vanilla/story spawn suppression around the base (periodic cleanup every 5s, `LH_waveZombie` tagging preserved)
 - ✅ LH-19 ground stock: the community stock now spawns once on the ground near `stockSpawn` / `supply`, limited to food, water bottles, and ammunition
