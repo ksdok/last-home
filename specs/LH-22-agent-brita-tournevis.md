@@ -42,7 +42,7 @@ tickets séparés une fois les rôles prioritaires choisis.
 
 ### 1. Dépendance Brita / Arsenal requise
 
-- `mod.info` : ajouter `require=Brita,Brita_2,Arsenal(26)GunFighter[MAIN MOD 2.0]`.
+- `mod.info` : ajouter `require=Brita;Brita_2;Arsenal(26)GunFighter[MAIN MOD 2.0]`.
   Concrètement, les trois packs doivent être activés en même temps que Last Home.
 - `README.md` > Dependencies > Required mods : ajouter Brita's Weapon Pack
   (2200148440), Brita's Armor Pack (2460154811), Arsenal(26) GunFighter

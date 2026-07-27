@@ -1,7 +1,7 @@
 name=Last Home
 id=LastHome
 version=0.12.0
-require=Brita,Brita_2,Arsenal(26)GunFighter[MAIN MOD 2.0]
+require=Brita;Brita_2;Arsenal(26)GunFighter[MAIN MOD 2.0]
 description=Co-op Project Zomboid mod: defend a building against growing waves of zombies. MP Host/sandbox; building hardcoded via LastHomeShared.SCENARIO_HOUSE (Hospital, Villa, Prison, School).
 poster=poster.png
 author=Kim
