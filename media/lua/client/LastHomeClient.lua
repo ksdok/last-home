@@ -1,5 +1,4 @@
 require "LastHomeRolePicker"
-require "LastHomeHousePicker"
 require "LastHomeRoles"
 require "LastHomeShared"
 
@@ -116,16 +115,6 @@ local function unregisterSoloFallbackTick()
     logClient("Desactivation du tick de fallback solo pour le role picker")
     Events.OnTick.Remove(LastHomeClient.TickRolePickerFallback)
     soloFallbackTickRegistered = false
-end
-
--- LH-MP-5: stop the MP role-picker retry tick. Called when the server routes
--- the player into the house picker (OpenHousePicker / HouseSelectionWaiting /
--- HouseChosen) so the client does not keep re-sending RolePickerReady while
--- the house selection is in progress.
-function LastHomeClient.cancelRolePickerRetry()
-    mpRolePickerRetryAt = nil
-    soloPickerFallbackAt = nil
-    unregisterSoloFallbackTick()
 end
 
 LastHomeClient.TickRolePickerFallback = function()
@@ -1007,52 +996,6 @@ local function onServerCommand(module, command, data)
             LastHomeClient.waveState.score = data and data.score or LastHomeClient.waveState.score
             resetBoundaryState()
             print("[LastHome] Client: GameOver recu - score=" .. tostring(LastHomeClient.waveState.score))
-        end
-    elseif command == "OpenHousePicker" then
-        -- LH-MP-5: server routes this player into the house picker before the
-        -- role picker. Stop the role-picker retry tick and open the house UI.
-        if isLocalUser(data) then
-            logClient("OpenHousePicker recu")
-            LastHomeClient.cancelRolePickerRetry()
-            local player = getPlayer()
-            local hasRole = player ~= nil and player:getModData().LH_role ~= nil
-            if not hasRole and not LastHomeHousePicker.isVisible() then
-                LastHomeHousePicker.open(data and data.availableHouses)
-            end
-        end
-    elseif command == "HouseSelectionWaiting" then
-        if isLocalUser(data) then
-            logClient("HouseSelectionWaiting recu - chooser=" .. tostring(data and data.chooserUsername or "?"))
-            LastHomeClient.cancelRolePickerRetry()
-            if LastHomeHousePicker.isVisible() then
-                LastHomeHousePicker.close()
-            end
-            showAlert({
-                username = data and data.username,
-                text = "Choix du lieu en cours...",
-                type = "info",
-                durationSeconds = 30,
-            })
-        end
-    elseif command == "HouseChosen" then
-        -- Broadcast: the house has been chosen. Close the house picker (if the
-        -- chooser is us) and surface the chosen location. The server separately
-        -- sends OpenRolePicker to resume the normal role flow.
-        logClient("HouseChosen recu - house=" .. tostring(data and data.houseName or "?"))
-        LastHomeClient.cancelRolePickerRetry()
-        if LastHomeHousePicker.isVisible() then
-            LastHomeHousePicker.close()
-        end
-        showAlert({
-            text = "Lieu choisi : " .. tostring(data and data.houseName or "?"),
-            type = "success",
-            durationSeconds = 8,
-        })
-    elseif command == "HousePickerError" then
-        if isLocalUser(data) then
-            logClient("HousePickerError recu - " .. tostring(data and data.text or "?"))
-            LastHomeHousePicker.pendingHouse = nil
-            LastHomeHousePicker.setStatus(data and data.text or "Choix du lieu refuse.", ALERT_COLORS.danger)
         end
     end
 end

@@ -15,9 +15,6 @@ local Server = {
     lastBuilderTickSecond = nil,
     lastHouseSupplyRefillAt = nil,
     pendingPostSpawnMaintenance = nil,
-    -- LH-MP-5: pending interactive house selection (cfg = picker)
-    housePickerMode = false,
-    houseChooserUsername = nil,
 }
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
@@ -73,13 +70,6 @@ local function ensureSelectedHouse()
         return Server.selectedHouse
     end
 
-    -- LH-MP-5: in interactive picker mode the house is chosen by a player,
-    -- not by the server. Do NOT fall back to a random pick here; return nil
-    -- so callers (teleport/refill/restore) wait for the pending selection.
-    if Server.housePickerMode then
-        return nil
-    end
-
     local house = getRandomHouse ~= nil and getRandomHouse() or nil
     if house == nil then
         print("[LastHome] ERREUR: aucune maison disponible dans HOUSE_DEFS")
@@ -95,250 +85,11 @@ local function ensureSelectedHouse()
     return Server.selectedHouse
 end
 
--- ============================================================
--- LH-MP-5: interactive house picker (MP sandbox / Host mode)
--- ============================================================
-
-local function isPlayerOnline(username)
-    if username == nil then return false end
-    if getOnlinePlayers == nil then return false end
-    local onlinePlayers = getOnlinePlayers()
-    if onlinePlayers == nil or onlinePlayers:size() == 0 then return false end
-    for i = 0, onlinePlayers:size() - 1 do
-        local player = onlinePlayers:get(i)
-        if player ~= nil and player.getUsername ~= nil and player:getUsername() == username then
-            return true
-        end
-    end
-    return false
-end
-
-local function isEligibleChooser(player)
-    if player == nil then return false end
-    local username = player.getUsername and player:getUsername() or nil
-    if username == nil then return false end
-    local modData = player.getModData and player:getModData() or nil
-    if modData ~= nil and (modData.LH_dead == true or modData.LH_spectator == true) then
-        return false
-    end
-    if Server.assignedRoles[username] ~= nil then
-        return false
-    end
-    return true
-end
-
-local function sendHousePickerOpen(username)
-    sendServerCommand("LastHome", "OpenHousePicker", {
-        username = username,
-        availableHouses = LastHomeShared.getHousePickerEntries(),
-    })
-end
-
-local function sendHouseSelectionWaiting(username, chooserUsername)
-    sendServerCommand("LastHome", "HouseSelectionWaiting", {
-        username = username,
-        chooserUsername = chooserUsername,
-    })
-end
-
-local function broadcastHouseChosen(house)
-    sendServerCommand("LastHome", "HouseChosen", {
-        houseId = house.id,
-        houseName = house.name or house.id or "?",
-    })
-end
-
-local function openRolePickerFor(username)
-    sendServerCommand("LastHome", "OpenRolePicker", {
-        username = username,
-    })
-end
-
--- Fan out the normal role picker to the chooser and every other connected
--- unassigned non-spectator player once the house has been chosen.
-local function fanOutRolePickersExceptChooser(chooserUsername)
-    for _, player in ipairs(getScenarioPlayers()) do
-        local username = player.getUsername and player:getUsername() or nil
-        if username ~= nil and username ~= chooserUsername then
-            local modData = player.getModData and player:getModData() or nil
-            local hasRole = modData ~= nil and modData.LH_role ~= nil
-            local isSpectator = modData ~= nil and (modData.LH_dead == true or modData.LH_spectator == true)
-            if not hasRole and not isSpectator and Server.assignedRoles[username] == nil then
-                openRolePickerFor(username)
-            end
-        end
-    end
-end
-
-function LastHomeServer.enterHousePickerMode()
-    Server.housePickerMode = true
-    Server.houseChooserUsername = nil
-    print("[LastHome] Mode picker de maison active (LastHomeHouse.cfg=picker)")
-end
-
-function LastHomeServer.isHousePickerMode()
-    return Server.housePickerMode == true
-end
-
--- True once a scenario/challenge/picker house has been selected. Used by the
--- bootstrap to decide whether it still needs to run (idempotency guard that is
--- cleared by resetState, so a re-host in the same process re-bootstraps).
+-- True once a scenario/challenge house has been selected. Used by the bootstrap
+-- idempotency guard (cleared by resetState, so a re-host in the same process
+-- re-bootstraps).
 function LastHomeServer.hasSelectedHouse()
     return Server.selectedHouse ~= nil
-end
-
--- Apply an interactive house choice coming from the chooser client.
--- Authoritative: only the active chooser can choose, only before waves start,
--- and only once (the first accepted choice ends picker mode).
-local function handleChooseHouse(player, data)
-    local username = player and player.getUsername and player:getUsername() or nil
-    if username == nil then return end
-
-    if not Server.housePickerMode then
-        sendServerCommand("LastHome", "HousePickerError", {
-            username = username,
-            text = "Le choix du lieu n'est plus disponible.",
-        })
-        return
-    end
-
-    if Server.selectedHouse ~= nil then
-        sendServerCommand("LastHome", "HousePickerError", {
-            username = username,
-            text = "Le lieu a deja ete choisi.",
-        })
-        return
-    end
-
-    if Server.houseChooserUsername ~= username then
-        sendServerCommand("LastHome", "HousePickerError", {
-            username = username,
-            text = "Un autre joueur choisit le lieu.",
-        })
-        return
-    end
-
-    local houseId = data ~= nil and data.houseId or nil
-    if houseId == nil or LastHomeShared.getHouseById(houseId) == nil then
-        sendServerCommand("LastHome", "HousePickerError", {
-            username = username,
-            text = "Lieu invalide.",
-        })
-        return
-    end
-
-    local ok = LastHomeServer.setSelectedHouse(houseId, "scenario-picker", username)
-    if not ok then
-        sendServerCommand("LastHome", "HousePickerError", {
-            username = username,
-            text = "Choix du lieu refuse (vagues deja lancees ?).",
-        })
-        return
-    end
-
-    local house = Server.selectedHouse
-    Server.housePickerMode = false
-    Server.houseChooserUsername = nil
-
-    broadcastHouseChosen(house)
-    -- The chooser + every waiting unassigned player now get the role picker.
-    openRolePickerFor(username)
-    fanOutRolePickersExceptChooser(username)
-    print("[LastHome] Lieu choisi par " .. tostring(username) .. ": " .. tostring(house.name or house.id) .. " (scenario-picker)")
-end
-
--- Route a RolePickerReady into the house-picker flow when the server is in
--- pending picker mode. Returns true if handled (caller must return).
--- Elect the first eligible online player as the house chooser and send them
--- OpenHousePicker. Returns the new chooser username, or nil if no eligible
--- player is currently connected.
-local function electHouseChooser()
-    for _, player in ipairs(getScenarioPlayers()) do
-        local username = player.getUsername and player:getUsername() or nil
-        if username ~= nil and isEligibleChooser(player) then
-            Server.houseChooserUsername = username
-            sendHousePickerOpen(username)
-            return username
-        end
-    end
-    return nil
-end
-
--- Push a HouseSelectionWaiting refresh to every other connected unassigned
--- non-spectator player (so they know a new chooser has taken over).
-local function notifyHouseSelectionWaitingToOthers(chooserUsername)
-    for _, player in ipairs(getScenarioPlayers()) do
-        local username = player.getUsername and player:getUsername() or nil
-        if username ~= nil and username ~= chooserUsername then
-            local modData = player.getModData and player:getModData() or nil
-            local isSpectator = modData ~= nil and (modData.LH_dead == true or modData.LH_spectator == true)
-            if not isSpectator and Server.assignedRoles[username] == nil then
-                sendHouseSelectionWaiting(username, chooserUsername)
-            end
-        end
-    end
-end
-
--- Proactive picker maintenance (called from the server tick). Releases the
--- chooser claim if that player went offline or became a spectator, then
--- re-elects a new chooser among connected eligible players and pushes the
--- updated OpenHousePicker / HouseSelectionWaiting state to everyone. This
--- avoids a deadlock when waiting players have already stopped retrying
--- RolePickerReady: the server drives the recovery instead of the clients.
-local function maintainHousePicker()
-    if not Server.housePickerMode then return end
-    if Server.selectedHouse ~= nil then return end
-    if Server.houseChooserUsername == nil then return end
-
-    local chooser = nil
-    if getOnlinePlayers ~= nil then
-        local onlinePlayers = getOnlinePlayers()
-        if onlinePlayers ~= nil then
-            for i = 0, onlinePlayers:size() - 1 do
-                local p = onlinePlayers:get(i)
-                if p ~= nil and p.getUsername ~= nil and p:getUsername() == Server.houseChooserUsername then
-                    chooser = p
-                    break
-                end
-            end
-        end
-    end
-
-    if chooser ~= nil and isEligibleChooser(chooser) then return end
-
-    print("[LastHome] Chooser " .. tostring(Server.houseChooserUsername) .. " perdu (deconnecte ou inelegible) -> re-election")
-    Server.houseChooserUsername = nil
-    local newChooser = electHouseChooser()
-    if newChooser ~= nil then
-        print("[LastHome] Nouveau chooser du lieu (re-election): " .. tostring(newChooser))
-        notifyHouseSelectionWaitingToOthers(newChooser)
-    else
-        print("[LastHome] Aucun joueur eligible pour reprendre le picker; en attente d'un RolePickerReady")
-    end
-end
-
-local function routeRolePickerReadyIntoHousePicker(player, username)
-    if not Server.housePickerMode then return false end
-    if Server.selectedHouse ~= nil then return false end
-
-    -- Release the chooser claim if that player is no longer online, so the
-    -- first eligible waiting player can claim it.
-    if Server.houseChooserUsername ~= nil and not isPlayerOnline(Server.houseChooserUsername) then
-        print("[LastHome] Chooser " .. tostring(Server.houseChooserUsername) .. " hors-ligne -> liberation du picker")
-        Server.houseChooserUsername = nil
-    end
-
-    if Server.houseChooserUsername == nil and isEligibleChooser(player) then
-        Server.houseChooserUsername = username
-        print("[LastHome] Chooser du lieu: " .. tostring(username))
-    end
-
-    if Server.houseChooserUsername == username then
-        sendHousePickerOpen(username)
-    else
-        sendHouseSelectionWaiting(username, Server.houseChooserUsername)
-    end
-    return true
 end
 
 local function isUsableSpawnSquare(square)
@@ -998,7 +749,6 @@ local function onBuilderRefillTick()
     Server.lastBuilderTickSecond = now
 
     processPostSpawnMaintenance(now)
-    maintainHousePicker()
 
     if Server.nextBuilderRefillAt == nil then
         if Server.selectedHouse ~= nil then
@@ -1172,23 +922,8 @@ local function onClientCommand(module, command, player, data)
     local username = player and player:getUsername() or nil
     if username == nil then return end
 
-    if command == "SetHouse" then
-        local houseId = data and data.houseId or nil
-        logServer("Commande SetHouse recue de " .. tostring(username) .. " -> " .. tostring(houseId))
-        if houseId == nil then return end
-        LastHomeServer.setSelectedHouse(houseId, "challenge", username)
-        return
-    end
-
     if command == "RolePickerReady" then
         logServer("Commande RolePickerReady recue de " .. tostring(username) .. " depuis " .. formatPlayerCoords(player))
-
-        -- LH-MP-5: in pending picker mode, route to the house picker instead
-        -- of the role picker. The house must be chosen first.
-        if routeRolePickerReadyIntoHousePicker(player, username) then
-            return
-        end
-
         ensureSelectedHouse()
 
         local roleKey, spawn = restoreAssignedRole(player)
@@ -1207,22 +942,9 @@ local function onClientCommand(module, command, player, data)
         return
     end
 
-    if command == "ChooseHouse" then
-        logServer("Commande ChooseHouse recue de " .. tostring(username) .. " -> " .. tostring(data and data.houseId or "nil"))
-        handleChooseHouse(player, data)
-        return
-    end
-
     if command ~= "ChooseRole" then return end
 
     logServer("Commande ChooseRole recue de " .. tostring(username) .. " -> " .. tostring(data and data.roleKey or "nil") .. " depuis " .. formatPlayerCoords(player))
-
-    -- LH-MP-5: no role can be chosen before the house is selected in picker
-    -- mode. The house picker must be resolved first.
-    if Server.housePickerMode and Server.selectedHouse == nil then
-        sendRoleUnavailable(username, "Le lieu doit etre choisi d'abord.")
-        return
-    end
 
     local existingRole, existingSpawn = restoreAssignedRole(player)
     if existingRole ~= nil then
@@ -1270,8 +992,6 @@ local function resetState(eventName)
     Server.lastBuilderTickSecond = nil
     Server.lastHouseSupplyRefillAt = nil
     Server.pendingPostSpawnMaintenance = nil
-    Server.housePickerMode = false
-    Server.houseChooserUsername = nil
 
     print("[LastHome] Attente de la maison du challenge avant initialisation finale")
 end

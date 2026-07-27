@@ -471,17 +471,6 @@ function LastHomeShared.getRandomHouse()
     return LastHomeShared.cloneHouse(HOUSE_DEFS[index])
 end
 
-function LastHomeShared.getHousePickerEntries()
-    local result = {}
-    for _, house in ipairs(HOUSE_DEFS) do
-        result[#result + 1] = {
-            id = house.id,
-            name = house.name or house.id or "?",
-        }
-    end
-    return result
-end
-
 function LastHomeShared.getHouseSpawnCandidates(house)
     local result = {}
     if house == nil then return result end
@@ -619,103 +608,39 @@ function LastHomeShared.applyDefaultSandboxVars()
     end
 end
 
--- Reads the scenario house id from a dedicated-server config file.
--- One source of truth for the bootstrap (LH-MP-2).
---
--- File: <userDir>/Server/LastHomeHouse.cfg
--- Format: first non-empty, non-comment line is the token.
--- Valid: hospital | villa | prison | elementary_school | random | picker
---   - picker: do NOT auto-select a house; the server enters a pending
---     selection state and waits for an interactive in-game choice (LH-MP-5).
---     Only meaningful on an MP server (Host/dedicated); in solo it falls
---     back to random (the bootstrap resolves it).
--- Missing/unreadable/invalid -> "random".
---
--- Path resolution: the Lua `fileExists`/`getFileReader` globals do NOT
--- reliably resolve the relative "Server/LastHomeHouse.cfg" in the SERVER VM
--- (verified in-game 27-07-26: the file exists at <userDir>/Server/... but
--- `fileExists("Server/LastHomeHouse.cfg")` returns false on the server).
--- We therefore build an absolute path from getCore():getMyDocumentFolder()
--- and try a small candidate list, opening the first one that yields a reader.
-local function openFirstExisting(paths)
-    print("[LastHome] openFirstExisting: type(getFileReader)=" .. tostring(type(getFileReader)) .. ", type(fileExists)=" .. tostring(type(fileExists)))
-    for _, path in ipairs(paths) do
-        local ok, reader = pcall(function() return getFileReader(path, false) end)
-        if not ok then
-            print("[LastHome]   getFileReader(" .. tostring(path) .. ") a lance: " .. tostring(reader))
-        elseif reader == nil then
-            print("[LastHome]   getFileReader(" .. tostring(path) .. ") = nil")
-        else
-            local probeOk, probeLine = pcall(function() return reader:readLine() end)
-            if not probeOk then
-                print("[LastHome]   readLine(" .. tostring(path) .. ") a lance: " .. tostring(probeLine))
-            else
-                print("[LastHome]   OK path=" .. tostring(path) .. " firstLine=" .. tostring(probeLine))
-                return reader, path, probeLine
-            end
-        end
-    end
-    return nil, nil, nil
-end
+-- ============================================================
+-- LH-MP-6: hardcoded scenario house (replaces the cfg file)
+-- ============================================================
 
+-- Scenario house for MP sandbox / Host mode. Edit this line and relaunch
+-- to force a house. No cfg file (the file-I/O was never reliable in the
+-- SERVER VM: fileExists/getFileReader did not resolve the cfg at
+-- OnServerStarted, so the token was silently ignored since LH-MP-2).
+--
+-- Valid: hospital | villa | prison | elementary_school | random
+--   - random = pick one of the 4 at random each server start.
+--   - a concrete id forces that building.
+LastHomeShared.SCENARIO_HOUSE = "elementary_school"
+
+-- Returns the validated scenario house token (default "random" if the
+-- constant is invalid/missing). No file I/O. One source of truth for the
+-- bootstrap.
 function LastHomeShared.getScenarioHouseId()
     local validIds = { hospital = true, villa = true, prison = true,
                        elementary_school = true }
     local defaultId = "random"
 
-    -- Env-readiness gate: if the file-I/O global is not registered yet (early
-    -- OnServerStarted), defer instead of falling back to random so the bootstrap
-    -- tick can retry once the env is ready. Returns nil = "defer".
-    if type(getFileReader) ~= "function" then
-        print("[LastHome] getScenarioHouseId: getFileReader indisponible (type=" .. tostring(type(getFileReader)) .. ") -> defer")
-        return nil
-    end
-
-    local userDir = "?"
-    pcall(function()
-        if getCore ~= nil and getCore() ~= nil then
-            userDir = getCore():getMyDocumentFolder() or "?"
-        end
-    end)
-    print("[LastHome] getScenarioHouseId userDir=" .. tostring(userDir))
-
-    local candidates = {
-        "Server/LastHomeHouse.cfg",
-        tostring(userDir) .. "/Server/LastHomeHouse.cfg",
-    }
-
-    local reader, usedPath, firstLine = openFirstExisting(candidates)
-    if reader == nil then
-        print("[LastHome] LastHomeHouse.cfg introuvable (userDir=" .. tostring(userDir) .. ") -> random")
+    local value = LastHomeShared.SCENARIO_HOUSE
+    if value == nil then
+        print("[LastHome] SCENARIO_HOUSE non defini -> random")
         return defaultId
     end
-    print("[LastHome] LastHomeHouse.cfg ouvert (path=" .. tostring(usedPath) .. ")")
 
-    local result = defaultId
-    local found = false
-    local line = firstLine
-    while line ~= nil do
-        local trimmed = line:match("^%s*(.-)%s*$")
-        if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
-            if trimmed == "random" then
-                result = defaultId
-            elseif trimmed == "picker" then
-                result = "picker"
-            elseif validIds[trimmed] then
-                result = trimmed
-            else
-                print("[LastHome] LastHomeHouse.cfg valeur invalide: " .. tostring(trimmed) .. " -> random")
-                result = defaultId
-            end
-            found = true
-            break
-        end
-        line = reader:readLine()
+    if value == "random" or validIds[value] then
+        print("[LastHome] SCENARIO_HOUSE=" .. tostring(value))
+        return value
     end
-    reader:close()
 
-    if not found then
-        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(usedPath) .. ") -> random")
-    end
-    return result
+    print("[LastHome] SCENARIO_HOUSE valeur invalide: " .. tostring(value) .. " -> random")
+    return defaultId
 end
