@@ -114,6 +114,11 @@ function LastHomeStock.spawnOnGround(house, communityStockItems)
         end
     end
 
+    if totalAdded == 0 then
+        print("[LastHome] Stock au sol: aucun item spawne pour " .. tostring(house.name or house.id or "?"))
+        return false
+    end
+
     Server.stockGroundSpawned = true
     print("[LastHome] Stock au sol spawn: " .. tostring(totalTypes) .. " types, " .. tostring(totalAdded) .. " items sur " .. tostring(#stockSquares) .. " carres a " .. fmtCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " pour " .. tostring(house.name or house.id or "?") .. " (types en echec=" .. tostring(failedTypes) .. ", echec partiel=" .. tostring(partialFailures) .. ")")
     return true

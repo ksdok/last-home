@@ -65,6 +65,11 @@ local formatHouseLabel = LastHomeShared.formatHouseLabel
 local formatBoundaryLabel = LastHomeShared.formatBoundaryLabel
 local logBoundary = function(msg) LastHomeShared.log("Boundary", msg) end
 
+-- Forward declarations for functions defined later in the file but captured
+-- by the LastHomeBoundary.attach(…) closure below. The actual function bodies
+-- follow after resetState() and attach().
+local notifyPlayer
+
 -- Boundary functions extracted to LastHomeBoundary; keep local aliases for
 -- backward-compatible references inside this file.
 local syncBoundaryState = LastHomeBoundary.syncTo
@@ -200,9 +205,6 @@ local function resetState()
     Server.directions = {}
     Server.zombieCount = 0
     Server.spectators = {}
-    Server.boundaryStates = {}
-    Server.boundaryDebugTrace = {}
-    Server.lastBoundaryEnabledDebugKey = nil
     Server.house = nil
     Server.lastTickSecond = nil
     Server.nextPressurePulseAt = nil
