@@ -43,8 +43,8 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | [LH-12](specs/LH-12-create-horde-from-to.md) | Track A aggro via `createHordeFromTo` | 📝 |
 | [LH-13](specs/LH-13-suppression-spawns-vanilla.md) | Continuous vanilla/story spawn suppression | ✅ |
 | [LH-14](specs/LH-14-firearm-loadout-priming.md) | Firearm priming on role assignment | ✅ |
-| [LH-15](specs/LH-15-stock-locator-arrow.md) | On-screen stock arrow | ✅ |
-| [LH-17](specs/LH-17-deduplication-role-equipment.md) | Single source of truth for role application (dedup) | 📝 |
+| [LH-15](specs/LH-15-stock-locator-arrow.md) | On-screen stock arrow | ❌ removed by LH-21 |
+| [LH-17](specs/LH-17-deduplication-role-equipment.md) | Single source of truth for role application (dedup) | ✅ |
 | [LH-MP](specs/LH-MP-multiplayer-sandbox-conversion.md) | Host Last Home in multiplayer (sandbox conversion) | 📝 |
 | └ [LH-MP-1](specs/LH-MP-1-server-setSelectedHouse.md) | Expose `LastHomeServer.setSelectedHouse(houseId, source)` | ✅ |
 | └ [LH-MP-2](specs/LH-MP-2-server-bootstrap.md) | Server bootstrap `LastHomeBootstrap.lua` + house config | ✅ |
@@ -54,6 +54,8 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | └ [LH-MP-6](specs/LH-MP-6-hardcoded-scenario-house.md) | MP-only mod: hardcoded scenario house, drop cfg/picker/Challenges | ✅ |
 | [LH-18](specs/LH-18-stock-spawn-analysis.md) | Stock communautaire : spawn dédié vs spawn au sol (analyse) | ✅ |
 | [LH-19](specs/LH-19-stock-ground-spawn.md) | Stock communautaire : spawn au sol (nourriture/eau/munitions) | 🔄 |
+| [LH-20](specs/LH-20-cleanup-pas-pendant-vague.md) | Suspendre le nettoyage périodique pendant la vague | 📝 |
+| [LH-21](specs/LH-21-suppression-fleche-stock.md) | Supprimer la flèche du stock communautaire | 📝 |
 
 ## Status
 
@@ -81,14 +83,16 @@ last-home/
     lua/
       server/
         LastHomeServer.lua      -- roles, assignment, Builder refill, setSelectedHouse
-        LastHomeWaves.lua       -- waves, scaling, directions, spectator, confinement
+        LastHomeWaves.lua       -- waves, scaling, directions, spectator, phases
         LastHomeBootstrap.lua    -- OnServerStarted bootstrap (sandbox vars + house)
+        LastHomeBoundary.lua    -- confinement zone (countdown, damage, sync)
+        LastHomeStock.lua       -- ground stock spawn + post-spawn maintenance
       client/
         LastHomeClient.lua      -- client bootstrap / HUD / solo sync / role flow
         LastHomeRolePicker.lua  -- role picker
       shared/
         LastHomeRoles.lua       -- definitions of the 17 roles
-        LastHomeShared.lua      -- houses, coords, timers, boundary, SCENARIO_HOUSE
+        LastHomeShared.lua      -- houses, coords, timers, boundary, logger, shared utils
   specs/
     LH-01-concept.md
     ...

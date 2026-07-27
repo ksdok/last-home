@@ -16,7 +16,7 @@
 - ✅ Two-VM bootstrap fix preserved: `OnServerStarted` runs the bootstrap in the **SERVER VM** (authoritative); `OnGameStart` is the solo-sandbox fallback (gated by `isClient()`). `applyDefaultSandboxVars` runs server-side so vanilla zombies are suppressed at the initial MP spawn
 - ✅ Villa stabilized: waves forced to **South**, ground-level spawns, wave attraction refocused on alarm-like sound pulses toward the base
 - ✅ **LH-12** resolved in-game (god mode was blocking the zombie AI)
-- 📝 **LH-17** written: deduplication of role-application logic into `LastHomeShared`
+- ✅ **LH-17** delivered: refactoring completed — 12 duplicated functions centralised in `LastHomeShared.lua`, unified logger `LastHomeShared.log(module, msg)`, confinement extracted to `LastHomeBoundary.lua`, ground stock to `LastHomeStock.lua`, `setSelectedHouse` simplified (12 branches → 1). Commits: `1abb8ed`, `2a0e5c6`.
 - ✅ **LH-19** verified in-game on MP Host (elementary_school): the community stock now spawns once on the ground near `stockSpawn`/`supply`, limited to **food + water bottles + ammunition**; `elementary_school.stockSpawn = (10616, 9972, 0)`, `HOUSE_SUPPLY_MULTIPLIER = 4`, and `coop-console.txt` shows `Stock au sol spawn: 38 types, 728 items ... (types en echec=0, echec partiel=0)`
 - ⏳ Next: write `docs/MULTIPLAYER_SETUP.md` + run **in-game MP verification** (LH-MP-4) on a dedicated/Host server — confirm `OnServerStarted` bootstrap fires in the SERVER VM, the hardcoded `SCENARIO_HOUSE` is applied server-side, vanilla zombies suppressed at initial MP spawn, and whether Pillow's Random Scenarios is still a required dep now that the Challenges menu is gone; then roles, teleport, confinement, waves, spectators, late joiners, HUD, ambient cleanup, zombie cleanup around the role spawn, ground-stock visibility/sync, and stock volume tuning; then Villa attraction, LH-10 pacing, Track A testing, parasite spawn suppression validation
 
@@ -35,7 +35,7 @@
 - [x] LH-12 — Track A aggro via createHordeFromTo
 - [x] LH-13 — Vanilla/story parasite spawn suppression
 - [x] LH-14 — Firearm priming on role assignment
-- [x] LH-15 — On-screen stock arrow
+- [x] LH-15 — On-screen stock arrow (superseded/removed by LH-21)
 - [x] LH-19 — Stock communautaire : spawn au sol (food/water/ammo)
 - [x] LH-MP-1 — Expose `LastHomeServer.setSelectedHouse(houseId, source)`
 - [x] LH-MP-2 — Server bootstrap `LastHomeBootstrap.lua` + house selection
@@ -44,6 +44,8 @@
 - [-] LH-MP-5 — House picker before the role picker (CANCELLED — superseded by LH-MP-6)
 - [x] LH-MP-6 — MP-only mod: hardcoded scenario house, drop cfg/picker/Challenges
 - [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`)
+- [ ] LH-20 — Suspendre le nettoyage périodique pendant la vague
+- [ ] LH-21 — Supprimer la flèche du stock communautaire
 
 ### Implementation
 - [x] LH-02 — Role system. Files: `LastHomeRoles.lua`, `LastHomeRolePicker.lua`, `LastHomeClient.lua`, `LastHomeServer.lua`, `mod.info`. 17 roles (no Mechanic, with Builder); reliable picker opening, robust `applyPerkLevel`, `version=0.1.0`.
@@ -71,6 +73,8 @@
 ### High priority
 - [ ] LH-MP-4 — Write `docs/MULTIPLAYER_SETUP.md` + run the A-H verification checklist on a dedicated/Host server (no code change expected; failures become follow-up tickets). Must confirm: (a) `OnServerStarted` fires in the SERVER VM on Host and dedicated (verified Host 25-07-26; dedicated still unconfirmed); (b) minimal `Mods=`/`Map=` line per house (`Mods=LastHome` alone vs `+Pillow/Xonic`) and whether Pillow's Random Scenarios is still required now that the Challenges menu is gone; (c) hardcoded `LastHomeShared.SCENARIO_HOUSE` is honored (elementary_school by default)
 - [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`). Spec written: `specs/LH-17-deduplication-role-equipment.md`
+- [ ] LH-20 — Suspendre le nettoyage périodique pendant la vague. Spec written: `specs/LH-20-cleanup-pas-pendant-vague.md`. Actuellement le gate `onTick` du cleanup périodique ne tient pas compte de la phase → il tourne aussi pendant la vague (en préservant les `LH_waveZombie` mais en supprimant les non-taggés). Changement : gater sur `Server.phase ~= "wave"` + retirer le réarmement de `nextAmbientCleanupAt` dans `startWave`. One-shots de transition `"prep"`/`"wave"` conservés.
+- [ ] LH-21 — Supprimer la flèche du stock communautaire. Spec written: `specs/LH-21-suppression-fleche-stock.md`. Supprimer `drawStockArrow` + `Events.OnPostUIDraw.Add(drawStockArrow)` dans `LastHomeClient.lua` (LH-15). Ne pas toucher aux données du stock (`house.stockSpawn`/`house.supply`/`getHouseStockSpawn`, toujours utilisées par LH-19) ni au reste du HUD (`drawWaveHud`).
 - [x] LH-18 — Stock communautaire : analyse A vs B terminée. `specs/LH-18-stock-spawn-analysis.md` confirme que l'approche A (caisse dédiée) échoue en sync MP sur chunk déjà chargé ; LH-19 applique l'approche B (`AddWorldInventoryItem`)
 - [ ] LH-19 — Valider les autres maisons en jeu et réajuster `HOUSE_SUPPLY_MULTIPLIER` si le volume reste trop élevé hors cas école/Host déjà vérifié
 - [ ] Fix Villa / house stock playability:
@@ -98,6 +102,7 @@
 - LH-05 adds a rectangular `boundary` per house and an **authoritative server-side** confinement, with client-side HUD display
 - LH-07 moves solo sync to `Events.OnTick`, fixes `isInsideBoundary()` for PZ player objects (`getX()/getY()`), and adds a local `Zone: IN/OUT` HUD indicator
 - LH-08 extracts common equipment/loadout logic into `LastHomeShared.lua` (`applyCarryProfile`, `primeRoleLoadout`, `equipRoleItems`) to reduce client/server duplication
+- LH-17 completes the dedup: 12 additional utilities centralised (`addItemsToContainer`, `buildItemCounts`, `addRoleItems`, `applyRoleStats`, `applyPerkLevel`, `applyManualTeleportState`, `formatCoords`, `formatPlayerCoords`, `formatHouseLabel`, `formatBoundaryLabel`), unified logger `LastHomeShared.log(module, msg)`, `setSelectedHouse` simplified (12 → 1 branch), two new modules extracted: `LastHomeBoundary.lua` (confinement, ~200 lines) and `LastHomeStock.lua` (ground stock + maintenance, ~180 lines), both following `attach(server, deps)` injectable pattern
 - LH-14 aligns `fillAmmoItem` with the engine's `HandWeapon:randomizeBullets()` (Ammo, ContainsClip, RoundChambered) to pre-load firearms on role assignment
 - LH-10 reduces wave timers and adds prep skip via `K`, preserving `pendingDirections` through `startWave(false)` on skip
 - For Villa, waves are currently forced to **South** and attraction relies on sound pulses centered on the base rather than zombie-by-zombie aggro targeting
