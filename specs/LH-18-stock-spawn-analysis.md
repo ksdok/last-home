@@ -1,8 +1,8 @@
-# LH-18 (analysis) — Stock communautaire : spawn dédié vs spawn au sol
+# LH-18 (analysis → implémentation approche A) — Stock communautaire
 
-> Statut : **analyse / recherche** (pas encore implémenté). Sauvegardée pour
-> décision ultérieure. Succède au problème de capacité du stock identifié en
-> jeu le 27-07-26 (LH-MP-6 validé, mais le conteneur de stock est une poubelle).
+> Statut : **approche A en test** (branche `feat/lh-18-stock-container`). Si le
+> sync MP du conteneur spawné ne fonctionne pas, on basculera sur l'approche B
+> (spawn au sol). Investigation initiale sauvée ci-dessous pour référence.
 
 ## Rappel du problème
 

@@ -622,6 +622,14 @@ end
 --   - a concrete id forces that building.
 LastHomeShared.SCENARIO_HOUSE = "elementary_school"
 
+-- LH-18: dedicated spawned stock container (approach A). A crate IsoObject +
+-- ItemContainer spawned at house.supply so the community stock is not dumped
+-- into a tiny map container (e.g. the school's poubelle). Detected by a
+-- modData marker (LH_stockContainer = true) so refill targets it reliably.
+LastHomeShared.LH_STOCK_SPRITE = "carpentry_02_53"   -- wooden crate sprite
+LastHomeShared.LH_STOCK_CONTAINER_TYPE = "crate"
+LastHomeShared.LH_STOCK_CAPACITY = 1000              -- generous; AddItems bypasses capacity anyway
+
 -- Returns the validated scenario house token (default "random" if the
 -- constant is invalid/missing). No file I/O. One source of truth for the
 -- bootstrap.

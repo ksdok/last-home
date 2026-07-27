@@ -92,6 +92,84 @@ function LastHomeServer.hasSelectedHouse()
     return Server.selectedHouse ~= nil
 end
 
+-- LH-18: find the dedicated spawned stock container on a square by its
+-- modData marker (LH_stockContainer = true). Returns its ItemContainer, or nil.
+local function findStockContainerOnSquare(square)
+    if square == nil or square.getObjects == nil then return nil end
+
+    local objects = square:getObjects()
+    if objects == nil then return nil end
+
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        if object ~= nil and object.getModData ~= nil then
+            local ok, modData = pcall(function() return object:getModData() end)
+            if ok and modData ~= nil and modData.LH_stockContainer == true then
+                local container = object.getContainer and object:getContainer() or nil
+                if container ~= nil then
+                    return container, object
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+-- LH-18: spawn the dedicated stock crate at house.supply if the chunk is loaded
+-- and it is not already present. Returns true once the crate exists (found or
+-- just spawned), false if the chunk is not loaded yet (caller retries).
+local function ensureStockContainerSpawned(house)
+    if house == nil or house.supply == nil then return false end
+
+    local cell = getCell ~= nil and getCell() or nil
+    if cell == nil or cell.getGridSquare == nil then return false end
+
+    local sx = LastHomeShared.round(house.supply.x)
+    local sy = LastHomeShared.round(house.supply.y)
+    local sz = LastHomeShared.round(house.supply.z or house.centerZ or 0)
+
+    local square = cell:getGridSquare(sx, sy, sz)
+    if square == nil then
+        -- Chunk not loaded yet (no player near the house). Retry later.
+        return false
+    end
+
+    local existing = findStockContainerOnSquare(square)
+    if existing ~= nil then
+        return true
+    end
+
+    local sprite = LastHomeShared.LH_STOCK_SPRITE or "carpentry_02_53"
+    local containerType = LastHomeShared.LH_STOCK_CONTAINER_TYPE or "crate"
+    local capacity = LastHomeShared.LH_STOCK_CAPACITY or 1000
+
+    local ok, isoObject = pcall(function()
+        return IsoObject.new(square, sprite, "LastHomeStock")
+    end)
+    if not ok or isoObject == nil then
+        print("[LastHome] WARN: ensureStockContainerSpawned - IsoObject.new a echoue pour " .. tostring(house.name or house.id or "?") .. " a (" .. tostring(sx) .. "," .. tostring(sy) .. "," .. tostring(sz) .. "): " .. tostring(isoObject))
+        return false
+    end
+
+    local container = ItemContainer.new(containerType, square, isoObject, capacity, capacity)
+    container:setExplored(true)
+    isoObject:setContainer(container)
+
+    local modData = isoObject:getModData()
+    if modData ~= nil then
+        modData.LH_stockContainer = true
+    end
+
+    square:AddTileObject(isoObject)
+    if isoObject.transmitModData ~= nil then
+        pcall(function() isoObject:transmitModData() end)
+    end
+
+    print("[LastHome] Stock crate spawn a (" .. tostring(sx) .. "," .. tostring(sy) .. "," .. tostring(sz) .. ") pour " .. tostring(house.name or house.id or "?"))
+    return true
+end
+
 local function isUsableSpawnSquare(square)
     if square == nil then return false end
 
@@ -360,6 +438,10 @@ local function teleportPlayerToHouse(player)
     end
 
     clearAmbientZombiesNearSpawn(house, spawnData, "role-spawn")
+    -- LH-18: spawn the dedicated stock crate as soon as the chunk is loaded
+    -- (the player just teleported to the house). Idempotent; the post-spawn
+    -- maintenance tick also retries.
+    ensureStockContainerSpawned(house)
     schedulePostSpawnMaintenance(house, spawnData, username)
     logServer("teleport joueur " .. tostring(username) .. " : " .. beforeCoords .. " -> " .. formatCoords(x, y, z) .. " pour " .. formatHouseLabel(house) .. " via " .. tostring(teleportMode))
     return teleported, spawnData
@@ -536,86 +618,9 @@ local function countContainerItemsRecursive(container, itemId)
     return total
 end
 
-local function getFirstObjectContainer(square)
-    if square == nil or square.getObjects == nil then return nil end
-
-    local objects = square:getObjects()
-    if objects == nil then return nil end
-
-    for i = 0, objects:size() - 1 do
-        local object = objects:get(i)
-        local container = object and object.getContainer and object:getContainer() or nil
-        if container ~= nil then
-            return container
-        end
-    end
-
-    return nil
-end
-
-local function getSupplySearchArea(house)
-    if house == nil then return nil, "?" end
-
-    local boundary = house.boundary
-    if boundary ~= nil and boundary.minX ~= nil and boundary.maxX ~= nil and boundary.minY ~= nil and boundary.maxY ~= nil then
-        return {
-            min = {
-                x = boundary.minX,
-                y = boundary.minY,
-                z = boundary.minZ,
-            },
-            max = {
-                x = boundary.maxX,
-                y = boundary.maxY,
-                z = boundary.maxZ,
-            },
-        }, "boundary"
-    end
-
-    local bounds = house.bounds
-    if bounds ~= nil and bounds.min ~= nil and bounds.max ~= nil then
-        return bounds, "bounds"
-    end
-
-    return nil, "?"
-end
-
-local function getSupplySearchZRange(house, area)
-    local minZ = nil
-    local maxZ = nil
-
-    local function include(value)
-        if value == nil then return end
-        if minZ == nil or value < minZ then minZ = value end
-        if maxZ == nil or value > maxZ then maxZ = value end
-    end
-
-    if area ~= nil then
-        include(area.min ~= nil and area.min.z or nil)
-        include(area.max ~= nil and area.max.z or nil)
-    end
-    if house ~= nil then
-        include(house.centerZ)
-        include(house.supply ~= nil and house.supply.z or nil)
-    end
-
-    if minZ == nil then minZ = 0 end
-    if maxZ == nil then maxZ = minZ end
-
-    minZ = math.max(0, minZ - 1)
-    maxZ = math.max(minZ, maxZ + 2)
-    return minZ, maxZ
-end
-
 local function getPrimaryHouseSupplyContainer()
     local house = ensureSelectedHouse()
     if house == nil then return nil end
-
-    local searchArea, searchAreaLabel = getSupplySearchArea(house)
-    if searchArea == nil or searchArea.min == nil or searchArea.max == nil then
-        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - pas de zone de recherche pour " .. tostring(house.name or house.id or "?"))
-        return nil
-    end
 
     local cell = getCell ~= nil and getCell() or nil
     if cell == nil then
@@ -623,56 +628,25 @@ local function getPrimaryHouseSupplyContainer()
         return nil
     end
 
+    -- LH-18: spawn (idempotent) the dedicated stock crate at house.supply, then
+    -- return it. No fallback to the map container (poubelle): while the chunk is
+    -- not loaded yet the crate cannot exist, so we return nil and the
+    -- post-spawn maintenance retries until the chunk loads.
+    ensureStockContainerSpawned(house)
+
     if house.supply ~= nil then
-        local configuredSquare = cell:getGridSquare(house.supply.x, house.supply.y, house.supply.z or house.centerZ or 0)
-        local configuredContainer = getFirstObjectContainer(configuredSquare)
-        if configuredContainer ~= nil then
-            return configuredContainer
+        local sx = LastHomeShared.round(house.supply.x)
+        local sy = LastHomeShared.round(house.supply.y)
+        local sz = LastHomeShared.round(house.supply.z or house.centerZ or 0)
+        local square = cell:getGridSquare(sx, sy, sz)
+        local stockContainer = findStockContainerOnSquare(square)
+        if stockContainer ~= nil then
+            return stockContainer
         end
     end
 
-    local anchorX = house.supply ~= nil and house.supply.x or (house.centerX or searchArea.min.x or 0)
-    local anchorY = house.supply ~= nil and house.supply.y or (house.centerY or searchArea.min.y or 0)
-    local minZ, maxZ = getSupplySearchZRange(house, searchArea)
-    local bestContainer = nil
-    local bestX, bestY, bestZ
-    local bestDistance = nil
-
-    for z = minZ, maxZ do
-        for x = searchArea.min.x, searchArea.max.x do
-            for y = searchArea.min.y, searchArea.max.y do
-                local square = cell:getGridSquare(x, y, z)
-                local container = getFirstObjectContainer(square)
-                if container ~= nil then
-                    local dx = anchorX - x
-                    local dy = anchorY - y
-                    local distance = (dx * dx) + (dy * dy)
-                    if bestDistance == nil or distance < bestDistance then
-                        bestDistance = distance
-                        bestContainer = container
-                        bestX, bestY, bestZ = x, y, z
-                    end
-                end
-            end
-        end
-    end
-
-    if bestContainer ~= nil then
-        -- Fallback: the configured square (house.supply) had no container.
-        -- Rewrite house.supply with the actual square of the chosen container so
-        -- the client arrow (LH-15) points to the right location, then resync the client.
-        local cur = house.supply or {}
-        if cur.x ~= bestX or cur.y ~= bestY or (cur.z or 0) ~= (bestZ or 0) then
-            house.supply = { x = bestX, y = bestY, z = bestZ }
-            print("[LastHome] getPrimaryHouseSupplyContainer - fallback supply via " .. tostring(searchAreaLabel) .. " pour " .. tostring(house.name or house.id or "?") .. " -> (" .. tostring(bestX) .. "," .. tostring(bestY) .. "," .. tostring(bestZ or 0) .. ")")
-            syncSelectedHouse()
-        end
-    else
-        local houseName = house.name or house.id or "?"
-        print("[LastHome] WARN: getPrimaryHouseSupplyContainer - aucun conteneur trouve pour " .. tostring(houseName) .. " dans " .. tostring(searchAreaLabel) .. " [" .. tostring(searchArea.min.x) .. "," .. tostring(searchArea.min.y) .. "," .. tostring(minZ) .. "] -> [" .. tostring(searchArea.max.x) .. "," .. tostring(searchArea.max.y) .. "," .. tostring(maxZ) .. "]")
-    end
-
-    return bestContainer
+    print("[LastHome] WARN: getPrimaryHouseSupplyContainer - caisse de stock dediee introuvable pour " .. tostring(house.name or house.id or "?") .. " (chunk non charge ?)")
+    return nil
 end
 
 refillHouseSupplies = function()
