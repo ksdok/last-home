@@ -993,9 +993,9 @@ local function resetState(eventName)
     Server.lastHouseSupplyRefillAt = nil
     Server.pendingPostSpawnMaintenance = nil
 
-    print("[LastHome] Attente de la maison du challenge avant initialisation finale")
+    print("[LastHome] Attente de la selection du lieu (scenario) avant initialisation finale")
 end
--- LH-MP-2/LH-MP-5: register the reset on BOTH OnServerStarted (SERVER VM,
+-- LH-MP-2/LH-MP-6: register the reset on BOTH OnServerStarted (SERVER VM,
 -- authoritative) and OnGameStart (CLIENT VM / solo). LastHomeServer.lua loads
 -- before LastHomeBootstrap.lua (which `require`s it), so in each VM the
 -- reset handler runs BEFORE the bootstrap handler on the same event.
