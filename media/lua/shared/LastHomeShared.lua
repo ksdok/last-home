@@ -311,6 +311,8 @@ local ROLE_CARRY_CAPACITY = {
     builder = 90,
     demolisseur = 60,
     invincible = 90,
+    rambo = 60,
+    samourai = 60,
 }
 
 function LastHomeShared.applyCarryProfile(player, roleKey)
