@@ -56,12 +56,18 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | [LH-19](specs/LH-19-stock-ground-spawn.md) | Stock communautaire : spawn au sol (nourriture/eau/munitions) | ✅ |
 | [LH-20](specs/LH-20-cleanup-pas-pendant-vague.md) | Suspendre le nettoyage périodique pendant la vague | ✅ |
 | [LH-21](specs/LH-21-suppression-fleche-stock.md) | Supprimer la flèche du stock communautaire | ✅ |
+| [LH-22](specs/LH-22-agent-brita-tournevis.md) | Rôle 007 Agent + dépendance Brita + tournevis pour tous | 📝 |
+| [LH-23](specs/LH-23-relook-brita-10-roles.md) | Relook Brita de 10 rôles (armes + armure tactique) | 📝 |
+| [LH-24](specs/LH-24-declenchement-manuel-vague-1.md) | Déclenchement manuel de la 1ère vague (pas de timer) | 📝 |
+| [LH-25](specs/LH-25-mod-roles-seul.md) | Mod séparé : choix de rôle seul (role picker standalone) | 📝 |
 
 ## Status
 
 - ✅ Versioned specs complete for **LH-01** through **LH-08** and **LH-10**
 - 📝 Exploration spec written: **LH-12** (aggro via `createHordeFromTo`)
 - ✅ Implementation of **LH-02** through **LH-08**, **LH-10**, **LH-13**, **LH-14**, **LH-19**, **LH-20** and **LH-21** complete (**LH-15** removed by **LH-21**)
+- 🧪 **LH-22** code integrated: new **007 Agent** role and `Base.Screwdriver` added to all applicable roles; the `mod.info` `require=` line for Brita/Arsenal was **removed** (mod not yet on the Workshop — Brita/Arsenal are optional today); in-game Brita validation still pending
+- 🧪 **LH-23** code integrated: 10 existing roles now use the validated Brita/Arsenal tactical loadouts; `rambo` and `samourai` also gained `setUnlimitedCarry`. In-game validation remains pending (attachments, priming, Tail/Nose worn slots)
 - ✅ MP-only delivery (LH-MP-6): the Challenges menu entries were removed; the mod runs from the multiplayer Host menu / solo sandbox, with the building hardcoded via `LastHomeShared.SCENARIO_HOUSE` (currently `elementary_school`)
 - ✅ Two-VM bootstrap fix: `OnServerStarted` runs the bootstrap in the SERVER VM (authoritative); `OnGameStart` is the solo-sandbox fallback (gated by `isClient()`). `applyDefaultSandboxVars` runs server-side so vanilla zombies are suppressed at the initial MP spawn
 - ✅ LH-10 timers: prep wave 1 = 2 min, subsequent prep = 5 min, wave = 5 min, skip via `K` key
@@ -104,11 +110,14 @@ last-home/
 ### Required mods
 
 - **Xonic's Mega Mall** (Workshop ID: `1713269594`) — map (the 4 buildings live on this map)
+
+### Optional mods (planned, not yet required)
+
 - **Brita's Weapon Pack** (Workshop ID: `2200148440`, `Mod ID: Brita`) — weapon assets (models/textures/sounds)
 - **Brita's Armor Pack** (Workshop ID: `2460154811`, `Mod ID: Brita_2`) — tactical clothing (module `Base`, e.g. `Base.Suit_Wick`, `Base.Glove_Mechanix`)
 - **Arsenal(26) GunFighter** (Workshop ID: `2297098490`, `Mod ID: Arsenal(26)GunFighter[MAIN MOD 2.0]`) — functional weapon items (module `Base`, e.g. `Base.PPK`, `Base.MP5SD6_Fixed`)
 
-> Brita's Weapon Pack alone is assets-only; the functional gun items are defined by Arsenal(26) GunFighter (module `Base`), while Brita's Armor Pack provides the clothing. The three mods are required together by `mod.info` (see LH-22).
+> Brita's Weapon Pack alone is assets-only; the functional gun items are defined by Arsenal(26) GunFighter (module `Base`), while Brita's Armor Pack provides the clothing. These three mods are **optional** today: the `mod.info` `require=` line was removed (the mod is not yet on the Workshop); only the `007 Agent` role (LH-22) references Brita items, so without these mods the agent's Brita items simply won't spawn while the 17 vanilla roles work normally. The `require=` will be re-added once LH-22/LH-23 ship on the Workshop.
 
 ### Note
 
