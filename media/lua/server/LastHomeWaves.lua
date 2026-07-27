@@ -15,7 +15,7 @@ local PRESSURE_PULSE_SECONDS = 15
 local SPAWN_DISTANCE = 20
 local ARRIVAL_DIST_SQ = 36   -- 6 tiles: on stoppe le pulse quand un zombie de vague arrive pres du joueur
 local SPAWN_SPREAD = 8
-local AMBIENT_CLEANUP_INTERVAL_SECONDS = 5
+local AMBIENT_CLEANUP_INTERVAL_SECONDS = 1
 local ZOMBIE_MODULE = "LastHome"
 
 local CARDINALS = {"N", "E", "S", "W"}
@@ -64,11 +64,6 @@ local formatPlayerCoords = LastHomeShared.formatPlayerCoords
 local formatHouseLabel = LastHomeShared.formatHouseLabel
 local formatBoundaryLabel = LastHomeShared.formatBoundaryLabel
 local logBoundary = function(msg) LastHomeShared.log("Boundary", msg) end
-
--- Forward declarations for functions defined later in the file but captured
--- by the LastHomeBoundary.attach(…) closure below. The actual function bodies
--- follow after resetState() and attach().
-local notifyPlayer
 
 -- Boundary functions extracted to LastHomeBoundary; keep local aliases for
 -- backward-compatible references inside this file.
@@ -213,21 +208,6 @@ local function resetState()
     LastHomeBoundary.init()
 end
 
--- Wire LastHomeBoundary into the waves server state.
-LastHomeBoundary.attach(Server, {
-    log = logBoundary,
-    notifyPlayer = notifyPlayer,
-    hasBoundary = hasBoundary,
-    isInsideBoundary = isInsideBoundary,
-    formatCoords = formatCoords,
-    formatPlayerCoords = formatPlayerCoords,
-    formatBoundaryLabel = formatBoundaryLabel,
-    getScenarioPlayers = getScenarioPlayers,
-    isPlayerAlive = isPlayerAlive,
-})
-
-resetState()
-
 local function syncWaveState()
     local now = getNowSeconds()
 
@@ -277,6 +257,25 @@ local function notifyPlayer(username, text, alertType, durationSeconds)
     if username == nil then return end
     sendAlert(text, alertType or "warning", username, durationSeconds)
 end
+
+-- Wire LastHomeBoundary into the waves server state.
+-- NB: this block is placed AFTER notifyPlayer is defined so the attach table
+-- literal evaluates the real local (LH-17 forward-ref fix -- the previous
+-- forward-decl + later `local function` left the attach capturing nil).
+-- resetState() runs after attach so LastHomeBoundary.init() sees the Server table.
+LastHomeBoundary.attach(Server, {
+    log = logBoundary,
+    notifyPlayer = notifyPlayer,
+    hasBoundary = hasBoundary,
+    isInsideBoundary = isInsideBoundary,
+    formatCoords = formatCoords,
+    formatPlayerCoords = formatPlayerCoords,
+    formatBoundaryLabel = formatBoundaryLabel,
+    getScenarioPlayers = getScenarioPlayers,
+    isPlayerAlive = isPlayerAlive,
+})
+
+resetState()
 
 local function getOrCreateBoundaryState(username)
     return LastHomeBoundary.getOrCreateState(username)
@@ -697,6 +696,9 @@ local function startWave(immediate)
     Server.pendingDirections = {}
     Server.pendingEstimate = 0
     Server.nextPressurePulseAt = getNowSeconds() + PRESSURE_PULSE_SECONDS
+    if isScenarioHouse() then
+        Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
+    end
 
     resetSpectatorWaveUsage()
     clearAmbientZombiesNearHouse("wave")
@@ -937,7 +939,6 @@ local function onTick()
     updatePhaseState(now)
 
     if Server.started and not Server.gameOver and isScenarioHouse()
-        and Server.phase ~= "wave"
         and Server.nextAmbientCleanupAt ~= nil and now >= Server.nextAmbientCleanupAt then
         clearAmbientZombiesNearHouse("periodic")
         Server.nextAmbientCleanupAt = now + AMBIENT_CLEANUP_INTERVAL_SECONDS

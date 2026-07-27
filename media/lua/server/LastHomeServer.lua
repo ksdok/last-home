@@ -28,7 +28,6 @@ local SPAWN_AMBIENT_CLEANUP_PADDING = 8
 local ensureStockOnGround = function(house) return LastHomeStock.ensureOnGround(house, COMMUNITY_STOCK_ITEMS) end
 local spawnStockOnGround = function(house) return LastHomeStock.spawnOnGround(house, COMMUNITY_STOCK_ITEMS) end
 local schedulePostSpawnMaintenance = LastHomeStock.scheduleMaintenance
-local processPostSpawnMaintenance = function(now) LastHomeStock.processMaintenance(now, COMMUNITY_STOCK_ITEMS, ensureSelectedHouse, clearAmbientZombiesNearSpawn) end
 
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
@@ -230,8 +229,15 @@ local function clearAmbientZombiesNearSpawn(house, spawnData, reason)
     return removed
 end
 
+-- processPostSpawnMaintenance is defined here (after ensureSelectedHouse and
+-- clearAmbientZombiesNearSpawn) so the closure captures the real locals, not
+-- nil globals. Forward-ref closure bug from the LH-17 refactor (same class as
+-- the notifyPlayer bug fixed in 2a0e5c6).
+local processPostSpawnMaintenance = function(now) LastHomeStock.processMaintenance(now, COMMUNITY_STOCK_ITEMS, ensureSelectedHouse, clearAmbientZombiesNearSpawn) end
+
 -- schedulePostSpawnMaintenance and processPostSpawnMaintenance extracted to
--- LastHomeStock. Thin wrappers defined above.
+-- LastHomeStock. Wrappers defined above (ensureStockOnGround/spawnStockOnGround)
+-- and below (processPostSpawnMaintenance).
 
 local function teleportPlayerToHouse(player)
     if player == nil then return false, nil end
