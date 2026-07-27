@@ -45,7 +45,7 @@
 - [ ] LH-MP-4 — MP server setup docs + verification checklist
 - [-] LH-MP-5 — House picker before the role picker (CANCELLED — superseded by LH-MP-6)
 - [x] LH-MP-6 — MP-only mod: hardcoded scenario house, drop cfg/picker/Challenges
-- [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`)
+- [x] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`)
 - [x] LH-20 — Suspendre le nettoyage périodique pendant la vague
 - [x] LH-21 — Supprimer la flèche du stock communautaire
 
@@ -76,7 +76,7 @@
 
 ### High priority
 - [ ] LH-MP-4 — Write `docs/MULTIPLAYER_SETUP.md` + run the A-H verification checklist on a dedicated/Host server (no code change expected; failures become follow-up tickets). Must confirm: (a) `OnServerStarted` fires in the SERVER VM on Host and dedicated (verified Host 25-07-26; dedicated still unconfirmed); (b) minimal `Mods=`/`Map=` line per house (`Mods=LastHome` alone vs `+Pillow/Xonic`) and whether Pillow's Random Scenarios is still required now that the Challenges menu is gone; (c) hardcoded `LastHomeShared.SCENARIO_HOUSE` is honored (elementary_school by default)
-- [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`). Spec written: `specs/LH-17-deduplication-role-equipment.md`
+- [x] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`). Spec written: `specs/LH-17-deduplication-role-equipment.md`
 - [x] LH-18 — Stock communautaire : analyse A vs B terminée. `specs/LH-18-stock-spawn-analysis.md` confirme que l'approche A (caisse dédiée) échoue en sync MP sur chunk déjà chargé ; LH-19 applique l'approche B (`AddWorldInventoryItem`)
 - [ ] LH-19 — Valider les autres maisons en jeu et réajuster `HOUSE_SUPPLY_MULTIPLIER` si le volume reste trop élevé hors cas école/Host déjà vérifié
 - [ ] Fix Villa / house stock playability:
