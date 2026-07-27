@@ -18,6 +18,7 @@
 - ✅ **LH-12** resolved in-game (god mode was blocking the zombie AI)
 - ✅ **LH-17** delivered: refactoring completed — 12 duplicated functions centralised in `LastHomeShared.lua`, unified logger `LastHomeShared.log(module, msg)`, confinement extracted to `LastHomeBoundary.lua`, ground stock to `LastHomeStock.lua`, `setSelectedHouse` simplified (12 branches → 1). Commits: `1abb8ed`, `2a0e5c6`.
 - ✅ **LH-19** verified in-game on MP Host (elementary_school): the community stock now spawns once on the ground near `stockSpawn`/`supply`, limited to **food + water bottles + ammunition**; `elementary_school.stockSpawn = (10616, 9972, 0)`, `HOUSE_SUPPLY_MULTIPLIER = 4`, and `coop-console.txt` shows `Stock au sol spawn: 38 types, 728 items ... (types en echec=0, echec partiel=0)`
+- ✅ **LH-20** delivered: the periodic ambient cleanup now runs during **prep only**; `LastHomeWaves.onTick` skips `Server.phase == "wave"`, `startWave()` keeps the one-shot `"wave"` cleanup but no longer re-arms `Server.nextAmbientCleanupAt` during the wave
 - ⏳ Next: write `docs/MULTIPLAYER_SETUP.md` + run **in-game MP verification** (LH-MP-4) on a dedicated/Host server — confirm `OnServerStarted` bootstrap fires in the SERVER VM, the hardcoded `SCENARIO_HOUSE` is applied server-side, vanilla zombies suppressed at initial MP spawn, and whether Pillow's Random Scenarios is still a required dep now that the Challenges menu is gone; then roles, teleport, confinement, waves, spectators, late joiners, HUD, ambient cleanup, zombie cleanup around the role spawn, ground-stock visibility/sync, and stock volume tuning; then Villa attraction, LH-10 pacing, Track A testing, parasite spawn suppression validation
 
 ## Completed
@@ -44,7 +45,7 @@
 - [-] LH-MP-5 — House picker before the role picker (CANCELLED — superseded by LH-MP-6)
 - [x] LH-MP-6 — MP-only mod: hardcoded scenario house, drop cfg/picker/Challenges
 - [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`)
-- [ ] LH-20 — Suspendre le nettoyage périodique pendant la vague
+- [x] LH-20 — Suspendre le nettoyage périodique pendant la vague
 - [ ] LH-21 — Supprimer la flèche du stock communautaire
 
 ### Implementation
@@ -67,13 +68,13 @@
 - [x] LH-MP-3 — Generalize periodic cleanup to scenario houses. Files: `LastHomeWaves.lua`, `specs/LH-MP-3`. `isChallengeHouse()` -> `isScenarioHouse()` accepting `challenge | scenario`; all 3 call sites updated (prep-schedule L700, wave-schedule L751, OnTick periodic L1059) — all arm/execute the periodic cleanup; immediate phase-transition cleanups unchanged; `player-fallback`/`rotation` still excluded. Commit `dc3ceae`.
 - [-] LH-MP-5 — House picker before role picker (MP sandbox) — CANCELLED in LH-MP-6 (picker removed). Implemented then dropped: cfg `picker` deferred auto-selection; first eligible player became chooser (`houseChooserUsername`); `ChooseHouse` authoritative; `HouseChosen` broadcast then `OpenRolePicker` fan-out; `maintainHousePicker` re-elected chooser on disconnect/spectate to avoid deadlock. Solo Challenges unchanged. Kept for the record only.
 - [x] LH-MP-6 — MP-only mod: hardcoded scenario house. Files: `specs/LH-MP-6` (new), `LastHomeShared.lua`, `LastHomeBootstrap.lua`, `LastHomeServer.lua`, `LastHomeWaves.lua`, `LastHomeClient.lua`; deleted `LastHomeHousePicker.lua` + the 4 `LastStand/*.lua` + previews. `LastHomeShared.SCENARIO_HOUSE` constant (forced `elementary_school`); `getScenarioHouseId()` returns validated constant (no file I/O); all picker state/commands removed (`housePickerMode`, chooser helpers, `maintainHousePicker`, `ChooseHouse`/`SetHouse` handlers); `isScenarioHouse()` reverts to `challenge | scenario`. Two-VM bootstrap preserved.
+- [x] LH-20 — Suspendre le nettoyage périodique pendant la vague. Files: `LastHomeWaves.lua`, `specs/LH-20-cleanup-pas-pendant-vague.md`. The periodic ambient cleanup now runs only outside `Server.phase == "wave"`; the transition one-shots `"prep"`/`"wave"` are unchanged; `startWave()` no longer re-arms `Server.nextAmbientCleanupAt`, so no periodic cleanup is scheduled during an active wave. Commit `38b3967`.
 
 ## Backlog
 
 ### High priority
 - [ ] LH-MP-4 — Write `docs/MULTIPLAYER_SETUP.md` + run the A-H verification checklist on a dedicated/Host server (no code change expected; failures become follow-up tickets). Must confirm: (a) `OnServerStarted` fires in the SERVER VM on Host and dedicated (verified Host 25-07-26; dedicated still unconfirmed); (b) minimal `Mods=`/`Map=` line per house (`Mods=LastHome` alone vs `+Pillow/Xonic`) and whether Pillow's Random Scenarios is still required now that the Challenges menu is gone; (c) hardcoded `LastHomeShared.SCENARIO_HOUSE` is honored (elementary_school by default)
 - [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`). Spec written: `specs/LH-17-deduplication-role-equipment.md`
-- [ ] LH-20 — Suspendre le nettoyage périodique pendant la vague. Spec written: `specs/LH-20-cleanup-pas-pendant-vague.md`. Actuellement le gate `onTick` du cleanup périodique ne tient pas compte de la phase → il tourne aussi pendant la vague (en préservant les `LH_waveZombie` mais en supprimant les non-taggés). Changement : gater sur `Server.phase ~= "wave"` + retirer le réarmement de `nextAmbientCleanupAt` dans `startWave`. One-shots de transition `"prep"`/`"wave"` conservés.
 - [ ] LH-21 — Supprimer la flèche du stock communautaire. Spec written: `specs/LH-21-suppression-fleche-stock.md`. Supprimer `drawStockArrow` + `Events.OnPostUIDraw.Add(drawStockArrow)` dans `LastHomeClient.lua` (LH-15). Ne pas toucher aux données du stock (`house.stockSpawn`/`house.supply`/`getHouseStockSpawn`, toujours utilisées par LH-19) ni au reste du HUD (`drawWaveHud`).
 - [x] LH-18 — Stock communautaire : analyse A vs B terminée. `specs/LH-18-stock-spawn-analysis.md` confirme que l'approche A (caisse dédiée) échoue en sync MP sur chunk déjà chargé ; LH-19 applique l'approche B (`AddWorldInventoryItem`)
 - [ ] LH-19 — Valider les autres maisons en jeu et réajuster `HOUSE_SUPPLY_MULTIPLIER` si le volume reste trop élevé hors cas école/Host déjà vérifié
