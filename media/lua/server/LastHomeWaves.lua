@@ -687,9 +687,6 @@ local function startWave(immediate)
 
     resetSpectatorWaveUsage()
     clearAmbientZombiesNearHouse("wave")
-    if isScenarioHouse() then
-        Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
-    end
     print("[LastHome] VAGUE " .. tostring(Server.currentWave) .. " demarree - " .. tostring(getAlivePlayerCount()) .. " joueurs, direction(s): " .. formatDirections(Server.directions))
     spawnWaveZombies(calculateZombieCount(Server.currentWave, getAlivePlayerCount()))
     refreshZombiePressure(getNowSeconds())
@@ -920,6 +917,7 @@ local function onTick()
     updatePhaseState(now)
 
     if Server.started and not Server.gameOver and isScenarioHouse()
+        and Server.phase ~= "wave"
         and Server.nextAmbientCleanupAt ~= nil and now >= Server.nextAmbientCleanupAt then
         clearAmbientZombiesNearHouse("periodic")
         Server.nextAmbientCleanupAt = now + AMBIENT_CLEANUP_INTERVAL_SECONDS
