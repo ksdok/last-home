@@ -52,6 +52,7 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | └ [LH-MP-4](specs/LH-MP-4-mp-verification-docs.md) | MP server setup docs + verification checklist | 📝 |
 | └ [LH-MP-5](specs/LH-MP-5-house-picker-before-role-picker.md) | House picker before the role picker | ❌ cancelled (LH-MP-6) |
 | └ [LH-MP-6](specs/LH-MP-6-hardcoded-scenario-house.md) | MP-only mod: hardcoded scenario house, drop cfg/picker/Challenges | ✅ |
+| [LH-18](specs/LH-18-stock-spawn-analysis.md) | Stock communautaire : spawn dédié vs spawn au sol (analyse) | 📝 |
 
 ## Status
 
