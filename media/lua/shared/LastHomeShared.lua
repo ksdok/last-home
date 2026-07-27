@@ -558,7 +558,14 @@ function LastHomeShared.equipRoleItems(player, inv, equipped)
 
     if equipped.bag then
         local bag = inv:FindAndReturn(equipped.bag)
-        if bag then player:setClothingItem_Back(bag) end
+        if bag then
+            local bodyLocation = bag.getBodyLocation ~= nil and bag:getBodyLocation() or nil
+            if bodyLocation ~= nil and bodyLocation ~= "" and bodyLocation ~= "Back" then
+                player:setWornItem(bodyLocation, bag)
+            else
+                player:setClothingItem_Back(bag)
+            end
+        end
     end
 
     if equipped.clothes then

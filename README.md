@@ -91,7 +91,7 @@ last-home/
         LastHomeClient.lua      -- client bootstrap / HUD / solo sync / role flow
         LastHomeRolePicker.lua  -- role picker
       shared/
-        LastHomeRoles.lua       -- definitions of the 17 roles
+        LastHomeRoles.lua       -- definitions of the 18 roles
         LastHomeShared.lua      -- houses, coords, timers, boundary, logger, shared utils
   specs/
     LH-01-concept.md
@@ -104,6 +104,11 @@ last-home/
 ### Required mods
 
 - **Xonic's Mega Mall** (Workshop ID: `1713269594`) — map (the 4 buildings live on this map)
+- **Brita's Weapon Pack** (Workshop ID: `2200148440`, `Mod ID: Brita`) — weapon assets (models/textures/sounds)
+- **Brita's Armor Pack** (Workshop ID: `2460154811`, `Mod ID: Brita_2`) — tactical clothing (module `Base`, e.g. `Base.Suit_Wick`, `Base.Glove_Mechanix`)
+- **Arsenal(26) GunFighter** (Workshop ID: `2297098490`, `Mod ID: Arsenal(26)GunFighter[MAIN MOD 2.0]`) — functional weapon items (module `Base`, e.g. `Base.PPK`, `Base.MP5SD6_Fixed`)
+
+> Brita's Weapon Pack alone is assets-only; the functional gun items are defined by Arsenal(26) GunFighter (module `Base`), while Brita's Armor Pack provides the clothing. The three mods are required together by `mod.info` (see LH-22).
 
 ### Note
 

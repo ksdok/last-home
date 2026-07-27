@@ -1,6 +1,6 @@
 LastHomeRoles = LastHomeRoles or {}
 
-print("[LastHome] LastHomeRoles charge - " .. tostring(17) .. " roles")
+print("[LastHome] LastHomeRoles charge - " .. tostring(18) .. " roles")
 
 local Roles = LastHomeRoles
 
@@ -8,7 +8,7 @@ Roles.MODULE = "LastHome"
 
 Roles.ROLE_ORDER = {
     "soldat", "voleur", "local_", "medic",
-    "rambo", "sniper", "samourai", "geek",
+    "rambo", "sniper", "agent", "samourai", "geek",
     "survivaliste", "pompier", "athlete", "eclaireur",
     "demolisseur", "invincible", "mule", "builder",
     "civil",
@@ -21,6 +21,7 @@ Roles.ROLE_NAMES = {
     medic = "Medic",
     rambo = "Rambo",
     sniper = "Sniper",
+    agent = "007 Agent",
     samourai = "Samourai",
     geek = "Geek",
     survivaliste = "Survivaliste",
@@ -41,6 +42,7 @@ Roles.ROLE_INFO = {
     medic = { name = "Medic", summary = "Soin / support", strengths = "Soins lourds, stabilisation" },
     rambo = { name = "Rambo", summary = "Tank melee", strengths = "Hache, endurance, breches" },
     sniper = { name = "Sniper", summary = "Longue distance", strengths = ".308, lunette, couverture" },
+    agent = { name = "007 Agent", summary = "Agent secret / elimination silencieuse", strengths = "PPK silencieux, MP5SD6, discretion" },
     samourai = { name = "Samourai", summary = "Katana / mobilite", strengths = "Lames, vitesse, precision" },
     geek = { name = "Geek", summary = "Electronique / pieges", strengths = "Bidouille, alarmes, gadgets" },
     survivaliste = { name = "Survivaliste", summary = "Nature / autonomie", strengths = "Pieges, loot, autonomie" },
@@ -72,6 +74,7 @@ Roles.ROLE_DEFS = {
             {"Base.9mmClip", 2},
             {"Base.Bullets9mm", 30},
             {"Base.HuntingKnife", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 4},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_DuffelBag", 1},
@@ -175,6 +178,7 @@ Roles.ROLE_DEFS = {
         },
         items = {
             {"Base.KitchenKnife", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 10},
             {"Base.AlcoholWipes", 5},
             {"Base.Splint", 3},
@@ -216,6 +220,7 @@ Roles.ROLE_DEFS = {
         items = {
             {"Base.Axe", 1},
             {"Base.Machete", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 5},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_NormalHikingBag", 1},
@@ -250,6 +255,7 @@ Roles.ROLE_DEFS = {
             {"Base.308Bullets", 50},
             {"Base.x4Scope", 1},
             {"Base.HuntingKnife", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 2},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_NormalHikingBag", 1},
@@ -270,6 +276,53 @@ Roles.ROLE_DEFS = {
         },
         stats = { endurance = 0.4, panic = 15 },
     },
+    agent = {
+        name = "007 Agent",
+        skills = {
+            {Perks.Aiming, 10},
+            {Perks.Reloading, 10},
+            {Perks.Sneak, 8},
+            {Perks.Nimble, 8},
+            {Perks.Lightfoot, 7},
+            {Perks.Maintenance, 5},
+            {Perks.Strength, 4},
+            {Perks.Fitness, 5},
+            {Perks.Carpentry, 3},
+            {Perks.Trapping, 3},
+        },
+        items = {
+            {"Base.PPK", 1},
+            {"Base.380Clip", 3},
+            {"Base.Bullets380", 40},
+            {"Base.MP5SD6_Fixed", 1},
+            {"Base.9mmClip", 4},
+            {"Base.Bullets9mm", 60},
+            {"Base.Suppressor_Pistol", 1},
+            {"Base.Screwdriver", 1},
+            {"Base.HuntingKnife", 1},
+            {"Base.Bandage", 6},
+            {"Base.WaterBottleFull", 1},
+        },
+        bagContents = {
+            {"Base.380Clip", 2},
+            {"Base.9mmClip", 3},
+            {"Base.Bullets380", 20},
+            {"Base.Bullets9mm", 30},
+            {"Base.Suppressor_Pistol", 1},
+            {"Base.Bandage", 3},
+        },
+        equipped = {
+            primary = "Base.PPK",
+            bag = "Base.Bag_Tactical_Belt_Front",
+            clothes = {
+                "Base.Suit_Wick",
+                "Base.Suit_Trousers",
+                "Base.DressShoes",
+                "Base.Glove_Mechanix",
+            },
+        },
+        stats = { endurance = 0.5, panic = 10 },
+    },
     samourai = {
         name = "Samourai",
         skills = {
@@ -285,6 +338,7 @@ Roles.ROLE_DEFS = {
         items = {
             {"Base.Katana", 1},
             {"Base.Machete", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 3},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_NormalHikingBag", 1},
@@ -350,6 +404,7 @@ Roles.ROLE_DEFS = {
             {"Base.308Bullets", 24},
             {"Base.Bag_ALICEpack", 1},
             {"Base.DuctTape", 2},
+            {"Base.Screwdriver", 1},
             {"Base.Rope", 2},
             {"Base.Bandage", 3},
             {"Base.WaterBottleFull", 2},
@@ -382,6 +437,7 @@ Roles.ROLE_DEFS = {
         items = {
             {"Base.Axe", 1},
             {"Base.Extinguisher", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 5},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_ALICEpack", 1},
@@ -413,6 +469,7 @@ Roles.ROLE_DEFS = {
         },
         items = {
             {"Base.Machete", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 3},
             {"Base.WaterBottleFull", 1},
             {"Base.GranolaBar", 2},
@@ -444,6 +501,7 @@ Roles.ROLE_DEFS = {
             {"Base.Machete", 1},
             {"Base.Map", 1},
             {"Base.Torch", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 2},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_Schoolbag", 1},
@@ -482,6 +540,7 @@ Roles.ROLE_DEFS = {
             {"Base.Molotov", 5},
             {"Base.Sledgehammer", 1},
             {"Base.Lighter", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 3},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_ALICEpack", 1},
@@ -534,6 +593,7 @@ Roles.ROLE_DEFS = {
             {"Base.556Bullets", 60},
             {"Base.Katana", 1},
             {"Base.Sledgehammer", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 5},
             {"Base.AlcoholWipes", 3},
             {"Base.Splint", 2},
@@ -587,6 +647,7 @@ Roles.ROLE_DEFS = {
             {"Base.Bag_ALICEpack_Army", 1},
             {"Base.Bag_DuffelBag", 1},
             {"Base.Crowbar", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 3},
             {"Base.WaterBottleFull", 2},
             {"Base.TinnedBeans", 3},
@@ -695,6 +756,7 @@ Roles.ROLE_DEFS = {
         },
         items = {
             {"Base.KitchenKnife", 1},
+            {"Base.Screwdriver", 1},
             {"Base.Bandage", 1},
             {"Base.WaterBottleFull", 1},
             {"Base.GranolaBar", 2},
