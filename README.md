@@ -53,22 +53,22 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | └ [LH-MP-5](specs/LH-MP-5-house-picker-before-role-picker.md) | House picker before the role picker | ❌ cancelled (LH-MP-6) |
 | └ [LH-MP-6](specs/LH-MP-6-hardcoded-scenario-house.md) | MP-only mod: hardcoded scenario house, drop cfg/picker/Challenges | ✅ |
 | [LH-18](specs/LH-18-stock-spawn-analysis.md) | Stock communautaire : spawn dédié vs spawn au sol (analyse) | ✅ |
-| [LH-19](specs/LH-19-stock-ground-spawn.md) | Stock communautaire : spawn au sol (nourriture/eau/munitions) | 🔄 |
-| [LH-20](specs/LH-20-cleanup-pas-pendant-vague.md) | Suspendre le nettoyage périodique pendant la vague | 📝 |
-| [LH-21](specs/LH-21-suppression-fleche-stock.md) | Supprimer la flèche du stock communautaire | 📝 |
+| [LH-19](specs/LH-19-stock-ground-spawn.md) | Stock communautaire : spawn au sol (nourriture/eau/munitions) | ✅ |
+| [LH-20](specs/LH-20-cleanup-pas-pendant-vague.md) | Suspendre le nettoyage périodique pendant la vague | ✅ |
+| [LH-21](specs/LH-21-suppression-fleche-stock.md) | Supprimer la flèche du stock communautaire | ✅ |
 
 ## Status
 
 - ✅ Versioned specs complete for **LH-01** through **LH-08** and **LH-10**
 - 📝 Exploration spec written: **LH-12** (aggro via `createHordeFromTo`)
-- ✅ Implementation of **LH-02** through **LH-08**, **LH-10**, **LH-13**, **LH-14** and **LH-15** complete
+- ✅ Implementation of **LH-02** through **LH-08**, **LH-10**, **LH-13**, **LH-14**, **LH-19**, **LH-20** and **LH-21** complete (**LH-15** removed by **LH-21**)
 - ✅ MP-only delivery (LH-MP-6): the Challenges menu entries were removed; the mod runs from the multiplayer Host menu / solo sandbox, with the building hardcoded via `LastHomeShared.SCENARIO_HOUSE` (currently `elementary_school`)
 - ✅ Two-VM bootstrap fix: `OnServerStarted` runs the bootstrap in the SERVER VM (authoritative); `OnGameStart` is the solo-sandbox fallback (gated by `isClient()`). `applyDefaultSandboxVars` runs server-side so vanilla zombies are suppressed at the initial MP spawn
 - ✅ LH-10 timers: prep wave 1 = 2 min, subsequent prep = 5 min, wave = 5 min, skip via `K` key
 - ✅ Wave attraction refocused on alarm-like sound pulses toward the base to make zombie pressure reliable
 - ✅ Continuous vanilla/story spawn suppression around the base (periodic cleanup every 5s, `LH_waveZombie` tagging preserved)
-- 🔄 LH-19 started: the community stock is being moved to a one-shot ground spawn, limited to food, water bottles, and ammunition
-- ✅ On-screen stock arrow pointing to the community stock location with distance (visible through walls)
+- ✅ LH-19 ground stock: the community stock now spawns once on the ground near `stockSpawn` / `supply`, limited to food, water bottles, and ammunition
+- ❌ On-screen stock arrow removed by LH-21
 - 📋 Backlog and current tracking in [project-state.md](project-state.md)
 
 ## Mod Structure
