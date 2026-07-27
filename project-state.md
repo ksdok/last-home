@@ -315,7 +315,7 @@
     - `RolePickerReady` is routed into the house picker when pending: the first eligible non-spectator unassigned player becomes the chooser (`Server.houseChooserUsername`) and receives `OpenHousePicker`; other players receive `HouseSelectionWaiting`
     - `ChooseHouse` is authoritative: only the active chooser, only before waves start, only once; applies via `LastHomeServer.setSelectedHouse(id, "scenario-picker", username)`
     - on accept: broadcasts `HouseChosen`, then fans out `OpenRolePicker` to the chooser + every waiting unassigned player (house picker first, role picker second)
-    - chooser claim is released if that player goes offline, so a waiting player can claim it on the next `RolePickerReady`
+    - chooser claim is released if that player goes offline (or becomes a spectator); a server tick (`maintainHousePicker`) proactively re-elects a new chooser among connected eligible players and pushes `OpenHousePicker`/`HouseSelectionWaiting` to them, so the flow never deadlocks even though waiting clients have stopped retrying `RolePickerReady`
     - `ensureSelectedHouse()` no longer falls back to a random pick while in picker mode (teleport/refill/restore wait for the pending choice)
     - solo Challenges unchanged (bootstrap dormant via `isChallenge()`); solo sandbox with `picker` cfg falls back to `random` (no MP command transport)
     - cfg `hospital`/`villa`/`prison`/`elementary_school`/`random` behavior unchanged

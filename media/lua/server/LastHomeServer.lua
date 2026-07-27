@@ -242,6 +242,74 @@ end
 
 -- Route a RolePickerReady into the house-picker flow when the server is in
 -- pending picker mode. Returns true if handled (caller must return).
+-- Elect the first eligible online player as the house chooser and send them
+-- OpenHousePicker. Returns the new chooser username, or nil if no eligible
+-- player is currently connected.
+local function electHouseChooser()
+    for _, player in ipairs(getScenarioPlayers()) do
+        local username = player.getUsername and player:getUsername() or nil
+        if username ~= nil and isEligibleChooser(player) then
+            Server.houseChooserUsername = username
+            sendHousePickerOpen(username)
+            return username
+        end
+    end
+    return nil
+end
+
+-- Push a HouseSelectionWaiting refresh to every other connected unassigned
+-- non-spectator player (so they know a new chooser has taken over).
+local function notifyHouseSelectionWaitingToOthers(chooserUsername)
+    for _, player in ipairs(getScenarioPlayers()) do
+        local username = player.getUsername and player:getUsername() or nil
+        if username ~= nil and username ~= chooserUsername then
+            local modData = player.getModData and player:getModData() or nil
+            local isSpectator = modData ~= nil and (modData.LH_dead == true or modData.LH_spectator == true)
+            if not isSpectator and Server.assignedRoles[username] == nil then
+                sendHouseSelectionWaiting(username, chooserUsername)
+            end
+        end
+    end
+end
+
+-- Proactive picker maintenance (called from the server tick). Releases the
+-- chooser claim if that player went offline or became a spectator, then
+-- re-elects a new chooser among connected eligible players and pushes the
+-- updated OpenHousePicker / HouseSelectionWaiting state to everyone. This
+-- avoids a deadlock when waiting players have already stopped retrying
+-- RolePickerReady: the server drives the recovery instead of the clients.
+local function maintainHousePicker()
+    if not Server.housePickerMode then return end
+    if Server.selectedHouse ~= nil then return end
+    if Server.houseChooserUsername == nil then return end
+
+    local chooser = nil
+    if getOnlinePlayers ~= nil then
+        local onlinePlayers = getOnlinePlayers()
+        if onlinePlayers ~= nil then
+            for i = 0, onlinePlayers:size() - 1 do
+                local p = onlinePlayers:get(i)
+                if p ~= nil and p.getUsername ~= nil and p:getUsername() == Server.houseChooserUsername then
+                    chooser = p
+                    break
+                end
+            end
+        end
+    end
+
+    if chooser ~= nil and isEligibleChooser(chooser) then return end
+
+    print("[LastHome] Chooser " .. tostring(Server.houseChooserUsername) .. " perdu (deconnecte ou inelegible) -> re-election")
+    Server.houseChooserUsername = nil
+    local newChooser = electHouseChooser()
+    if newChooser ~= nil then
+        print("[LastHome] Nouveau chooser du lieu (re-election): " .. tostring(newChooser))
+        notifyHouseSelectionWaitingToOthers(newChooser)
+    else
+        print("[LastHome] Aucun joueur eligible pour reprendre le picker; en attente d'un RolePickerReady")
+    end
+end
+
 local function routeRolePickerReadyIntoHousePicker(player, username)
     if not Server.housePickerMode then return false end
     if Server.selectedHouse ~= nil then return false end
@@ -923,6 +991,7 @@ local function onBuilderRefillTick()
     Server.lastBuilderTickSecond = now
 
     processPostSpawnMaintenance(now)
+    maintainHousePicker()
 
     if Server.nextBuilderRefillAt == nil then
         if Server.selectedHouse ~= nil then
