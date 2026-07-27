@@ -18,7 +18,20 @@ local isInsideBoundary = LastHomeShared.isInsideBoundary
 local applyCarryProfile = LastHomeShared.applyCarryProfile
 local primeRoleLoadout = LastHomeShared.primeRoleLoadout
 local equipRoleItems = LastHomeShared.equipRoleItems
-local DEBUG_ENABLED = LastHomeShared.DEBUG == true
+
+-- Aliases to shared utilities (no local duplication)
+local logClient = function(msg) LastHomeShared.log("Client", msg) end
+local formatCoords = LastHomeShared.formatCoords
+local formatPlayerCoords = LastHomeShared.formatPlayerCoords
+local formatHouseLabel = LastHomeShared.formatHouseLabel
+local formatBoundaryLabel = LastHomeShared.formatBoundaryLabel
+local applyManualTeleportState = LastHomeShared.applyManualTeleportState
+local addItemsToContainer = LastHomeShared.addItemsToContainer
+local buildItemCounts = LastHomeShared.buildItemCounts
+local addRoleItems = LastHomeShared.addRoleItems
+local applyRoleStats = LastHomeShared.applyRoleStats
+local applyPerkLevel = LastHomeShared.applyPerkLevel
+
 local SKIP_WAVE_KEY = Keyboard ~= nil and Keyboard.KEY_K or nil
 
 local showRoleAssigned -- forward declaration (defined below)
@@ -34,41 +47,8 @@ local function isSinglePlayerRuntime()
     return true
 end
 
-local function logClient(message)
-    if not DEBUG_ENABLED then return end
-    print("[LastHome][Client] " .. tostring(message))
-end
-
 local function logBoundaryClient(message)
-    print("[LastHome][Boundary][Client] " .. tostring(message))
-end
-
-local function formatCoords(x, y, z)
-    return "(" .. tostring(x) .. ", " .. tostring(y) .. ", " .. tostring(z or 0) .. ")"
-end
-
-local function formatPlayerCoords(player)
-    if player == nil or player.getX == nil or player.getY == nil then
-        return "(?, ?, ?)"
-    end
-    return formatCoords(player:getX(), player:getY(), player.getZ ~= nil and player:getZ() or 0)
-end
-
-local function formatHouseLabel(house)
-    if house == nil then return "nil" end
-    return tostring(house.name or house.id or "?") .. "@" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
-end
-
-local function formatBoundaryLabel(house)
-    if house == nil then return "house=nil" end
-
-    if house.boundary ~= nil then
-        return tostring(house.name or house.id or "?")
-            .. " rect[x=" .. tostring(house.boundary.minX) .. ".." .. tostring(house.boundary.maxX)
-            .. ", y=" .. tostring(house.boundary.minY) .. ".." .. tostring(house.boundary.maxY) .. "]"
-    end
-
-    return tostring(house.name or house.id or "?") .. " radius=" .. tostring(house.boundaryRadius or 0) .. " center=" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
+    LastHomeShared.log("BoundaryClient", message)
 end
 
 LastHomeClient.waveState = LastHomeClient.waveState or {
@@ -177,112 +157,6 @@ end
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
 
-local function addItemsToContainer(container, itemId, count)
-    if container == nil or itemId == nil or count == nil or count <= 0 then return end
-    for _ = 1, count do
-        container:AddItem(itemId)
-    end
-end
-
-local function buildItemCounts(items)
-    local counts = {}
-    if items == nil then return counts end
-    for _, itemDef in ipairs(items) do
-        local itemId = itemDef[1]
-        local count = itemDef[2] or 1
-        counts[itemId] = (counts[itemId] or 0) + count
-    end
-    return counts
-end
-
-local function addRoleItems(inv, bagItem, bagItemId, items, bagContents)
-    if inv == nil or items == nil then return end
-
-    local bagContainer = bagItem and bagItem:getItemContainer() or nil
-    local bagCounts = buildItemCounts(bagContents)
-
-    for _, itemDef in ipairs(items) do
-        local itemId = itemDef[1]
-        local totalCount = itemDef[2] or 1
-
-        if itemId ~= bagItemId then
-            local bagCount = 0
-            if bagContainer ~= nil and bagCounts[itemId] ~= nil then
-                bagCount = math.min(totalCount, bagCounts[itemId])
-            end
-            local invCount = totalCount - bagCount
-
-            if invCount > 1 then
-                inv:AddItems(itemId, invCount)
-            elseif invCount == 1 then
-                inv:AddItem(itemId)
-            end
-
-            addItemsToContainer(bagContainer, itemId, bagCount)
-        end
-    end
-end
-
-local function applyRoleStats(player, stats)
-    if player == nil then return end
-
-    local playerStats = player:getStats()
-    playerStats:setPanic(30)
-    playerStats:setHunger(0.2)
-    playerStats:setThirst(0.2)
-    playerStats:setFatigue(0)
-
-    if stats == nil then return end
-    if stats.endurance ~= nil then playerStats:setEndurance(stats.endurance) end
-    if stats.panic ~= nil then playerStats:setPanic(stats.panic) end
-    if stats.fatigue ~= nil then playerStats:setFatigue(stats.fatigue) end
-    if stats.hunger ~= nil then playerStats:setHunger(stats.hunger) end
-    if stats.thirst ~= nil then playerStats:setThirst(stats.thirst) end
-end
-
-local function isPassivePerk(perk)
-    return perk == Perks.Strength or perk == Perks.Fitness
-end
-
-local function applyPerkLevel(player, perk, level)
-    if player == nil or perk == nil or level == nil then return end
-
-    local xp = player:getXp()
-    xp:setXPToLevel(perk, level)
-
-    if isPassivePerk(perk) and player.setPerkLevelDebug ~= nil then
-        player:setPerkLevelDebug(perk, level)
-    end
-
-    if player.getPerkLevel ~= nil then
-        local currentLevel = player:getPerkLevel(perk)
-
-        if currentLevel ~= nil and player.LevelPerk ~= nil then
-            while currentLevel < level do
-                player:LevelPerk(perk, false)
-                local newLevel = player:getPerkLevel(perk)
-                if newLevel == nil or newLevel <= currentLevel then
-                    break
-                end
-                currentLevel = newLevel
-            end
-        end
-
-        if currentLevel ~= nil and player.LoseLevel ~= nil then
-            while currentLevel > level do
-                player:LoseLevel(perk)
-                local newLevel = player:getPerkLevel(perk)
-                if newLevel == nil or newLevel >= currentLevel then
-                    break
-                end
-                currentLevel = newLevel
-            end
-        end
-    end
-
-    xp:setXPToLevel(perk, level)
-end
-
 -- Legacy solo fallback: intentionally kept as a safety net if the server flow
 -- in Challenge / solo mode regressed. This is not the nominal path.
 function LastHomeClient.applyRoleLocally(player, roleKey)
@@ -384,30 +258,6 @@ end
 local function isLocalUser(data)
     local player = getPlayer()
     return player ~= nil and data ~= nil and data.username == player:getUsername()
-end
-
-local function applyManualTeleportState(player, x, y, z)
-    player:setX(x)
-    player:setY(y)
-    player:setZ(z)
-
-    if player.setLx ~= nil then player:setLx(x) end
-    if player.setLy ~= nil then player:setLy(y) end
-    if player.setLz ~= nil then player:setLz(z) end
-    if player.setNx ~= nil then player:setNx(x) end
-    if player.setNy ~= nil then player:setNy(y) end
-    if player.setScriptnx ~= nil then player:setScriptnx(x) end
-    if player.setScriptny ~= nil then player:setScriptny(y) end
-
-    local cell = getCell ~= nil and getCell() or nil
-    local square = cell ~= nil and cell.getGridSquare ~= nil and cell:getGridSquare(x, y, z) or nil
-    if square ~= nil then
-        if player.setCurrent ~= nil then player:setCurrent(square) end
-        if player.setLast ~= nil then player:setLast(square) end
-    end
-
-    if player.setMovingSquareNow ~= nil then player:setMovingSquareNow() end
-    if player.ensureOnTile ~= nil then player:ensureOnTile() end
 end
 
 local function applyRoleAssignedTeleport(player, data)

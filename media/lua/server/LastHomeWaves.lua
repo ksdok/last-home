@@ -1,4 +1,5 @@
 require "LastHomeShared"
+require "LastHomeBoundary"
 
 LastHomeWaves = LastHomeWaves or {}
 
@@ -14,8 +15,6 @@ local PRESSURE_PULSE_SECONDS = 15
 local SPAWN_DISTANCE = 20
 local ARRIVAL_DIST_SQ = 36   -- 6 tiles: on stoppe le pulse quand un zombie de vague arrive pres du joueur
 local SPAWN_SPREAD = 8
-local BOUNDARY_COUNTDOWN_SECONDS = 10
-local BOUNDARY_DAMAGE_AMOUNT = 5
 local AMBIENT_CLEANUP_INTERVAL_SECONDS = 5
 local ZOMBIE_MODULE = "LastHome"
 
@@ -59,43 +58,18 @@ local isInsideBoundary = LastHomeShared.isInsideBoundary
 local getRandomHouse = LastHomeShared.getRandomHouse
 local cloneHouse = LastHomeShared.cloneHouse
 
-local function logBoundary(message)
-    print("[LastHome][Boundary] " .. tostring(message))
-end
+-- Aliases to shared utilities (no local duplication)
+local formatCoords = LastHomeShared.formatCoords
+local formatPlayerCoords = LastHomeShared.formatPlayerCoords
+local formatHouseLabel = LastHomeShared.formatHouseLabel
+local formatBoundaryLabel = LastHomeShared.formatBoundaryLabel
+local logBoundary = function(msg) LastHomeShared.log("Boundary", msg) end
 
-local function formatCoords(x, y, z)
-    return "(" .. tostring(x) .. ", " .. tostring(y) .. ", " .. tostring(z or 0) .. ")"
-end
-
-local function formatPlayerCoords(player)
-    if player == nil or player.getX == nil or player.getY == nil then
-        return "(?, ?, ?)"
-    end
-    return formatCoords(player:getX(), player:getY(), player.getZ ~= nil and player:getZ() or 0)
-end
-
-local function formatBoundaryLabel(house)
-    if house == nil then return "house=nil" end
-
-    if house.boundary ~= nil then
-        return tostring(house.name or house.id or "?")
-            .. " rect[x=" .. tostring(house.boundary.minX) .. ".." .. tostring(house.boundary.maxX)
-            .. ", y=" .. tostring(house.boundary.minY) .. ".." .. tostring(house.boundary.maxY) .. "]"
-    end
-
-    local radius = LastHomeShared.getBoundaryRadius ~= nil and LastHomeShared.getBoundaryRadius(house) or 0
-    return tostring(house.name or house.id or "?") .. " radius=" .. tostring(radius) .. " center=" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
-end
-
-local function updateBoundaryDebugTrace(username, key, message)
-    if username == nil then return end
-
-    Server.boundaryDebugTrace = Server.boundaryDebugTrace or {}
-    if Server.boundaryDebugTrace[username] == key then return end
-
-    Server.boundaryDebugTrace[username] = key
-    logBoundary(message)
-end
+-- Boundary functions extracted to LastHomeBoundary; keep local aliases for
+-- backward-compatible references inside this file.
+local syncBoundaryState = LastHomeBoundary.syncTo
+local resetBoundaryState = LastHomeBoundary.resetOne
+local resetAllBoundaryStates = LastHomeBoundary.resetAll
 
 local function isPlayerAlive(player)
     if player == nil then return false end
@@ -234,7 +208,21 @@ local function resetState()
     Server.nextPressurePulseAt = nil
     Server.nextAmbientCleanupAt = nil
     print("[LastHome] LastHomeWaves resetState - etat reinitialise")
+    LastHomeBoundary.init()
 end
+
+-- Wire LastHomeBoundary into the waves server state.
+LastHomeBoundary.attach(Server, {
+    log = logBoundary,
+    notifyPlayer = notifyPlayer,
+    hasBoundary = hasBoundary,
+    isInsideBoundary = isInsideBoundary,
+    formatCoords = formatCoords,
+    formatPlayerCoords = formatPlayerCoords,
+    formatBoundaryLabel = formatBoundaryLabel,
+    getScenarioPlayers = getScenarioPlayers,
+    isPlayerAlive = isPlayerAlive,
+})
 
 resetState()
 
@@ -288,59 +276,8 @@ local function notifyPlayer(username, text, alertType, durationSeconds)
     sendAlert(text, alertType or "warning", username, durationSeconds)
 end
 
-local function syncBoundaryState(username)
-    if username == nil then return end
-
-    local state = Server.boundaryStates[username]
-    logBoundary("Sync BoundaryState -> " .. tostring(username) .. " status=" .. tostring(state ~= nil and state.status or "inside") .. ", fin=" .. tostring(state ~= nil and state.countdownEndsAt or 0))
-    sendServerCommand(ZOMBIE_MODULE, "BoundaryState", {
-        username = username,
-        status = state ~= nil and state.status or "inside",
-        countdownEndsAt = state ~= nil and state.countdownEndsAt or 0,
-    })
-end
-
-local function resetBoundaryState(username)
-    if username == nil then return false end
-
-    local state = Server.boundaryStates[username]
-    if state == nil then return false end
-
-    logBoundary("Reset BoundaryState pour " .. tostring(username) .. " (ancien status=" .. tostring(state.status) .. ", fin=" .. tostring(state.countdownEndsAt or 0) .. ")")
-    Server.boundaryStates[username] = nil
-    syncBoundaryState(username)
-    return true
-end
-
-local function resetAllBoundaryStates()
-    if Server.boundaryStates == nil then return end
-
-    local usernames = {}
-    for username, _ in pairs(Server.boundaryStates) do
-        usernames[#usernames + 1] = username
-    end
-
-    if #usernames <= 0 then return end
-
-    Server.boundaryStates = {}
-    for _, username in ipairs(usernames) do
-        syncBoundaryState(username)
-    end
-end
-
 local function getOrCreateBoundaryState(username)
-    if username == nil then return nil end
-
-    local state = Server.boundaryStates[username]
-    if state == nil then
-        state = {
-            status = "inside",
-            countdownEndsAt = 0,
-            lastDamageAt = 0,
-        }
-        Server.boundaryStates[username] = state
-    end
-    return state
+    return LastHomeBoundary.getOrCreateState(username)
 end
 
 local function normalizeHouseData(houseOrX, centerY, centerZ, bounds)
@@ -931,89 +868,13 @@ local function onZombieDead(zombie)
     end
 end
 
+-- Boundary functions extracted to LastHomeBoundary; keep thin local wrappers.
 local function applyBoundaryDamage(player)
-    if player == nil then return end
-
-    local bodyDamage = player.getBodyDamage ~= nil and player:getBodyDamage() or nil
-    if bodyDamage ~= nil and bodyDamage.ReduceGeneralHealth ~= nil then
-        bodyDamage:ReduceGeneralHealth(BOUNDARY_DAMAGE_AMOUNT)
-        return
-    end
-
-    if player.getHealth ~= nil and player.setHealth ~= nil then
-        player:setHealth(math.max(0, player:getHealth() - BOUNDARY_DAMAGE_AMOUNT))
-    end
+    LastHomeBoundary.applyDamage(player)
 end
 
 local function updateBoundaryStates(now)
-    local boundaryEnabled = Server.started and not Server.gameOver and Server.phase ~= "idle" and Server.phase ~= "gameover" and Server.house ~= nil and hasBoundary ~= nil and hasBoundary(Server.house)
-    local boundaryEnabledDebugKey = tostring(boundaryEnabled) .. "|" .. tostring(Server.started) .. "|" .. tostring(Server.gameOver) .. "|" .. tostring(Server.phase) .. "|" .. formatBoundaryLabel(Server.house)
-
-    if Server.lastBoundaryEnabledDebugKey ~= boundaryEnabledDebugKey then
-        Server.lastBoundaryEnabledDebugKey = boundaryEnabledDebugKey
-        logBoundary("Confinement actif=" .. tostring(boundaryEnabled) .. ", started=" .. tostring(Server.started) .. ", gameOver=" .. tostring(Server.gameOver) .. ", phase=" .. tostring(Server.phase) .. ", house=" .. formatBoundaryLabel(Server.house))
-    end
-
-    if not boundaryEnabled then
-        resetAllBoundaryStates()
-        return
-    end
-
-    for _, player in ipairs(getScenarioPlayers()) do
-        if player ~= nil then
-            local username = player:getUsername()
-            if username ~= nil then
-                local modData = player:getModData()
-                local roleKey = modData ~= nil and modData.LH_role or nil
-                local isDead = modData ~= nil and modData.LH_dead == true
-                local isSpectator = modData ~= nil and modData.LH_spectator == true
-                local alive = isPlayerAlive(player)
-                local shouldCheck = roleKey ~= nil and not isDead and not isSpectator and alive
-
-                if not shouldCheck then
-                    updateBoundaryDebugTrace(username, "skip|" .. tostring(roleKey) .. "|" .. tostring(isDead) .. "|" .. tostring(isSpectator) .. "|" .. tostring(alive), "Skip confinement pour " .. tostring(username) .. " - role=" .. tostring(roleKey) .. ", dead=" .. tostring(isDead) .. ", spectator=" .. tostring(isSpectator) .. ", alive=" .. tostring(alive) .. ", coords=" .. formatPlayerCoords(player))
-                    resetBoundaryState(username)
-                else
-                    local insideBoundary = isInsideBoundary == nil or isInsideBoundary(player, Server.house)
-                    local state = Server.boundaryStates[username]
-
-                    if insideBoundary then
-                        if state ~= nil then
-                            updateBoundaryDebugTrace(username, "inside", "Retour dans la zone pour " .. tostring(username) .. " - coords=" .. formatPlayerCoords(player) .. ", house=" .. formatBoundaryLabel(Server.house))
-                        else
-                            updateBoundaryDebugTrace(username, "inside", "Dans la zone pour " .. tostring(username) .. " - coords=" .. formatPlayerCoords(player) .. ", house=" .. formatBoundaryLabel(Server.house))
-                        end
-
-                        if resetBoundaryState(username) then
-                            notifyPlayer(username, "[Last Home] De retour dans la zone.", "success", 4)
-                        end
-                    else
-                        if state == nil then
-                            state = getOrCreateBoundaryState(username)
-                            state.status = "countdown"
-                            state.countdownEndsAt = now + BOUNDARY_COUNTDOWN_SECONDS
-                            state.lastDamageAt = 0
-                            updateBoundaryDebugTrace(username, "countdown|" .. tostring(state.countdownEndsAt), "Sortie de zone detectee pour " .. tostring(username) .. " - coords=" .. formatPlayerCoords(player) .. ", countdownFin=" .. tostring(state.countdownEndsAt) .. ", house=" .. formatBoundaryLabel(Server.house))
-                            syncBoundaryState(username)
-                            notifyPlayer(username, "[Last Home] Hors zone ! Revenez dans 10s.", "danger", 4)
-                        elseif state.status == "countdown" and now >= (state.countdownEndsAt or 0) then
-                            state.status = "damaging"
-                            state.lastDamageAt = 0
-                            updateBoundaryDebugTrace(username, "damaging", "Degats de confinement actifs pour " .. tostring(username) .. " - coords=" .. formatPlayerCoords(player) .. ", house=" .. formatBoundaryLabel(Server.house))
-                            syncBoundaryState(username)
-                            notifyPlayer(username, "[Last Home] Hors zone ! Degats actifs.", "danger", 4)
-                        end
-
-                        if state.status == "damaging" and (state.lastDamageAt == nil or now > state.lastDamageAt) then
-                            state.lastDamageAt = now
-                            applyBoundaryDamage(player)
-                            logBoundary("Tick degats confinement pour " .. tostring(username) .. " - coords=" .. formatPlayerCoords(player) .. ", amount=" .. tostring(BOUNDARY_DAMAGE_AMOUNT))
-                        end
-                    end
-                end
-            end
-        end
-    end
+    LastHomeBoundary.updateAll(now)
 end
 
 local function updatePhaseState(now)

@@ -4,6 +4,11 @@ if LastHomeShared.DEBUG == nil then
     LastHomeShared.DEBUG = true
 end
 
+function LastHomeShared.log(module, message)
+    if LastHomeShared.DEBUG ~= true then return end
+    print("[LastHome][" .. tostring(module) .. "] " .. tostring(message))
+end
+
 local NOW_SOURCE = nil
 
 print("[LastHome] LastHomeShared charge, maisons: " .. tostring(4))
@@ -339,6 +344,116 @@ function LastHomeShared.applyCarryProfile(player, roleKey)
     end
 end
 
+function LastHomeShared.addItemsToContainer(container, itemId, count)
+    if container == nil or itemId == nil or count == nil or count <= 0 then return end
+    for _ = 1, count do
+        container:AddItem(itemId)
+    end
+end
+
+function LastHomeShared.buildItemCounts(items)
+    local counts = {}
+    if items == nil then return counts end
+    for _, itemDef in ipairs(items) do
+        local itemId = itemDef[1]
+        local count = itemDef[2] or 1
+        counts[itemId] = (counts[itemId] or 0) + count
+    end
+    return counts
+end
+
+function LastHomeShared.addRoleItems(inv, bagItem, bagItemId, items, bagContents)
+    if inv == nil or items == nil then return end
+    local bagContainer = bagItem and bagItem:getItemContainer() or nil
+    local bagCounts = LastHomeShared.buildItemCounts(bagContents)
+    for _, itemDef in ipairs(items) do
+        local itemId = itemDef[1]
+        local totalCount = itemDef[2] or 1
+        if itemId ~= bagItemId then
+            local bagCount = 0
+            if bagContainer ~= nil and bagCounts[itemId] ~= nil then
+                bagCount = math.min(totalCount, bagCounts[itemId])
+            end
+            local invCount = totalCount - bagCount
+            if invCount > 1 then
+                inv:AddItems(itemId, invCount)
+            elseif invCount == 1 then
+                inv:AddItem(itemId)
+            end
+            LastHomeShared.addItemsToContainer(bagContainer, itemId, bagCount)
+        end
+    end
+end
+
+function LastHomeShared.applyRoleStats(player, stats)
+    if player == nil then return end
+    local playerStats = player:getStats()
+    playerStats:setPanic(30)
+    playerStats:setHunger(0.2)
+    playerStats:setThirst(0.2)
+    playerStats:setFatigue(0)
+    if stats == nil then return end
+    if stats.endurance ~= nil then playerStats:setEndurance(stats.endurance) end
+    if stats.panic ~= nil then playerStats:setPanic(stats.panic) end
+    if stats.fatigue ~= nil then playerStats:setFatigue(stats.fatigue) end
+    if stats.hunger ~= nil then playerStats:setHunger(stats.hunger) end
+    if stats.thirst ~= nil then playerStats:setThirst(stats.thirst) end
+end
+
+function LastHomeShared.isPassivePerk(perk)
+    return perk == Perks.Strength or perk == Perks.Fitness
+end
+
+function LastHomeShared.applyPerkLevel(player, perk, level)
+    if player == nil or perk == nil or level == nil then return end
+    local xp = player:getXp()
+    xp:setXPToLevel(perk, level)
+    if LastHomeShared.isPassivePerk(perk) and player.setPerkLevelDebug ~= nil then
+        player:setPerkLevelDebug(perk, level)
+    end
+    if player.getPerkLevel ~= nil then
+        local currentLevel = player:getPerkLevel(perk)
+        if currentLevel ~= nil and player.LevelPerk ~= nil then
+            while currentLevel < level do
+                player:LevelPerk(perk, false)
+                local newLevel = player:getPerkLevel(perk)
+                if newLevel == nil or newLevel <= currentLevel then break end
+                currentLevel = newLevel
+            end
+        end
+        if currentLevel ~= nil and player.LoseLevel ~= nil then
+            while currentLevel > level do
+                player:LoseLevel(perk)
+                local newLevel = player:getPerkLevel(perk)
+                if newLevel == nil or newLevel >= currentLevel then break end
+                currentLevel = newLevel
+            end
+        end
+    end
+    xp:setXPToLevel(perk, level)
+end
+
+function LastHomeShared.applyManualTeleportState(player, x, y, z)
+    player:setX(x)
+    player:setY(y)
+    player:setZ(z)
+    if player.setLx ~= nil then player:setLx(x) end
+    if player.setLy ~= nil then player:setLy(y) end
+    if player.setLz ~= nil then player:setLz(z) end
+    if player.setNx ~= nil then player:setNx(x) end
+    if player.setNy ~= nil then player:setNy(y) end
+    if player.setScriptnx ~= nil then player:setScriptnx(x) end
+    if player.setScriptny ~= nil then player:setScriptny(y) end
+    local cell = getCell ~= nil and getCell() or nil
+    local square = cell ~= nil and cell.getGridSquare ~= nil and cell:getGridSquare(x, y, z) or nil
+    if square ~= nil then
+        if player.setCurrent ~= nil then player:setCurrent(square) end
+        if player.setLast ~= nil then player:setLast(square) end
+    end
+    if player.setMovingSquareNow ~= nil then player:setMovingSquareNow() end
+    if player.ensureOnTile ~= nil then player:ensureOnTile() end
+end
+
 local function forEachContainerItemRecursive(container, callback)
     if container == nil or callback == nil or container.getItems == nil then return end
 
@@ -547,6 +662,33 @@ function LastHomeShared.getHouseSpawnCandidates(house)
     end
 
     return result
+end
+
+function LastHomeShared.formatCoords(x, y, z)
+    return "(" .. tostring(x) .. ", " .. tostring(y) .. ", " .. tostring(z or 0) .. ")"
+end
+
+function LastHomeShared.formatPlayerCoords(player)
+    if player == nil or player.getX == nil or player.getY == nil then
+        return "(?, ?, ?)"
+    end
+    return LastHomeShared.formatCoords(player:getX(), player:getY(), player.getZ ~= nil and player:getZ() or 0)
+end
+
+function LastHomeShared.formatHouseLabel(house)
+    if house == nil then return "nil" end
+    return tostring(house.name or house.id or "?") .. "@" .. LastHomeShared.formatCoords(house.centerX, house.centerY, house.centerZ or 0)
+end
+
+function LastHomeShared.formatBoundaryLabel(house)
+    if house == nil then return "house=nil" end
+    if house.boundary ~= nil then
+        return tostring(house.name or house.id or "?")
+            .. " rect[x=" .. tostring(house.boundary.minX) .. ".." .. tostring(house.boundary.maxX)
+            .. ", y=" .. tostring(house.boundary.minY) .. ".." .. tostring(house.boundary.maxY) .. "]"
+    end
+    local radius = LastHomeShared.getBoundaryRadius(house)
+    return tostring(house.name or house.id or "?") .. " radius=" .. tostring(radius) .. " center=" .. LastHomeShared.formatCoords(house.centerX, house.centerY, house.centerZ or 0)
 end
 
 function LastHomeShared.getScenarioPlayers()

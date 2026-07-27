@@ -1,6 +1,7 @@
 require "LastHomeRoles"
 require "LastHomeShared"
 require "LastHomeWaves"
+require "LastHomeStock"
 
 LastHomeServer = LastHomeServer or {}
 
@@ -21,21 +22,13 @@ local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
 local ROLE_NAMES = LastHomeRoles.ROLE_NAMES
 local BUILDER_REFILL_ITEMS = LastHomeRoles.BUILDER_REFILL_ITEMS
 local COMMUNITY_STOCK_ITEMS = LastHomeRoles.COMMUNITY_STOCK_ITEMS or BUILDER_REFILL_ITEMS
-local HOUSE_SUPPLY_MULTIPLIER = 4
 local SPAWN_AMBIENT_CLEANUP_PADDING = 8
-local POST_SPAWN_MAINTENANCE_RETRY_SECONDS = 2
-local POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS = 8
-local STOCK_WORLD_ITEM_OFFSETS = {
-    {0.2, 0.2},
-    {0.5, 0.2},
-    {0.8, 0.2},
-    {0.2, 0.5},
-    {0.5, 0.5},
-    {0.8, 0.5},
-    {0.2, 0.8},
-    {0.5, 0.8},
-    {0.8, 0.8},
-}
+
+-- Stock ground spawn and post-spawn maintenance extracted to LastHomeStock.
+local ensureStockOnGround = function(house) return LastHomeStock.ensureOnGround(house, COMMUNITY_STOCK_ITEMS) end
+local spawnStockOnGround = function(house) return LastHomeStock.spawnOnGround(house, COMMUNITY_STOCK_ITEMS) end
+local schedulePostSpawnMaintenance = LastHomeStock.scheduleMaintenance
+local processPostSpawnMaintenance = function(now) LastHomeStock.processMaintenance(now, COMMUNITY_STOCK_ITEMS, ensureSelectedHouse, clearAmbientZombiesNearSpawn) end
 
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
@@ -45,28 +38,26 @@ local getHouseStockSpawn = LastHomeShared.getHouseStockSpawn
 local applyCarryProfile = LastHomeShared.applyCarryProfile
 local primeRoleLoadout = LastHomeShared.primeRoleLoadout
 local equipRoleItems = LastHomeShared.equipRoleItems
-local DEBUG_ENABLED = LastHomeShared.DEBUG == true
 
-local function logServer(message)
-    if not DEBUG_ENABLED then return end
-    print("[LastHome][Server] " .. tostring(message))
-end
+-- Aliases to shared utilities (no local duplication)
+local logServer = function(msg) LastHomeShared.log("Server", msg) end
+local formatCoords = LastHomeShared.formatCoords
+local formatHouseLabel = LastHomeShared.formatHouseLabel
+local formatPlayerCoords = LastHomeShared.formatPlayerCoords
+local applyManualTeleportState = LastHomeShared.applyManualTeleportState
+local addItemsToContainer = LastHomeShared.addItemsToContainer
+local buildItemCounts = LastHomeShared.buildItemCounts
+local addRoleItems = LastHomeShared.addRoleItems
+local applyRoleStats = LastHomeShared.applyRoleStats
+local applyPerkLevel = LastHomeShared.applyPerkLevel
 
-local function formatCoords(x, y, z)
-    return "(" .. tostring(x) .. ", " .. tostring(y) .. ", " .. tostring(z or 0) .. ")"
-end
-
-local function formatHouseLabel(house)
-    if house == nil then return "nil" end
-    return tostring(house.name or house.id or "?") .. "@" .. formatCoords(house.centerX, house.centerY, house.centerZ or 0)
-end
-
-local function formatPlayerCoords(player)
-    if player == nil or player.getX == nil or player.getY == nil then
-        return "(?, ?, ?)"
-    end
-    return formatCoords(player:getX(), player:getY(), player.getZ ~= nil and player:getZ() or 0)
-end
+-- Wire LastHomeStock into the server state.
+LastHomeStock.attach(Server, {
+    getHouseStockSpawn = getHouseStockSpawn,
+    getNowSeconds = getNowSeconds,
+    round = LastHomeShared.round,
+    formatCoords = formatCoords,
+})
 
 local function syncSelectedHouse()
     if Server.selectedHouse == nil then return end
@@ -104,95 +95,8 @@ function LastHomeServer.hasSelectedHouse()
     return Server.selectedHouse ~= nil
 end
 
-local function getStockGroundSquares(house)
-    local stockSpawn = getHouseStockSpawn ~= nil and getHouseStockSpawn(house) or nil
-    if stockSpawn == nil then return nil, nil end
-
-    local cell = getCell ~= nil and getCell() or nil
-    if cell == nil or cell.getGridSquare == nil then return nil, stockSpawn end
-
-    local sx = LastHomeShared.round(stockSpawn.x)
-    local sy = LastHomeShared.round(stockSpawn.y)
-    local sz = LastHomeShared.round(stockSpawn.z or house.centerZ or 0)
-    local centerSquare = cell:getGridSquare(sx, sy, sz)
-    if centerSquare == nil then
-        return nil, { x = sx, y = sy, z = sz }
-    end
-
-    local squares = {}
-    for dy = -1, 1 do
-        for dx = -1, 1 do
-            local square = cell:getGridSquare(sx + dx, sy + dy, sz)
-            if square ~= nil then
-                squares[#squares + 1] = square
-            end
-        end
-    end
-
-    return squares, { x = sx, y = sy, z = sz }
-end
-
-local function getStockWorldItemOffset(index)
-    local offsets = STOCK_WORLD_ITEM_OFFSETS
-    local entry = offsets[((index - 1) % #offsets) + 1]
-    return entry[1], entry[2]
-end
-
-local function spawnStockOnGround(house)
-    if house == nil then return false end
-    if Server.stockGroundSpawned then return true end
-
-    local stockSquares, stockSpawn = getStockGroundSquares(house)
-    if stockSquares == nil or stockSpawn == nil then
-        return false
-    end
-
-    local totalAdded = 0
-    local totalTypes = 0
-    local failedTypes = 0
-    local partialFailures = 0
-
-    for typeIndex, refillDef in ipairs(COMMUNITY_STOCK_ITEMS) do
-        local itemId = refillDef[1]
-        local baseTargetCount = refillDef[2] or 0
-        local targetCount = baseTargetCount * HOUSE_SUPPLY_MULTIPLIER
-
-        if itemId ~= nil and targetCount > 0 then
-            totalTypes = totalTypes + 1
-            local targetSquare = stockSquares[((typeIndex - 1) % #stockSquares) + 1]
-            local spawnedForType = 0
-
-            for itemIndex = 1, targetCount do
-                local offX, offY = getStockWorldItemOffset(itemIndex)
-                local ok, err = pcall(function()
-                    targetSquare:AddWorldInventoryItem(itemId, offX, offY, 0)
-                end)
-
-                if ok then
-                    spawnedForType = spawnedForType + 1
-                    totalAdded = totalAdded + 1
-                elseif spawnedForType == 0 then
-                    failedTypes = failedTypes + 1
-                    print("[LastHome] WARN: stock au sol - spawn echec pour " .. tostring(itemId) .. " sur " .. tostring(house.name or house.id or "?") .. " a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " err=" .. tostring(err))
-                    break
-                else
-                    partialFailures = partialFailures + 1
-                    print("[LastHome] WARN: stock au sol - spawn partiel pour " .. tostring(itemId) .. " sur " .. tostring(house.name or house.id or "?") .. " a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " (" .. tostring(spawnedForType) .. "/" .. tostring(targetCount) .. " spawnes) err=" .. tostring(err))
-                    break
-                end
-            end
-        end
-    end
-
-    Server.stockGroundSpawned = true
-    print("[LastHome] Stock au sol spawn: " .. tostring(totalTypes) .. " types, " .. tostring(totalAdded) .. " items sur " .. tostring(#stockSquares) .. " carres a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " pour " .. tostring(house.name or house.id or "?") .. " (types en echec=" .. tostring(failedTypes) .. ", echec partiel=" .. tostring(partialFailures) .. ")")
-    return true
-end
-
-local function ensureStockOnGround(house)
-    if Server.stockGroundSpawned then return true end
-    return spawnStockOnGround(house) == true
-end
+-- Stock functions (getStockGroundSquares, getStockWorldItemOffset, spawnStockOnGround,
+-- ensureStockOnGround) extracted to LastHomeStock. Wrappers defined above.
 
 local function isUsableSpawnSquare(square)
     if square == nil then return false end
@@ -250,30 +154,6 @@ local function pickHouseSpawnPoint(house)
     -- designated spawn point than leave the player at the default spawn.
     local fallback = candidates[startIndex]
     return fallback.x, fallback.y, fallback.z or house.centerZ or 0
-end
-
-local function applyManualTeleportState(player, x, y, z)
-    player:setX(x)
-    player:setY(y)
-    player:setZ(z)
-
-    if player.setLx ~= nil then player:setLx(x) end
-    if player.setLy ~= nil then player:setLy(y) end
-    if player.setLz ~= nil then player:setLz(z) end
-    if player.setNx ~= nil then player:setNx(x) end
-    if player.setNy ~= nil then player:setNy(y) end
-    if player.setScriptnx ~= nil then player:setScriptnx(x) end
-    if player.setScriptny ~= nil then player:setScriptny(y) end
-
-    local cell = getCell ~= nil and getCell() or nil
-    local square = cell ~= nil and cell.getGridSquare ~= nil and cell:getGridSquare(x, y, z) or nil
-    if square ~= nil then
-        if player.setCurrent ~= nil then player:setCurrent(square) end
-        if player.setLast ~= nil then player:setLast(square) end
-    end
-
-    if player.setMovingSquareNow ~= nil then player:setMovingSquareNow() end
-    if player.ensureOnTile ~= nil then player:ensureOnTile() end
 end
 
 local function getSpawnCleanupArea(house, spawnData)
@@ -350,58 +230,8 @@ local function clearAmbientZombiesNearSpawn(house, spawnData, reason)
     return removed
 end
 
-local function schedulePostSpawnMaintenance(house, spawnData, username)
-    if house == nil or spawnData == nil then
-        Server.pendingPostSpawnMaintenance = nil
-        return
-    end
-
-    Server.pendingPostSpawnMaintenance = {
-        houseId = house.id,
-        houseName = house.name or house.id or "?",
-        username = username,
-        spawnData = {
-            x = spawnData.x,
-            y = spawnData.y,
-            z = spawnData.z,
-            houseId = spawnData.houseId,
-        },
-        attempts = 0,
-        maxAttempts = POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS,
-        nextAttemptAt = getNowSeconds(),
-        stockReady = false,
-    }
-end
-
-local function processPostSpawnMaintenance(now)
-    local pending = Server.pendingPostSpawnMaintenance
-    if pending == nil then return end
-    if now < (pending.nextAttemptAt or 0) then return end
-
-    local house = ensureSelectedHouse()
-    if house == nil or house.id ~= pending.houseId then
-        Server.pendingPostSpawnMaintenance = nil
-        return
-    end
-
-    pending.attempts = (pending.attempts or 0) + 1
-    local attemptLabel = "role-spawn#" .. tostring(pending.attempts)
-    clearAmbientZombiesNearSpawn(house, pending.spawnData, attemptLabel)
-
-    if not pending.stockReady then
-        pending.stockReady = ensureStockOnGround(house) == true
-    end
-
-    if pending.stockReady or pending.attempts >= (pending.maxAttempts or POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS) then
-        if not pending.stockReady then
-            print("[LastHome] WARN: postSpawnMaintenance - stock au sol toujours indisponible (chunk non charge ou spawn echec) pour " .. tostring(pending.houseName) .. " apres " .. tostring(pending.attempts) .. " tentatives")
-        end
-        Server.pendingPostSpawnMaintenance = nil
-        return
-    end
-
-    pending.nextAttemptAt = now + POST_SPAWN_MAINTENANCE_RETRY_SECONDS
-end
+-- schedulePostSpawnMaintenance and processPostSpawnMaintenance extracted to
+-- LastHomeStock. Thin wrappers defined above.
 
 local function teleportPlayerToHouse(player)
     if player == nil then return false, nil end
@@ -469,115 +299,6 @@ end
 local function warnTeleportFailure(player, context)
     local username = player and player.getUsername and player:getUsername() or "?"
     print("[LastHome] WARN: teleport vers la maison echoue pour " .. tostring(username) .. " (" .. tostring(context or "unknown") .. ")")
-end
-
-local function addItemsToContainer(container, itemId, count)
-    if container == nil or itemId == nil or count == nil or count <= 0 then return end
-
-    for _ = 1, count do
-        container:AddItem(itemId)
-    end
-end
-
-local function buildItemCounts(items)
-    local counts = {}
-    if items == nil then return counts end
-
-    for _, itemDef in ipairs(items) do
-        local itemId = itemDef[1]
-        local count = itemDef[2] or 1
-        counts[itemId] = (counts[itemId] or 0) + count
-    end
-
-    return counts
-end
-
-local function addRoleItems(inv, bagItem, bagItemId, items, bagContents)
-    if inv == nil or items == nil then return end
-
-    local bagContainer = bagItem and bagItem:getItemContainer() or nil
-    local bagCounts = buildItemCounts(bagContents)
-
-    for _, itemDef in ipairs(items) do
-        local itemId = itemDef[1]
-        local totalCount = itemDef[2] or 1
-
-        if itemId ~= bagItemId then
-            local bagCount = 0
-            if bagContainer ~= nil and bagCounts[itemId] ~= nil then
-                bagCount = math.min(totalCount, bagCounts[itemId])
-            end
-            local invCount = totalCount - bagCount
-
-            if invCount > 1 then
-                inv:AddItems(itemId, invCount)
-            elseif invCount == 1 then
-                inv:AddItem(itemId)
-            end
-
-            addItemsToContainer(bagContainer, itemId, bagCount)
-        end
-    end
-end
-
-local function applyRoleStats(player, stats)
-    if player == nil then return end
-
-    local playerStats = player:getStats()
-    playerStats:setPanic(30)
-    playerStats:setHunger(0.2)
-    playerStats:setThirst(0.2)
-    playerStats:setFatigue(0)
-
-    if stats == nil then return end
-    if stats.endurance ~= nil then playerStats:setEndurance(stats.endurance) end
-    if stats.panic ~= nil then playerStats:setPanic(stats.panic) end
-    if stats.fatigue ~= nil then playerStats:setFatigue(stats.fatigue) end
-    if stats.hunger ~= nil then playerStats:setHunger(stats.hunger) end
-    if stats.thirst ~= nil then playerStats:setThirst(stats.thirst) end
-end
-
-local function isPassivePerk(perk)
-    return perk == Perks.Strength or perk == Perks.Fitness
-end
-
-local function applyPerkLevel(player, perk, level)
-    if player == nil or perk == nil or level == nil then return end
-
-    local xp = player:getXp()
-    xp:setXPToLevel(perk, level)
-
-    if isPassivePerk(perk) and player.setPerkLevelDebug ~= nil then
-        player:setPerkLevelDebug(perk, level)
-    end
-
-    if player.getPerkLevel ~= nil then
-        local currentLevel = player:getPerkLevel(perk)
-
-        if currentLevel ~= nil and player.LevelPerk ~= nil then
-            while currentLevel < level do
-                player:LevelPerk(perk, false)
-                local newLevel = player:getPerkLevel(perk)
-                if newLevel == nil or newLevel <= currentLevel then
-                    break
-                end
-                currentLevel = newLevel
-            end
-        end
-
-        if currentLevel ~= nil and player.LoseLevel ~= nil then
-            while currentLevel > level do
-                player:LoseLevel(perk)
-                local newLevel = player:getPerkLevel(perk)
-                if newLevel == nil or newLevel >= currentLevel then
-                    break
-                end
-                currentLevel = newLevel
-            end
-        end
-    end
-
-    xp:setXPToLevel(perk, level)
 end
 
 local function applyRole(player, roleKey)
@@ -754,50 +475,34 @@ function LastHomeServer.setSelectedHouse(houseId, source, actorUsername)
     if houseId == nil then return false end
 
     local selectionSource = source or "challenge"
-    local challengeActor = actorUsername ~= nil and tostring(actorUsername) or "?"
     local teleportContext = selectionSource == "challenge"
         and "SetHouse"
         or ("setSelectedHouse:" .. tostring(selectionSource))
+    local ctx = (selectionSource == "challenge")
+        and ("actor=" .. tostring(actorUsername or "?"))
+        or ("source=" .. tostring(selectionSource))
     local wavesStarted = LastHomeWaves ~= nil
         and LastHomeWaves.hasStarted ~= nil
         and LastHomeWaves.hasStarted() == true
 
     if wavesStarted then
-        if Server.selectedHouse ~= nil and Server.selectedHouse.id == houseId then
-            if selectionSource == "challenge" then
-                print("[LastHome] SetHouse ignore pour " .. challengeActor .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
-            else
-                print("[LastHome] setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
-            end
-            return false
-        end
-
-        if selectionSource == "challenge" then
-            print("[LastHome] WARN: SetHouse ignore pour " .. challengeActor .. " (houseId=" .. tostring(houseId) .. ") car les vagues ont demarree")
-        else
-            print("[LastHome] WARN: setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId=" .. tostring(houseId) .. ") car les vagues ont demarree")
-        end
+        local reason = (Server.selectedHouse ~= nil and Server.selectedHouse.id == houseId)
+            and "car la maison est deja selectionnee"
+            or "car les vagues ont demarree"
+        print("[LastHome] WARN: setSelectedHouse ignore (" .. ctx .. ", houseId=" .. tostring(houseId) .. ") " .. reason)
         return false
     end
 
     if Server.selectedHouse ~= nil
         and Server.selectedHouse.id == houseId
         and Server.selectedHouse.source == selectionSource then
-        if selectionSource == "challenge" then
-            print("[LastHome] SetHouse ignore pour " .. challengeActor .. " (houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
-        else
-            print("[LastHome] setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
-        end
+        print("[LastHome] setSelectedHouse ignore (" .. ctx .. ", houseId=" .. tostring(houseId) .. ") car la maison est deja selectionnee")
         return false
     end
 
     local house = LastHomeShared.getHouseById(houseId)
     if house == nil then
-        if selectionSource == "challenge" then
-            print("[LastHome] WARN: SetHouse ignore pour " .. challengeActor .. " (houseId inconnu=" .. tostring(houseId) .. ")")
-        else
-            print("[LastHome] WARN: setSelectedHouse ignore (source=" .. tostring(selectionSource) .. ", houseId inconnu=" .. tostring(houseId) .. ")")
-        end
+        print("[LastHome] WARN: setSelectedHouse ignore (" .. ctx .. ", houseId inconnu=" .. tostring(houseId) .. ")")
         return false
     end
 
@@ -822,19 +527,10 @@ function LastHomeServer.setSelectedHouse(houseId, source, actorUsername)
     end
 
     if previousHouse ~= nil and previousHouse.id ~= nil and previousHouse.id ~= house.id then
-        if selectionSource == "challenge" then
-            print("[LastHome] Maison challenge remplace la rotation: " .. tostring(previousHouse.id) .. " -> " .. tostring(house.id))
-        else
-            print("[LastHome] Maison remplacee: " .. tostring(previousHouse.id) .. " -> " .. tostring(house.id))
-        end
+        print("[LastHome] Maison remplacee: " .. tostring(previousHouse.id) .. " -> " .. tostring(house.id))
     end
 
-    if selectionSource == "challenge" then
-        print("[LastHome] Maison forcee par challenge: " .. tostring(house.name or house.id))
-    else
-        print("[LastHome] Maison selectionnee (source=" .. tostring(selectionSource) .. "): " .. tostring(house.name or house.id))
-    end
-
+    print("[LastHome] Maison selectionnee (" .. ctx .. "): " .. tostring(house.name or house.id))
     return true
 end
 
