@@ -51,16 +51,30 @@ require "LastHomeServer"
 
 print("[LastHome] LastHomeBootstrap charge")
 
-local bootstrapRan = false
-
 local function isChallengeMode()
     local core = getCore()
     return core ~= nil and core.isChallenge ~= nil and core:isChallenge()
 end
 
+-- True in the MP client VM (connected to a server, including the Host's own
+-- integrated client). False in solo and on the server VM. Used to restrict the
+-- OnGameStart fallback to solo only, so the Host client VM does NOT run a
+-- divergent bootstrap (the authoritative bootstrap runs in the server VM via
+-- OnServerStarted).
+local function isClientVM()
+    return isClient ~= nil and isClient() == true
+end
+
 local function runBootstrap(eventName)
-    if bootstrapRan then return end
-    bootstrapRan = true
+    -- Idempotency guard based on authoritative server state (cleared by
+    -- LastHomeServer.resetState, so a re-host in the same process re-bootstraps).
+    -- Within a single launch only one of OnServerStarted/OnGameStart fires in a
+    -- given VM, so this does not mask a needed run; it only skips a redundant
+    -- re-run if the event were to fire twice.
+    if LastHomeServer.hasSelectedHouse() or LastHomeServer.isHousePickerMode() then
+        print("[LastHome] LastHomeBootstrap " .. tostring(eventName) .. " ignore (maison deja selectionnee / picker deja actif)")
+        return
+    end
 
     print("[LastHome] LastHomeBootstrap " .. tostring(eventName))
 
@@ -104,12 +118,19 @@ local function runBootstrap(eventName)
 end
 
 local function onServerStarted()
+    -- SERVER VM (authoritative) and dedicated server.
     runBootstrap("OnServerStarted")
 end
 
 local function onGameStart()
-    -- Solo-sandbox fallback: in solo there is no server VM, so OnServerStarted
-    -- does not fire; OnGameStart runs in the single (authoritative) VM.
+    -- Solo-sandbox fallback ONLY. In Host/MP the client VM also receives
+    -- OnGameStart, but the authoritative bootstrap already ran (or will run) in
+    -- the server VM via OnServerStarted; skip the client VM here to avoid a
+    -- divergent local state and misleading logs (e.g. the picker branch's
+    -- "GameServer == nil -> random" would otherwise fire in the client VM).
+    if isClientVM() then
+        return
+    end
     runBootstrap("OnGameStart")
 end
 

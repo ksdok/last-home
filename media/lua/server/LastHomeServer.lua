@@ -180,6 +180,13 @@ function LastHomeServer.isHousePickerMode()
     return Server.housePickerMode == true
 end
 
+-- True once a scenario/challenge/picker house has been selected. Used by the
+-- bootstrap to decide whether it still needs to run (idempotency guard that is
+-- cleared by resetState, so a re-host in the same process re-bootstraps).
+function LastHomeServer.hasSelectedHouse()
+    return Server.selectedHouse ~= nil
+end
+
 -- Apply an interactive house choice coming from the chooser client.
 -- Authoritative: only the active chooser can choose, only before waves start,
 -- and only once (the first accepted choice ends picker mode).
