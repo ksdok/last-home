@@ -622,7 +622,7 @@ end
 -- Reads the scenario house id from a dedicated-server config file.
 -- One source of truth for the bootstrap (LH-MP-2).
 --
--- File: <userDir>/Server/LastHomeHouse.cfg  (or relative Zomboid/Server/...)
+-- File: <userDir>/Server/LastHomeHouse.cfg
 -- Format: first non-empty, non-comment line is the token.
 -- Valid: hospital | villa | prison | elementary_school | random | picker
 --   - picker: do NOT auto-select a house; the server enters a pending
@@ -630,31 +630,54 @@ end
 --     Only meaningful on an MP server (Host/dedicated); in solo it falls
 --     back to random (the bootstrap resolves it).
 -- Missing/unreadable/invalid -> "random".
--- The resolved path is logged on every read attempt.
+--
+-- Path resolution: the Lua `fileExists`/`getFileReader` globals do NOT
+-- reliably resolve the relative "Server/LastHomeHouse.cfg" in the SERVER VM
+-- (verified in-game 27-07-26: the file exists at <userDir>/Server/... but
+-- `fileExists("Server/LastHomeHouse.cfg")` returns false on the server).
+-- We therefore build an absolute path from getCore():getMyDocumentFolder()
+-- and try a small candidate list, opening the first one that yields a reader.
+local function openFirstExisting(paths)
+    for _, path in ipairs(paths) do
+        local ok, reader = pcall(function() return getFileReader(path, false) end)
+        if ok and reader ~= nil then
+            -- Probe: a non-existent file can return a non-nil reader that
+            -- throws on readLine in some Kahlua builds; guard the first read.
+            local probeOk, probeLine = pcall(function() return reader:readLine() end)
+            if probeOk then
+                return reader, path, probeLine
+            end
+        end
+    end
+    return nil, nil, nil
+end
+
 function LastHomeShared.getScenarioHouseId()
     local validIds = { hospital = true, villa = true, prison = true,
                        elementary_school = true }
     local defaultId = "random"
 
-    -- PZ's getFileReader / fileExists resolve relative to the user Zomboid
-    -- data folder, so a relative "Server/LastHomeHouse.cfg" maps to
-    -- <userDir>/Server/LastHomeHouse.cfg. Do NOT use `io` (nil in Kahlua).
-    local relPath = "Server/LastHomeHouse.cfg"
-
-    if fileExists == nil or not fileExists(relPath) then
-        print("[LastHome] LastHomeHouse.cfg introuvable (path=" .. tostring(relPath) .. ") -> random")
-        return defaultId
+    local userDir = "?"
+    if getCore ~= nil and getCore() ~= nil and getCore().getMyDocumentFolder ~= nil then
+        userDir = getCore():getMyDocumentFolder() or "?"
     end
+    print("[LastHome] getScenarioHouseId userDir=" .. tostring(userDir))
 
-    local reader = getFileReader(relPath, false)
+    local candidates = {
+        "Server/LastHomeHouse.cfg",
+        tostring(userDir) .. "/Server/LastHomeHouse.cfg",
+    }
+
+    local reader, usedPath, firstLine = openFirstExisting(candidates)
     if reader == nil then
-        print("[LastHome] LastHomeHouse.cfg non lisible (path=" .. tostring(relPath) .. ") -> random")
+        print("[LastHome] LastHomeHouse.cfg introuvable (userDir=" .. tostring(userDir) .. ", candidates: " .. table.concat(candidates, " | ") .. ") -> random")
         return defaultId
     end
+    print("[LastHome] LastHomeHouse.cfg ouvert (path=" .. tostring(usedPath) .. ")")
 
     local result = defaultId
     local found = false
-    local line = reader:readLine()
+    local line = firstLine
     while line ~= nil do
         local trimmed = line:match("^%s*(.-)%s*$")
         if trimmed ~= nil and trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
@@ -676,7 +699,7 @@ function LastHomeShared.getScenarioHouseId()
     reader:close()
 
     if not found then
-        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(relPath) .. ") -> random")
+        print("[LastHome] LastHomeHouse.cfg vide (path=" .. tostring(usedPath) .. ") -> random")
     end
     return result
 end
