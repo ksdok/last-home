@@ -21,7 +21,7 @@ local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
 local ROLE_NAMES = LastHomeRoles.ROLE_NAMES
 local BUILDER_REFILL_ITEMS = LastHomeRoles.BUILDER_REFILL_ITEMS
 local COMMUNITY_STOCK_ITEMS = LastHomeRoles.COMMUNITY_STOCK_ITEMS or BUILDER_REFILL_ITEMS
-local HOUSE_SUPPLY_MULTIPLIER = 8
+local HOUSE_SUPPLY_MULTIPLIER = 4
 local SPAWN_AMBIENT_CLEANUP_PADDING = 8
 local POST_SPAWN_MAINTENANCE_RETRY_SECONDS = 2
 local POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS = 8
@@ -129,10 +129,6 @@ local function getStockGroundSquares(house)
         end
     end
 
-    if #squares == 0 then
-        squares[1] = centerSquare
-    end
-
     return squares, { x = sx, y = sy, z = sz }
 end
 
@@ -154,6 +150,7 @@ local function spawnStockOnGround(house)
     local totalAdded = 0
     local totalTypes = 0
     local failedTypes = 0
+    local partialFailures = 0
 
     for typeIndex, refillDef in ipairs(COMMUNITY_STOCK_ITEMS) do
         local itemId = refillDef[1]
@@ -178,13 +175,17 @@ local function spawnStockOnGround(house)
                     failedTypes = failedTypes + 1
                     print("[LastHome] WARN: stock au sol - spawn echec pour " .. tostring(itemId) .. " sur " .. tostring(house.name or house.id or "?") .. " a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " err=" .. tostring(err))
                     break
+                else
+                    partialFailures = partialFailures + 1
+                    print("[LastHome] WARN: stock au sol - spawn partiel pour " .. tostring(itemId) .. " sur " .. tostring(house.name or house.id or "?") .. " a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " (" .. tostring(spawnedForType) .. "/" .. tostring(targetCount) .. " spawnes) err=" .. tostring(err))
+                    break
                 end
             end
         end
     end
 
     Server.stockGroundSpawned = true
-    print("[LastHome] Stock au sol spawn: " .. tostring(totalTypes) .. " types, " .. tostring(totalAdded) .. " items sur " .. tostring(#stockSquares) .. " carres a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " pour " .. tostring(house.name or house.id or "?") .. " (types en echec=" .. tostring(failedTypes) .. ")")
+    print("[LastHome] Stock au sol spawn: " .. tostring(totalTypes) .. " types, " .. tostring(totalAdded) .. " items sur " .. tostring(#stockSquares) .. " carres a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " pour " .. tostring(house.name or house.id or "?") .. " (types en echec=" .. tostring(failedTypes) .. ", echec partiel=" .. tostring(partialFailures) .. ")")
     return true
 end
 
@@ -393,7 +394,7 @@ local function processPostSpawnMaintenance(now)
 
     if pending.stockReady or pending.attempts >= (pending.maxAttempts or POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS) then
         if not pending.stockReady then
-            print("[LastHome] WARN: postSpawnMaintenance - stock au sol toujours indisponible pour " .. tostring(pending.houseName) .. " apres " .. tostring(pending.attempts) .. " tentatives")
+            print("[LastHome] WARN: postSpawnMaintenance - stock au sol toujours indisponible (chunk non charge ou spawn echec) pour " .. tostring(pending.houseName) .. " apres " .. tostring(pending.attempts) .. " tentatives")
         end
         Server.pendingPostSpawnMaintenance = nil
         return

@@ -127,7 +127,7 @@ local HOUSE_DEFS = {
         },
         stockSpawn = {
             x = 10616,
-            y = 9971,
+            y = 9972,
             z = 0,
         },
     },

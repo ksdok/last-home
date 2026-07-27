@@ -71,17 +71,17 @@ dans `LastHomeShared.HOUSE_DEFS[].stockSpawn`, soit en réutilisant `supply`.
 | hospital | TBD |
 | villa | TBD |
 | prison | TBD |
-| elementary_school | `(10616, 9971, 0)` (réutilise `supply`) ou TBD |
+| elementary_school | `(10616, 9972, 0)` |
 
-Tant que les coords ne sont pas fournies, on retombe sur `house.supply`.
+Tant que les coords ne sont pas fournies pour une maison, on retombe sur `house.supply`.
 
 ### 3. Volume
 
 - `COMMUNITY_STOCK_ITEMS` = 38 types, 182 unités de base, × `HOUSE_SUPPLY_MULTIPLIER`
-  (8) = **1456 items**.
-- 1456 `IsoWorldInventoryObject` reste significatif (rendu, sauvegarde). Le spread 3×3
-  aide (≈ 500/tile) mais le total reste élevé.
-- Réglage : baisser `HOUSE_SUPPLY_MULTIPLIER` (8 → 2-3) si lag constaté en jeu.
+  (4) = **728 items**.
+- 728 `IsoWorldInventoryObject` reste significatif (rendu, sauvegarde). Le spread 3×3
+  aide (≈ 80/tile) mais le total reste à surveiller.
+- Réglage actuel : `HOUSE_SUPPLY_MULTIPLIER = 4` (abaissé depuis 8). Réduire encore si lag constaté en jeu.
   Le Builder inventory refill compense côté ressources continues.
 - Pas de refill au sol périodique (sinon accumulation infinie).
 

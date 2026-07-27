@@ -17,7 +17,7 @@
 - ✅ Villa stabilized: waves forced to **South**, ground-level spawns, wave attraction refocused on alarm-like sound pulses toward the base
 - ✅ **LH-12** resolved in-game (god mode was blocking the zombie AI)
 - 📝 **LH-17** written: deduplication of role-application logic into `LastHomeShared`
-- 🔄 **LH-19** implementation started: the community stock now targets a one-shot **ground spawn** near `stockSpawn`/`supply`, with contents reduced to **food + water bottles + ammunition**; in-game MP verification and volume tuning still pending
+- ✅ **LH-19** verified in-game on MP Host (elementary_school): the community stock now spawns once on the ground near `stockSpawn`/`supply`, limited to **food + water bottles + ammunition**; `elementary_school.stockSpawn = (10616, 9972, 0)`, `HOUSE_SUPPLY_MULTIPLIER = 4`, and `coop-console.txt` shows `Stock au sol spawn: 38 types, 728 items ... (types en echec=0, echec partiel=0)`
 - ⏳ Next: write `docs/MULTIPLAYER_SETUP.md` + run **in-game MP verification** (LH-MP-4) on a dedicated/Host server — confirm `OnServerStarted` bootstrap fires in the SERVER VM, the hardcoded `SCENARIO_HOUSE` is applied server-side, vanilla zombies suppressed at initial MP spawn, and whether Pillow's Random Scenarios is still a required dep now that the Challenges menu is gone; then roles, teleport, confinement, waves, spectators, late joiners, HUD, ambient cleanup, zombie cleanup around the role spawn, ground-stock visibility/sync, and stock volume tuning; then Villa attraction, LH-10 pacing, Track A testing, parasite spawn suppression validation
 
 ## Completed
@@ -72,7 +72,7 @@
 - [ ] LH-MP-4 — Write `docs/MULTIPLAYER_SETUP.md` + run the A-H verification checklist on a dedicated/Host server (no code change expected; failures become follow-up tickets). Must confirm: (a) `OnServerStarted` fires in the SERVER VM on Host and dedicated (verified Host 25-07-26; dedicated still unconfirmed); (b) minimal `Mods=`/`Map=` line per house (`Mods=LastHome` alone vs `+Pillow/Xonic`) and whether Pillow's Random Scenarios is still required now that the Challenges menu is gone; (c) hardcoded `LastHomeShared.SCENARIO_HOUSE` is honored (elementary_school by default)
 - [ ] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`). Spec written: `specs/LH-17-deduplication-role-equipment.md`
 - [x] LH-18 — Stock communautaire : analyse A vs B terminée. `specs/LH-18-stock-spawn-analysis.md` confirme que l'approche A (caisse dédiée) échoue en sync MP sur chunk déjà chargé ; LH-19 applique l'approche B (`AddWorldInventoryItem`)
-- [ ] LH-19 — Vérifier en jeu le spawn au sol one-shot (Host/MP), la visibilité client, le spread 3×3, et ajuster `HOUSE_SUPPLY_MULTIPLIER` si le volume reste trop élevé
+- [ ] LH-19 — Valider les autres maisons en jeu et réajuster `HOUSE_SUPPLY_MULTIPLIER` si le volume reste trop élevé hors cas école/Host déjà vérifié
 - [ ] Fix Villa / house stock playability:
   - `pickHouseSpawnPoint` fails on all 10 spawn candidates (box `[13532..13533, 2839..2843, z=1]` → no `isFree` square); it only checks `isFree(false)` and needs a wider/falling-back scan
   - Validate the configured `stockSpawn`/`supply` square in Villa in-game so the ground stock lands in a practical location
@@ -105,6 +105,7 @@
 - Logs show `SandboxVars` + `ZombieConfig` aren't enough to prevent certain `RDS*` / `createEatingZombies` spawns in Challenge mode; a continuous server-side cleanup around the base is now specified in LH-13
 - LH-19 replaces the old container-based community stock with a one-shot **ground spawn** (`AddWorldInventoryItem`) near `stockSpawn` / `supply`
 - `COMMUNITY_STOCK_ITEMS` now contains only **food, water bottles, and ammunition** for the shared ground stock; `BUILDER_REFILL_ITEMS` remains the Builder's 10-minute inventory refill list
+- `HOUSE_SUPPLY_MULTIPLIER` is currently **4** for the ground stock (down from 8); verified on MP Host for `elementary_school`, pending validation on the other houses
 - All roles have at minimum `Carpentry` 3 and `Trapping` 3 to be able to create barricades and traps (existing higher levels are preserved, e.g. builder/invincible Carpentry 10, survivalist Trapping 8)
 - Water bottles (`WaterBottleFull`) are placed in the main inventory, not the backpack (removed from `bagContents`), to remain accessible and prevent thirst
 - The LH-02 implementation draws inspiration from Escapade Express's structure, but without role locking logic
