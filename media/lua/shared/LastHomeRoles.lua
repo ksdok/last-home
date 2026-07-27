@@ -728,7 +728,7 @@ Roles.BUILDER_REFILL_ITEMS = {
     {"Base.Glue", 5},
     {"Base.MetalBar", 10},
     {"Base.Screws", 100},
-    -- Food / water (community stock, refill x8)
+    -- Food / water kept in the builder refill inventory.
     {"Base.TinnedBeans", 5},
     {"Base.TinnedSoup", 5},
     {"Base.TunaTin", 5},
@@ -761,6 +761,50 @@ Roles.BUILDER_REFILL_ITEMS = {
     {"Base.Pickles", 2},
     {"Base.JamFruit", 2},
     {"Base.WaterBottleFull", 6},
+}
+
+Roles.COMMUNITY_STOCK_ITEMS = {
+    -- Food
+    {"Base.TinnedBeans", 5},
+    {"Base.TinnedSoup", 5},
+    {"Base.TunaTin", 5},
+    {"Base.CannedSardines", 4},
+    {"Base.CannedChili", 4},
+    {"Base.CannedCorn", 4},
+    {"Base.CannedPeas", 4},
+    {"Base.CannedCarrots", 4},
+    {"Base.CannedPotato", 4},
+    {"Base.CannedTomato", 4},
+    {"Base.CannedPeaches", 3},
+    {"Base.CannedPineapple", 3},
+    {"Base.CannedMushroomSoup", 3},
+    {"Base.CannedCornedBeef", 3},
+    {"Base.PeanutButter", 3},
+    {"Base.Honey", 2},
+    {"Base.Chocolate", 4},
+    {"Base.Crisps", 4},
+    {"Base.Popcorn", 3},
+    {"Base.Peanuts", 4},
+    {"Base.Cereal", 3},
+    {"Base.Oats", 3},
+    {"Base.Rice", 3},
+    {"Base.Pasta", 3},
+    {"Base.GranolaBar", 4},
+    {"Base.GrahamCrackers", 3},
+    {"Base.BreadSlices", 3},
+    {"Base.Cheese", 3},
+    {"Base.Milk", 2},
+    {"Base.Pickles", 2},
+    {"Base.JamFruit", 2},
+    -- Water
+    {"Base.WaterBottleFull", 6},
+    -- Ammo
+    {"Base.9mmClip", 2},
+    {"Base.Bullets9mm", 24},
+    {"Base.308Clip", 2},
+    {"Base.308Bullets", 16},
+    {"Base.556Clip", 2},
+    {"Base.556Bullets", 24},
 }
 
 return Roles

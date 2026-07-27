@@ -13,6 +13,7 @@ local soloFallbackTickRegistered = false
 local soloStateLastSyncSecond = nil
 local skipWaveRequested = false
 local getNowSeconds = LastHomeShared.getNowSeconds
+local getHouseStockSpawn = LastHomeShared.getHouseStockSpawn
 local isInsideBoundary = LastHomeShared.isInsideBoundary
 local applyCarryProfile = LastHomeShared.applyCarryProfile
 local primeRoleLoadout = LastHomeShared.primeRoleLoadout
@@ -763,11 +764,12 @@ local function drawStockArrow()
     if house == nil then return end
     local phase = state.phase
     if phase == "idle" or phase == "gameover" then return end
-    if house.supply == nil then return end
+    local stockSpawn = getHouseStockSpawn ~= nil and getHouseStockSpawn(house) or house.supply
+    if stockSpawn == nil then return end
 
-    local sx = house.supply.x or house.centerX
-    local sy = house.supply.y or house.centerY
-    local sz = house.supply.z or house.centerZ or 0
+    local sx = stockSpawn.x or house.centerX
+    local sy = stockSpawn.y or house.centerY
+    local sz = stockSpawn.z or house.centerZ or 0
     local px, py, pz = player:getX(), player:getY(), player:getZ()
 
     local dx, dy = sx - px, sy - py
@@ -788,7 +790,7 @@ local function drawStockArrow()
     local cx, cy = screenW / 2, screenH / 2
     local arrowX, arrowY, arrowChar
     if onScreen then
-        -- marker above the stock, down arrow pointing at the container
+        -- marker above the stock location
         arrowX = stockScreenX
         arrowY = stockScreenY - 28
         arrowChar = "v"

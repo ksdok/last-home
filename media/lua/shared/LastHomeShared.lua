@@ -30,6 +30,11 @@ local HOUSE_DEFS = {
             y = 3699,
             z = 0,
         },
+        stockSpawn = {
+            x = 12420,
+            y = 3699,
+            z = 0,
+        },
     },
     {
         id = "villa",
@@ -66,6 +71,11 @@ local HOUSE_DEFS = {
             y = 2836,
             z = 0,
         },
+        stockSpawn = {
+            x = 13540,
+            y = 2836,
+            z = 0,
+        },
     },
     {
         id = "prison",
@@ -88,6 +98,11 @@ local HOUSE_DEFS = {
             y = 11865,
             z = 0,
         },
+        stockSpawn = {
+            x = 7690,
+            y = 11865,
+            z = 0,
+        },
     },
     {
         id = "elementary_school",
@@ -106,6 +121,11 @@ local HOUSE_DEFS = {
             radius = 3,
         },
         supply = {
+            x = 10616,
+            y = 9971,
+            z = 0,
+        },
+        stockSpawn = {
             x = 10616,
             y = 9971,
             z = 0,
@@ -471,6 +491,19 @@ function LastHomeShared.getRandomHouse()
     return LastHomeShared.cloneHouse(HOUSE_DEFS[index])
 end
 
+function LastHomeShared.getHouseStockSpawn(house)
+    if house == nil then return nil end
+
+    local stockSpawn = house.stockSpawn or house.supply
+    if stockSpawn == nil then return nil end
+
+    return {
+        x = stockSpawn.x or house.centerX,
+        y = stockSpawn.y or house.centerY,
+        z = stockSpawn.z or house.centerZ or 0,
+    }
+end
+
 function LastHomeShared.getHouseSpawnCandidates(house)
     local result = {}
     if house == nil then return result end
@@ -621,14 +654,6 @@ end
 --   - random = pick one of the 4 at random each server start.
 --   - a concrete id forces that building.
 LastHomeShared.SCENARIO_HOUSE = "elementary_school"
-
--- LH-18: dedicated spawned stock container (approach A). A crate IsoObject +
--- ItemContainer spawned at house.supply so the community stock is not dumped
--- into a tiny map container (e.g. the school's poubelle). Detected by a
--- modData marker (LH_stockContainer = true) so refill targets it reliably.
-LastHomeShared.LH_STOCK_SPRITE = "carpentry_02_53"   -- wooden crate sprite
-LastHomeShared.LH_STOCK_CONTAINER_TYPE = "crate"
-LastHomeShared.LH_STOCK_CAPACITY = 1000              -- generous; AddItems bypasses capacity anyway
 
 -- Returns the validated scenario house token (default "random" if the
 -- constant is invalid/missing). No file I/O. One source of truth for the

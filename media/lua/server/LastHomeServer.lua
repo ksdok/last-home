@@ -13,26 +13,35 @@ local Server = {
     houseSelectionLocked = false,
     nextBuilderRefillAt = nil,
     lastBuilderTickSecond = nil,
-    lastHouseSupplyRefillAt = nil,
     pendingPostSpawnMaintenance = nil,
-    -- LH-18: set if the stock crate spawn fails permanently (e.g. invalid
-    -- sprite) so we stop retrying every tick.
-    stockSpawnFailed = false,
+    stockGroundSpawned = false,
 }
 
 local ROLE_DEFS = LastHomeRoles.ROLE_DEFS
 local ROLE_NAMES = LastHomeRoles.ROLE_NAMES
 local BUILDER_REFILL_ITEMS = LastHomeRoles.BUILDER_REFILL_ITEMS
+local COMMUNITY_STOCK_ITEMS = LastHomeRoles.COMMUNITY_STOCK_ITEMS or BUILDER_REFILL_ITEMS
 local HOUSE_SUPPLY_MULTIPLIER = 8
-local HOUSE_SUPPLY_REFILL_GUARD_SECONDS = 30
 local SPAWN_AMBIENT_CLEANUP_PADDING = 8
 local POST_SPAWN_MAINTENANCE_RETRY_SECONDS = 2
 local POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS = 8
+local STOCK_WORLD_ITEM_OFFSETS = {
+    {0.2, 0.2},
+    {0.5, 0.2},
+    {0.8, 0.2},
+    {0.2, 0.5},
+    {0.5, 0.5},
+    {0.8, 0.5},
+    {0.2, 0.8},
+    {0.5, 0.8},
+    {0.8, 0.8},
+}
 
 local getScenarioPlayers = LastHomeShared.getScenarioPlayers
 local getNowSeconds = LastHomeShared.getNowSeconds
 local getRandomHouse = LastHomeShared.getRandomHouse
 local getHouseSpawnCandidates = LastHomeShared.getHouseSpawnCandidates
+local getHouseStockSpawn = LastHomeShared.getHouseStockSpawn
 local applyCarryProfile = LastHomeShared.applyCarryProfile
 local primeRoleLoadout = LastHomeShared.primeRoleLoadout
 local equipRoleItems = LastHomeShared.equipRoleItems
@@ -95,87 +104,93 @@ function LastHomeServer.hasSelectedHouse()
     return Server.selectedHouse ~= nil
 end
 
--- LH-18: find the dedicated spawned stock container on a square by its
--- modData marker (LH_stockContainer = true). Returns its ItemContainer, or nil.
-local function findStockContainerOnSquare(square)
-    if square == nil or square.getObjects == nil then return nil end
+local function getStockGroundSquares(house)
+    local stockSpawn = getHouseStockSpawn ~= nil and getHouseStockSpawn(house) or nil
+    if stockSpawn == nil then return nil, nil end
 
-    local objects = square:getObjects()
-    if objects == nil then return nil end
+    local cell = getCell ~= nil and getCell() or nil
+    if cell == nil or cell.getGridSquare == nil then return nil, stockSpawn end
 
-    for i = 0, objects:size() - 1 do
-        local object = objects:get(i)
-        if object ~= nil and object.getModData ~= nil then
-            local ok, modData = pcall(function() return object:getModData() end)
-            if ok and modData ~= nil and modData.LH_stockContainer == true then
-                local container = object.getContainer and object:getContainer() or nil
-                if container ~= nil then
-                    return container, object
+    local sx = LastHomeShared.round(stockSpawn.x)
+    local sy = LastHomeShared.round(stockSpawn.y)
+    local sz = LastHomeShared.round(stockSpawn.z or house.centerZ or 0)
+    local centerSquare = cell:getGridSquare(sx, sy, sz)
+    if centerSquare == nil then
+        return nil, { x = sx, y = sy, z = sz }
+    end
+
+    local squares = {}
+    for dy = -1, 1 do
+        for dx = -1, 1 do
+            local square = cell:getGridSquare(sx + dx, sy + dy, sz)
+            if square ~= nil then
+                squares[#squares + 1] = square
+            end
+        end
+    end
+
+    if #squares == 0 then
+        squares[1] = centerSquare
+    end
+
+    return squares, { x = sx, y = sy, z = sz }
+end
+
+local function getStockWorldItemOffset(index)
+    local offsets = STOCK_WORLD_ITEM_OFFSETS
+    local entry = offsets[((index - 1) % #offsets) + 1]
+    return entry[1], entry[2]
+end
+
+local function spawnStockOnGround(house)
+    if house == nil then return false end
+    if Server.stockGroundSpawned then return true end
+
+    local stockSquares, stockSpawn = getStockGroundSquares(house)
+    if stockSquares == nil or stockSpawn == nil then
+        return false
+    end
+
+    local totalAdded = 0
+    local totalTypes = 0
+    local failedTypes = 0
+
+    for typeIndex, refillDef in ipairs(COMMUNITY_STOCK_ITEMS) do
+        local itemId = refillDef[1]
+        local baseTargetCount = refillDef[2] or 0
+        local targetCount = baseTargetCount * HOUSE_SUPPLY_MULTIPLIER
+
+        if itemId ~= nil and targetCount > 0 then
+            totalTypes = totalTypes + 1
+            local targetSquare = stockSquares[((typeIndex - 1) % #stockSquares) + 1]
+            local spawnedForType = 0
+
+            for itemIndex = 1, targetCount do
+                local offX, offY = getStockWorldItemOffset(itemIndex)
+                local ok, err = pcall(function()
+                    targetSquare:AddWorldInventoryItem(itemId, offX, offY, 0)
+                end)
+
+                if ok then
+                    spawnedForType = spawnedForType + 1
+                    totalAdded = totalAdded + 1
+                elseif spawnedForType == 0 then
+                    failedTypes = failedTypes + 1
+                    print("[LastHome] WARN: stock au sol - spawn echec pour " .. tostring(itemId) .. " sur " .. tostring(house.name or house.id or "?") .. " a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " err=" .. tostring(err))
+                    break
                 end
             end
         end
     end
 
-    return nil
+    Server.stockGroundSpawned = true
+    print("[LastHome] Stock au sol spawn: " .. tostring(totalTypes) .. " types, " .. tostring(totalAdded) .. " items sur " .. tostring(#stockSquares) .. " carres a " .. formatCoords(stockSpawn.x, stockSpawn.y, stockSpawn.z) .. " pour " .. tostring(house.name or house.id or "?") .. " (types en echec=" .. tostring(failedTypes) .. ")")
+    return true
 end
 
--- LH-18: spawn the dedicated stock crate at house.supply if the chunk is loaded
--- and it is not already present. Returns true once the crate exists (found or
--- just spawned), false if the chunk is not loaded yet (caller retries).
-local function ensureStockContainerSpawned(house)
-    if house == nil or house.supply == nil then return nil end
-
-    -- Permanent failure (e.g. invalid sprite / IsoObject.new unusable):
-    -- stop retrying to avoid spamming the log every tick.
-    if Server.stockSpawnFailed then return nil end
-
-    local cell = getCell ~= nil and getCell() or nil
-    if cell == nil or cell.getGridSquare == nil then return nil end
-
-    local sx = LastHomeShared.round(house.supply.x)
-    local sy = LastHomeShared.round(house.supply.y)
-    local sz = LastHomeShared.round(house.supply.z or house.centerZ or 0)
-
-    local square = cell:getGridSquare(sx, sy, sz)
-    if square == nil then
-        -- Chunk not loaded yet (no player near the house). Retry later.
-        return nil
-    end
-
-    local existing = findStockContainerOnSquare(square)
-    if existing ~= nil then
-        return existing
-    end
-
-    local sprite = LastHomeShared.LH_STOCK_SPRITE or "carpentry_02_53"
-    local containerType = LastHomeShared.LH_STOCK_CONTAINER_TYPE or "crate"
-    local capacity = LastHomeShared.LH_STOCK_CAPACITY or 1000
-
-    local ok, isoObject = pcall(function()
-        return IsoObject.new(square, sprite, "LastHomeStock")
-    end)
-    if not ok or isoObject == nil then
-        Server.stockSpawnFailed = true
-        print("[LastHome] ERROR: ensureStockContainerSpawned - IsoObject.new a echoue pour " .. tostring(house.name or house.id or "?") .. " a (" .. tostring(sx) .. "," .. tostring(sy) .. "," .. tostring(sz) .. ") sprite=" .. tostring(sprite) .. " err=" .. tostring(isoObject) .. " - arret des retries")
-        return nil
-    end
-
-    local container = ItemContainer.new(containerType, square, isoObject, capacity, capacity)
-    container:setExplored(true)
-    isoObject:setContainer(container)
-
-    local modData = isoObject:getModData()
-    if modData ~= nil then
-        modData.LH_stockContainer = true
-    end
-
-    square:AddTileObject(isoObject)
-    if isoObject.transmitModData ~= nil then
-        pcall(function() isoObject:transmitModData() end)
-    end
-
-    print("[LastHome] Stock crate spawn a (" .. tostring(sx) .. "," .. tostring(sy) .. "," .. tostring(sz) .. ") pour " .. tostring(house.name or house.id or "?"))
-    return container
+local function ensureStockOnGround(house)
+    if Server.stockGroundSpawned then return true end
+    return spawnStockOnGround(house) == true
 end
 
 local function isUsableSpawnSquare(square)
@@ -334,8 +349,6 @@ local function clearAmbientZombiesNearSpawn(house, spawnData, reason)
     return removed
 end
 
-local refillHouseSupplies
-
 local function schedulePostSpawnMaintenance(house, spawnData, username)
     if house == nil or spawnData == nil then
         Server.pendingPostSpawnMaintenance = nil
@@ -355,7 +368,7 @@ local function schedulePostSpawnMaintenance(house, spawnData, username)
         attempts = 0,
         maxAttempts = POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS,
         nextAttemptAt = getNowSeconds(),
-        supplyReady = false,
+        stockReady = false,
     }
 end
 
@@ -374,13 +387,13 @@ local function processPostSpawnMaintenance(now)
     local attemptLabel = "role-spawn#" .. tostring(pending.attempts)
     clearAmbientZombiesNearSpawn(house, pending.spawnData, attemptLabel)
 
-    if not pending.supplyReady then
-        pending.supplyReady = refillHouseSupplies() == true
+    if not pending.stockReady then
+        pending.stockReady = ensureStockOnGround(house) == true
     end
 
-    if pending.supplyReady or pending.attempts >= (pending.maxAttempts or POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS) then
-        if not pending.supplyReady then
-            print("[LastHome] WARN: postSpawnMaintenance - stock toujours introuvable pour " .. tostring(pending.houseName) .. " apres " .. tostring(pending.attempts) .. " tentatives")
+    if pending.stockReady or pending.attempts >= (pending.maxAttempts or POST_SPAWN_MAINTENANCE_MAX_ATTEMPTS) then
+        if not pending.stockReady then
+            print("[LastHome] WARN: postSpawnMaintenance - stock au sol toujours indisponible pour " .. tostring(pending.houseName) .. " apres " .. tostring(pending.attempts) .. " tentatives")
         end
         Server.pendingPostSpawnMaintenance = nil
         return
@@ -446,10 +459,7 @@ local function teleportPlayerToHouse(player)
     end
 
     clearAmbientZombiesNearSpawn(house, spawnData, "role-spawn")
-    -- LH-18: spawn the dedicated stock crate as soon as the chunk is loaded
-    -- (the player just teleported to the house). Idempotent; the post-spawn
-    -- maintenance tick also retries.
-    ensureStockContainerSpawned(house)
+    ensureStockOnGround(house)
     schedulePostSpawnMaintenance(house, spawnData, username)
     logServer("teleport joueur " .. tostring(username) .. " : " .. beforeCoords .. " -> " .. formatCoords(x, y, z) .. " pour " .. formatHouseLabel(house) .. " via " .. tostring(teleportMode))
     return teleported, spawnData
@@ -626,70 +636,6 @@ local function countContainerItemsRecursive(container, itemId)
     return total
 end
 
-local function getPrimaryHouseSupplyContainer()
-    local house = ensureSelectedHouse()
-    if house == nil then return nil end
-
-    -- LH-18: spawn (idempotent) the dedicated stock crate at house.supply and
-    -- return it. No fallback to the map container (poubelle): while the chunk
-    -- is not loaded yet the crate cannot exist, so we return nil and the
-    -- post-spawn maintenance retries until the chunk loads. ensureStockContainerSpawned
-    -- returns the found/spawned container directly (no second lookup).
-    local stockContainer = ensureStockContainerSpawned(house)
-    if stockContainer ~= nil then
-        return stockContainer
-    end
-
-    print("[LastHome] WARN: getPrimaryHouseSupplyContainer - caisse de stock dediee introuvable pour " .. tostring(house.name or house.id or "?") .. " (chunk non charge ou spawn echec)")
-    return nil
-end
-
-refillHouseSupplies = function()
-    local supplyContainer = getPrimaryHouseSupplyContainer()
-    if supplyContainer == nil then
-        print("[LastHome] WARN: refillHouseSupplies - aucun conteneur de ravitaillement")
-        return false
-    end
-
-    local totalAdded = 0
-    local totalItems = 0
-
-    for _, refillDef in ipairs(BUILDER_REFILL_ITEMS) do
-        local itemId = refillDef[1]
-        local baseTargetCount = refillDef[2] or 0
-        local targetCount = baseTargetCount * HOUSE_SUPPLY_MULTIPLIER
-        local currentCount = countContainerItemsRecursive(supplyContainer, itemId)
-        local needed = targetCount - currentCount
-
-        if needed > 1 then
-            supplyContainer:AddItems(itemId, needed)
-            totalAdded = totalAdded + needed
-            totalItems = totalItems + 1
-        elseif needed == 1 then
-            supplyContainer:AddItem(itemId)
-            totalAdded = totalAdded + 1
-            totalItems = totalItems + 1
-        end
-    end
-
-    Server.lastHouseSupplyRefillAt = getNowSeconds()
-    if totalAdded > 0 then
-        print("[LastHome] refillHouseSupplies: " .. tostring(totalItems) .. " types, " .. tostring(totalAdded) .. " items ajoutes")
-    end
-    return true
-end
-
-local function refillHouseSuppliesIfNeeded(minIntervalSeconds)
-    local now = getNowSeconds()
-    local minInterval = minIntervalSeconds or 0
-
-    if Server.lastHouseSupplyRefillAt ~= nil and now < (Server.lastHouseSupplyRefillAt + minInterval) then
-        return false
-    end
-
-    return refillHouseSupplies()
-end
-
 local function refillBuilderResources()
     for _, player in ipairs(getScenarioPlayers()) do
         local modData = player:getModData()
@@ -721,7 +667,7 @@ local function onBuilderRefillTick()
 
     if Server.nextBuilderRefillAt == nil then
         if Server.selectedHouse ~= nil then
-            refillHouseSuppliesIfNeeded()
+            ensureStockOnGround(Server.selectedHouse)
         end
         Server.nextBuilderRefillAt = now + 600
         return
@@ -730,7 +676,9 @@ local function onBuilderRefillTick()
     if now < Server.nextBuilderRefillAt then return end
 
     refillBuilderResources()
-    refillHouseSuppliesIfNeeded()
+    if Server.selectedHouse ~= nil then
+        ensureStockOnGround(Server.selectedHouse)
+    end
     repeat
         Server.nextBuilderRefillAt = Server.nextBuilderRefillAt + 600
     until Server.nextBuilderRefillAt > now
@@ -757,8 +705,10 @@ local function sendRoleAssigned(username, roleKey, options)
 end
 
 local function notifyWavesRoleAssigned()
-    ensureSelectedHouse()
-    refillHouseSuppliesIfNeeded(HOUSE_SUPPLY_REFILL_GUARD_SECONDS)
+    local house = ensureSelectedHouse()
+    if house ~= nil then
+        ensureStockOnGround(house)
+    end
 
     if LastHomeWaves ~= nil and LastHomeWaves.ensureScenarioStarted ~= nil then
         LastHomeWaves.ensureScenarioStarted()
@@ -854,9 +804,11 @@ function LastHomeServer.setSelectedHouse(houseId, source, actorUsername)
     house.source = selectionSource
     Server.selectedHouse = house
     Server.houseSelectionLocked = true
-    Server.lastHouseSupplyRefillAt = nil
+    if previousHouse == nil or previousHouse.id ~= house.id then
+        Server.stockGroundSpawned = false
+    end
     syncSelectedHouse()
-    refillHouseSuppliesIfNeeded()
+    ensureStockOnGround(house)
 
     for _, scenarioPlayer in ipairs(getScenarioPlayers()) do
         local modData = scenarioPlayer:getModData()
@@ -959,9 +911,8 @@ local function resetState(eventName)
     Server.houseSelectionLocked = false
     Server.nextBuilderRefillAt = nil
     Server.lastBuilderTickSecond = nil
-    Server.lastHouseSupplyRefillAt = nil
     Server.pendingPostSpawnMaintenance = nil
-    Server.stockSpawnFailed = false
+    Server.stockGroundSpawned = false
 
     print("[LastHome] Attente de la selection du lieu (scenario) avant initialisation finale")
 end

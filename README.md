@@ -52,7 +52,8 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | └ [LH-MP-4](specs/LH-MP-4-mp-verification-docs.md) | MP server setup docs + verification checklist | 📝 |
 | └ [LH-MP-5](specs/LH-MP-5-house-picker-before-role-picker.md) | House picker before the role picker | ❌ cancelled (LH-MP-6) |
 | └ [LH-MP-6](specs/LH-MP-6-hardcoded-scenario-house.md) | MP-only mod: hardcoded scenario house, drop cfg/picker/Challenges | ✅ |
-| [LH-18](specs/LH-18-stock-spawn-analysis.md) | Stock communautaire : spawn dédié vs spawn au sol (analyse) | 🔄 |
+| [LH-18](specs/LH-18-stock-spawn-analysis.md) | Stock communautaire : spawn dédié vs spawn au sol (analyse) | ✅ |
+| [LH-19](specs/LH-19-stock-ground-spawn.md) | Stock communautaire : spawn au sol (nourriture/eau/munitions) | 🔄 |
 
 ## Status
 
@@ -64,7 +65,8 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 - ✅ LH-10 timers: prep wave 1 = 2 min, subsequent prep = 5 min, wave = 5 min, skip via `K` key
 - ✅ Wave attraction refocused on alarm-like sound pulses toward the base to make zombie pressure reliable
 - ✅ Continuous vanilla/story spawn suppression around the base (periodic cleanup every 5s, `LH_waveZombie` tagging preserved)
-- ✅ On-screen stock arrow pointing to the community container with distance (visible through walls)
+- 🔄 LH-19 started: the community stock is being moved to a one-shot ground spawn, limited to food, water bottles, and ammunition
+- ✅ On-screen stock arrow pointing to the community stock location with distance (visible through walls)
 - 📋 Backlog and current tracking in [project-state.md](project-state.md)
 
 ## Mod Structure
