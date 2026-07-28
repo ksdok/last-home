@@ -72,7 +72,7 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 - ✅ Two-VM bootstrap fix: `OnServerStarted` runs the bootstrap in the SERVER VM (authoritative); `OnGameStart` is the solo-sandbox fallback (gated by `isClient()`). `applyDefaultSandboxVars` runs server-side so vanilla zombies are suppressed at the initial MP spawn
 - ✅ LH-10/LH-24 timers: prep wave 1 waits for a manual `K` trigger (no auto-start), subsequent prep = 5 min, wave = 5 min, skip via `K` key
 - ✅ Wave attraction refocused on alarm-like sound pulses toward the base to make zombie pressure reliable
-- ✅ Continuous vanilla/story spawn suppression around the base (periodic cleanup every 5s, `LH_waveZombie` tagging preserved)
+- ✅ Continuous vanilla/story spawn suppression around the base (periodic cleanup every 1s, including during waves; `LH_waveZombie` tagging preserved)
 - ✅ LH-19 ground stock: the community stock now spawns once on the ground near `stockSpawn` / `supply`, limited to food, water bottles, and ammunition
 - ❌ On-screen stock arrow removed by LH-21
 - 📋 Backlog and current tracking in [project-state.md](project-state.md)

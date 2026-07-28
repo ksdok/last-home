@@ -1,5 +1,9 @@
 # LH-20 (S) - Last Home : nettoyer pendant la prep, pas pendant la vague
 
+> **Note historique** : ce comportement LH-20 a ensuite été **revert côté code**.
+> Le nettoyage périodique tourne désormais de nouveau **pendant la vague**,
+> avec une cadence plus rapide de **1 s** au lieu de 5 s.
+
 ## Contexte
 
 LH-13 a ajouté un **nettoyage périodique** serveur des zombies vanilla/story

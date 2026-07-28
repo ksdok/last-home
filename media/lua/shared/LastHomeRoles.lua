@@ -60,14 +60,18 @@ Roles.ROLE_DEFS = {
     soldat = {
         name = "Soldat",
         skills = {
-            {Perks.Aiming, 7},
+            {Perks.Aiming, 9},
             {Perks.Reloading, 7},
-            {Perks.Strength, 5},
-            {Perks.Fitness, 5},
+            {Perks.Strength, 8},
+            {Perks.Fitness, 8},
             {Perks.Axe, 4},
             {Perks.SmallBlade, 4},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Sneak, 2},
+            {Perks.Lightfoot, 3},
+            {Perks.Nimble, 9},
+            {Perks.Sprinting, 5},
         },
         items = {
             {"Base.M4A1", 1},
@@ -86,6 +90,7 @@ Roles.ROLE_DEFS = {
             {"Base.Bag_D3M", 1},
             {"Base.Torch", 1},
             {"Base.Battery", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.556Clip", 3},
@@ -108,19 +113,21 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix",
             },
         },
-        stats = { endurance = 0.5, panic = 20 },
+        stats = { endurance = 1, panic = 0 },
     },
     voleur = {
-        name = "Voleur",
+        name = "Thief",
         skills = {
-            {Perks.Sneak, 8},
+            {Perks.Sneak, 9},
             {Perks.Lightfoot, 7},
             {Perks.Nimble, 6},
-            {Perks.Sprinting, 5},
+            {Perks.Sprinting, 8},
             {Perks.Strength, 4},
             {Perks.Fitness, 4},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Reloading, 6},
+            {Perks.Aiming, 6},
         },
         items = {
             {"Base.PPK", 1},
@@ -135,6 +142,7 @@ Roles.ROLE_DEFS = {
             {"Base.Torch", 1},
             {"Base.Battery", 1},
             {"Base.TinnedBeans", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.380Clip", 2},
@@ -154,17 +162,17 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix",
             },
         },
-        stats = { endurance = 0.7, panic = 10 },
+        stats = { endurance = 1, panic = 0 },
     },
     local_ = {
         name = "Local",
         skills = {
-            {Perks.Carpentry, 6},
+            {Perks.Carpentry, 8},
             {Perks.Cooking, 6},
-            {Perks.Mechanics, 4},
-            {Perks.Electrical, 4},
-            {Perks.PlantScavenging, 5},
-            {Perks.Strength, 4},
+            {Perks.Mechanics, 6},
+            {Perks.Electrical, 6},
+            {Perks.PlantScavenging, 6},
+            {Perks.Strength, 5},
             {Perks.Trapping, 3},
         },
         items = {
@@ -176,6 +184,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 2},
             {"Base.TinnedSoup", 2},
             {"Base.Bag_NormalHikingBag", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.Saw", 1},
@@ -188,17 +197,16 @@ Roles.ROLE_DEFS = {
             primary = "Base.Hammer",
             bag = "Base.Bag_NormalHikingBag",
         },
-        stats = { endurance = 0.4, panic = 25 },
+        stats = { endurance = 1, panic = 0 },
     },
     medic = {
         name = "Medic",
         skills = {
-            {Perks.Doctor, 8},
-            {Perks.Strength, 3},
-            {Perks.Fitness, 4},
-            {Perks.SmallBlade, 4},
-            {Perks.Carpentry, 3},
-            {Perks.Trapping, 3},
+            {Perks.Doctor, 10},
+            {Perks.Strength, 5},
+            {Perks.Fitness, 5},
+            {Perks.SmallBlade, 9},
+            {Perks.Sprinting, 3},
         },
         items = {
             {"Base.KitchenKnife", 1},
@@ -213,6 +221,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_DuffelBag", 1},
             {"Base.TinnedSoup", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.Bandage", 10},
@@ -228,17 +237,24 @@ Roles.ROLE_DEFS = {
             primary = "Base.KitchenKnife",
             bag = "Base.Bag_DuffelBag",
         },
-        stats = { endurance = 0.4, panic = 20 },
+        stats = { endurance = 1, panic = 0 },
     },
     rambo = {
         name = "Rambo",
         skills = {
             {Perks.Axe, 10},
-            {Perks.Fitness, 8},
-            {Perks.Strength, 7},
+            {Perks.Fitness, 9},
+            {Perks.Strength, 10},
             {Perks.LongBlunt, 5},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Aiming, 8},
+            {Perks.Reloading, 9},
+            {Perks.SmallBlade, 4},
+            {Perks.Sneak, 2},
+            {Perks.Lightfoot, 3},
+            {Perks.Nimble, 9},
+            {Perks.Sprinting, 7},
         },
         items = {
             {"Base.Axe", 1},
@@ -253,6 +269,7 @@ Roles.ROLE_DEFS = {
             {"Base.Bandage", 4},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_X_Vest", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.Machete", 1},
@@ -273,7 +290,7 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix_Pact",
             },
         },
-        stats = { endurance = 0.7, panic = 10 },
+        stats = { endurance = 1, panic = 0 },
     },
     sniper = {
         name = "Sniper",
@@ -281,10 +298,12 @@ Roles.ROLE_DEFS = {
             {Perks.Aiming, 10},
             {Perks.Reloading, 8},
             {Perks.Sneak, 6},
-            {Perks.Strength, 4},
+            {Perks.Strength, 7},
             {Perks.Fitness, 4},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Nimble, 9},
+            {Perks.Sneak, 6},
         },
         items = {
             {"Base.M40A3", 1},
@@ -299,6 +318,7 @@ Roles.ROLE_DEFS = {
             {"Base.Bandage", 3},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_D3M", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.308Bullets", 40},
@@ -318,7 +338,7 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix",
             },
         },
-        stats = { endurance = 0.4, panic = 15 },
+        stats = { endurance = 1, panic = 0 },
     },
     agent = {
         name = "007 Agent",
@@ -326,13 +346,12 @@ Roles.ROLE_DEFS = {
             {Perks.Aiming, 10},
             {Perks.Reloading, 10},
             {Perks.Sneak, 8},
-            {Perks.Nimble, 8},
-            {Perks.Lightfoot, 7},
+            {Perks.Nimble, 9},
+            {Perks.Lightfoot, 9},
             {Perks.Maintenance, 5},
-            {Perks.Strength, 4},
-            {Perks.Fitness, 5},
-            {Perks.Carpentry, 3},
-            {Perks.Trapping, 3},
+            {Perks.Strength, 9},
+            {Perks.Fitness, 9},
+            {Perks.Sprinting, 7},
         },
         items = {
             {"Base.PPK", 1},
@@ -346,6 +365,7 @@ Roles.ROLE_DEFS = {
             {"Base.HuntingKnife", 1},
             {"Base.Bandage", 6},
             {"Base.WaterBottleFull", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.380Clip", 2},
@@ -354,6 +374,7 @@ Roles.ROLE_DEFS = {
             {"Base.Bullets9mm", 30},
             {"Base.Suppressor_Pistol", 1},
             {"Base.Bandage", 3},
+            {"Base.GranolaBar", 10},
         },
         equipped = {
             primary = "Base.PPK",
@@ -365,7 +386,7 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix",
             },
         },
-        stats = { endurance = 0.5, panic = 10 },
+        stats = { endurance = 1, panic = 0 },
     },
     samourai = {
         name = "Samourai",
@@ -376,6 +397,8 @@ Roles.ROLE_DEFS = {
             {Perks.Nimble, 8},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Strength, 9},
+            {Perks.Fitness, 9},
         },
         items = {
             {"Base.Katana", 1},
@@ -384,6 +407,8 @@ Roles.ROLE_DEFS = {
             {"Base.Bandage", 3},
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_D3M", 1},
+            {"Base.CanOpener", 1},
+            {"Base.GranolaBar", 5},
         },
         bagContents = {
             {"Base.Machete", 1},
@@ -400,17 +425,20 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix",
             },
         },
-        stats = { endurance = 0.5, panic = 0 },
+        stats = { endurance = 1, panic = 0 },
     },
     geek = {
         name = "Geek",
         skills = {
-            {Perks.Electrical, 8},
-            {Perks.Carpentry, 5},
-            {Perks.Mechanics, 4},
+            {Perks.Electrical, 10},
+            {Perks.Carpentry, 7},
+            {Perks.Mechanics, 6},
             {Perks.Cooking, 3},
             {Perks.Strength, 3},
-            {Perks.Trapping, 3},
+            {Perks.Trapping, 9},
+            {Perks.Sneak, 10},
+            {Perks.Sprinting, 5},
+            {Perks.Lightfoot, 8},
         },
         items = {
             {"Base.ElectronicsScrap", 5},
@@ -421,6 +449,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_NormalHikingBag", 1},
             {"Base.GranolaBar", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.ElectronicsScrap", 5},
@@ -433,17 +462,19 @@ Roles.ROLE_DEFS = {
             primary = "Base.Screwdriver",
             bag = "Base.Bag_NormalHikingBag",
         },
-        stats = { endurance = 0.3, panic = 30 },
+        stats = { endurance = 1, panic = 0 },
     },
     survivaliste = {
         name = "Survivaliste",
         skills = {
-            {Perks.Trapping, 8},
-            {Perks.Aiming, 6},
-            {Perks.Sneak, 5},
-            {Perks.Strength, 4},
-            {Perks.Fitness, 5},
-            {Perks.Carpentry, 3},
+            {Perks.Trapping, 10},
+            {Perks.Aiming, 8},
+            {Perks.Sneak, 6},
+            {Perks.Strength, 7},
+            {Perks.Fitness, 7},
+            {Perks.Carpentry, 5},
+            {Perks.SmallBlade, 5},
+            {Perks.Reloading, 6},
         },
         items = {
             {"Base.HuntingRifle", 1},
@@ -459,6 +490,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_D3M", 1},
             {"Base.TinnedBeans", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.3006Bullets", 40},
@@ -479,17 +511,18 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix",
             },
         },
-        stats = { endurance = 0.4, panic = 15 },
+        stats = { endurance = 1, panic = 0 },
     },
     pompier = {
         name = "Pompier",
         skills = {
-            {Perks.Strength, 8},
-            {Perks.Fitness, 7},
-            {Perks.Axe, 7},
-            {Perks.LongBlunt, 5},
+            {Perks.Strength, 9},
+            {Perks.Fitness, 9},
+            {Perks.Axe, 9},
+            {Perks.LongBlunt, 9},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Sprinting, 5},
         },
         items = {
             {"Base.Axe", 1},
@@ -499,6 +532,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_ALICEpack", 1},
             {"Base.TinnedSoup", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.Extinguisher", 1},
@@ -510,7 +544,7 @@ Roles.ROLE_DEFS = {
 
             bag = "Base.Bag_ALICEpack",
         },
-        stats = { endurance = 0.6, panic = 10 },
+        stats = { endurance = 1, panic = 0 },
     },
     athlete = {
         name = "Athlete",
@@ -519,7 +553,7 @@ Roles.ROLE_DEFS = {
             {Perks.Fitness, 10},
             {Perks.Nimble, 8},
             {Perks.Lightfoot, 7},
-            {Perks.Strength, 4},
+            {Perks.Strength, 7},
             {Perks.SmallBlade, 4},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
@@ -531,6 +565,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 1},
             {"Base.GranolaBar", 2},
             {"Base.Bag_Schoolbag", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.GranolaBar", 2},
@@ -540,19 +575,20 @@ Roles.ROLE_DEFS = {
             primary = "Base.Machete",
             bag = "Base.Bag_Schoolbag",
         },
-        stats = { endurance = 0.4, panic = 15 },
+        stats = { endurance = 1, panic = 0 },
     },
     eclaireur = {
         name = "Eclaireur",
         skills = {
-            {Perks.Sneak, 8},
-            {Perks.Lightfoot, 7},
-            {Perks.Sprinting, 6},
+            {Perks.Sneak, 10},
+            {Perks.Lightfoot, 10},
+            {Perks.Sprinting, 10},
             {Perks.Aiming, 5},
-            {Perks.Fitness, 5},
+            {Perks.Fitness, 8},
             {Perks.SmallBlade, 5},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Reloading, 6},
         },
         items = {
             {"Base.MP7", 1},
@@ -567,6 +603,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_D3M", 1},
             {"Base.GranolaBar", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.9mmClip", 3},
@@ -588,18 +625,19 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix",
             },
         },
-        stats = { endurance = 0.3, panic = 20 },
+        stats = { endurance = 1, panic = 0 },
     },
     demolisseur = {
         name = "Demolisseur",
         skills = {
-            {Perks.Strength, 6},
-            {Perks.Fitness, 5},
-            {Perks.Axe, 5},
+            {Perks.Strength, 8},
+            {Perks.Fitness, 6},
+            {Perks.Axe, 8},
             {Perks.LongBlunt, 5},
-            {Perks.Aiming, 5},
+            {Perks.Aiming, 8},
             {Perks.Carpentry, 3},
             {Perks.Trapping, 3},
+            {Perks.Nimble, 8},
         },
         items = {
             {"Base.M870_MCS", 1},
@@ -616,6 +654,7 @@ Roles.ROLE_DEFS = {
             {"Base.WaterBottleFull", 1},
             {"Base.Bag_Tactical_Alice", 1},
             {"Base.TinnedBeans", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.ShotgunShells", 18},
@@ -680,6 +719,7 @@ Roles.ROLE_DEFS = {
             {"Base.Battery", 2},
             {"Base.TinnedBeans", 2},
             {"Base.TinnedSoup", 2},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.556Belt", 1},
@@ -703,13 +743,13 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Mechanix_Pact",
             },
         },
-        stats = { endurance = 0.8, panic = 5, fatigue = 0 },
+        stats = { endurance = 1, panic = 0, fatigue = 0 },
     },
     mule = {
         name = "Mule",
         skills = {
             {Perks.Strength, 10},
-            {Perks.Fitness, 7},
+            {Perks.Fitness, 10},
             {Perks.Sprinting, 10},
             {Perks.Carpentry, 4},
             {Perks.Trapping, 3},
@@ -728,6 +768,7 @@ Roles.ROLE_DEFS = {
             {"Base.TinnedSoup", 3},
             {"Base.TinOpener", 1},
             {"Base.PetrolCan", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.Bag_DuffelBag", 1},
@@ -747,7 +788,7 @@ Roles.ROLE_DEFS = {
                 "Base.Glove_Leather",
             },
         },
-        stats = { endurance = 0.6, panic = 15 },
+        stats = { endurance = 1, panic = 0 },
     },
     builder = {
         name = "Builder",
@@ -760,7 +801,7 @@ Roles.ROLE_DEFS = {
             {Perks.Cooking, 10},
             {Perks.Strength, 7},
             {Perks.Fitness, 5},
-            {Perks.Trapping, 3},
+            {Perks.Trapping, 10},
         },
         items = {
             {"Base.Hammer", 1},
@@ -789,6 +830,7 @@ Roles.ROLE_DEFS = {
             {"Base.TinnedSoup", 3},
             {"Base.Bag_BigHikingBag", 1},
             {"Base.Boilersuit", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.Hammer", 1},
@@ -821,7 +863,7 @@ Roles.ROLE_DEFS = {
                 "Base.Boilersuit",
             },
         },
-        stats = { endurance = 0.3, panic = 20 },
+        stats = { endurance = 1, panic = 0 },
     },
     civil = {
         name = "Civil",
@@ -843,6 +885,7 @@ Roles.ROLE_DEFS = {
             {"Base.Bag_Schoolbag", 1},
             {"Base.Torch", 1},
             {"Base.Battery", 1},
+            {"Base.CanOpener", 1},
         },
         bagContents = {
             {"Base.Bandage", 1},
@@ -854,7 +897,7 @@ Roles.ROLE_DEFS = {
             primary = "Base.KitchenKnife",
             bag = "Base.Bag_Schoolbag",
         },
-        stats = { panic = 50, endurance = 0.2, fatigue = 0.15 },
+        stats = { panic = 0, endurance = 1, fatigue = 0 },
     },
 }
 
@@ -943,10 +986,22 @@ Roles.COMMUNITY_STOCK_ITEMS = {
     -- Ammo
     {"Base.9mmClip", 2},
     {"Base.Bullets9mm", 24},
+    {"Base.380Clip", 2},          -- voleur / agent (PPK)
+    {"Base.Bullets380", 24},
+    {"Base.45Clip", 2},           -- rambo / mule (Colt1911)
+    {"Base.Bullets45", 24},
+    {"Base.44Clip", 2},           -- soldat (DEagle)
+    {"Base.Bullets44", 24},
+    {"Base.Bullets357", 24},      -- sniper / survivaliste (Revolver_Long_357)
+    {"Base.357Speed", 2},
     {"Base.308Clip", 2},
     {"Base.308Bullets", 16},
+    {"Base.3006Bullets", 16},     -- survivaliste (HuntingRifle)
     {"Base.556Clip", 2},
     {"Base.556Bullets", 24},
+    {"Base.556Belt", 2},          -- invincible (M249)
+    {"Base.ShotgunShells", 24},   -- demolisseur (M870_MCS)
+    {"Base.ShotgunShellsBox", 2},
 }
 
 return Roles

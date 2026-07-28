@@ -16,6 +16,7 @@ local SPAWN_DISTANCE = 20
 local ARRIVAL_DIST_SQ = 36   -- 6 tiles: on stoppe le pulse quand un zombie de vague arrive pres du joueur
 local SPAWN_SPREAD = 8
 local AMBIENT_CLEANUP_INTERVAL_SECONDS = 1
+local REMAINING_LOG_SECONDS = 10
 local ZOMBIE_MODULE = "LastHome"
 
 local CARDINALS = {"N", "E", "S", "W"}
@@ -204,6 +205,7 @@ local function resetState()
     Server.lastTickSecond = nil
     Server.nextPressurePulseAt = nil
     Server.nextAmbientCleanupAt = nil
+    Server.nextRemainingLogAt = nil
     print("[LastHome] LastHomeWaves resetState - etat reinitialise")
     LastHomeBoundary.init()
 end
@@ -696,6 +698,7 @@ local function startWave(immediate)
     Server.pendingDirections = {}
     Server.pendingEstimate = 0
     Server.nextPressurePulseAt = getNowSeconds() + PRESSURE_PULSE_SECONDS
+    Server.nextRemainingLogAt = nil
     if isScenarioHouse() then
         Server.nextAmbientCleanupAt = getNowSeconds() + AMBIENT_CLEANUP_INTERVAL_SECONDS
     end
@@ -878,6 +881,8 @@ local function onZombieDead(zombie)
         Server.zombieCount = Server.zombieCount - 1
     end
 
+    print("[LastHome] Zombie vague " .. tostring(Server.currentWave) .. " tue - restants a tuer: " .. tostring(Server.zombieCount))
+
     if Server.waveActive and Server.zombieCount <= 0 then
         Server.zombieCount = 0
         endWaveCleared()
@@ -920,6 +925,13 @@ local function updatePhaseState(now)
     if Server.phase == "wave" then
         if Server.nextPressurePulseAt ~= nil and now >= Server.nextPressurePulseAt then
             refreshZombiePressure(now)
+        end
+
+        if Server.nextRemainingLogAt == nil then
+            Server.nextRemainingLogAt = now + REMAINING_LOG_SECONDS
+        elseif now >= Server.nextRemainingLogAt then
+            print("[LastHome] Vague " .. tostring(Server.currentWave) .. " - zombies restants a tuer: " .. tostring(Server.zombieCount))
+            Server.nextRemainingLogAt = now + REMAINING_LOG_SECONDS
         end
 
         if remaining <= 0 then
