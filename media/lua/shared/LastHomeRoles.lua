@@ -1297,56 +1297,6 @@ Roles.ROLE_DEFS = {
     },
 }
 
-Roles.BUILDER_REFILL_ITEMS = {
-    {"Base.Plank", 50},
-    {"Base.Nails", 200},
-    {"Base.SheetMetal", 20},
-    {"Base.ScrapMetal", 30},
-    {"Base.Wire", 10},
-    {"Base.DuctTape", 10},
-    {"Base.Rope", 5},
-    {"Base.MetalPipe", 10},
-    {"Base.Glue", 5},
-    {"Base.MetalBar", 10},
-    {"Base.Screws", 100},
-    {"Base.WeldingRods", 15},
-    {"Base.SmallSheetMetal", 15},
-    {"Base.Hinge", 10},
-    -- Food / water kept in the builder refill inventory.
-    {"Base.TinnedBeans", 5},
-    {"Base.TinnedSoup", 5},
-    {"Base.TunaTin", 5},
-    {"Base.CannedSardines", 4},
-    {"Base.CannedChili", 4},
-    {"Base.CannedCorn", 4},
-    {"Base.CannedPeas", 4},
-    {"Base.CannedCarrots", 4},
-    {"Base.CannedPotato", 4},
-    {"Base.CannedTomato", 4},
-    {"Base.CannedPeaches", 3},
-    {"Base.CannedPineapple", 3},
-    {"Base.CannedMushroomSoup", 3},
-    {"Base.CannedCornedBeef", 3},
-    {"Base.PeanutButter", 3},
-    {"Base.Honey", 2},
-    {"Base.Chocolate", 4},
-    {"Base.Crisps", 4},
-    {"Base.Popcorn", 3},
-    {"Base.Peanuts", 4},
-    {"Base.Cereal", 3},
-    {"Base.Oats", 3},
-    {"Base.Rice", 3},
-    {"Base.Pasta", 3},
-    {"Base.GranolaBar", 4},
-    {"Base.GrahamCrackers", 3},
-    {"Base.BreadSlices", 3},
-    {"Base.Cheese", 3},
-    {"Base.Milk", 2},
-    {"Base.Pickles", 2},
-    {"Base.JamFruit", 2},
-    {"Base.WaterBottleFull", 6},
-}
-
 local function ensureMinSkill(def, perk, level)
     if def == nil or perk == nil or level == nil then return end
 
@@ -1368,6 +1318,9 @@ local function ensureMinSkill(def, perk, level)
     skills[#skills + 1] = {perk, level}
 end
 
+-- Intentionally iterate ROLE_ORDER (keys) rather than ROLE_DEFS directly:
+-- ensureMinSkill mutates def.skills, which is safe here because the iteration
+-- target is the role-key list, not the defs table being mutated.
 for _, roleKey in ipairs(Roles.ROLE_ORDER) do
     local def = Roles.ROLE_DEFS[roleKey]
     if def ~= nil and def.vanilla ~= true then
@@ -1388,6 +1341,9 @@ Roles.BUILDER_REFILL_ITEMS = {
     {"Base.Glue", 5},
     {"Base.MetalBar", 10},
     {"Base.Screws", 100},
+    {"Base.WeldingRods", 15},
+    {"Base.SmallSheetMetal", 15},
+    {"Base.Hinge", 10},
     -- Food / water kept in the builder refill inventory.
     {"Base.TinnedBeans", 5},
     {"Base.TinnedSoup", 5},
@@ -1459,12 +1415,14 @@ Roles.COMMUNITY_STOCK_ITEMS = {
     -- Water
     {"Base.WaterBottleFull", 6},
     -- Ammo
-        {"Base.9mmClip", 2},
+    {"Base.9mmClip", 2},
     {"Base.Bullets9mm", 24},
     {"Base.380Clip", 2},          -- voleur / agent (PPK)
     {"Base.Bullets380", 24},
     {"Base.45Clip", 2},           -- rambo / mule (Colt1911)
     {"Base.Bullets45", 24},
+    {"Base.Bolt_Bear", 16},       -- rambo (TAC15 crossbow)
+    {"Base.Bolt_Bear_Pack", 2},
     {"Base.45DSClip", 2},         -- hunk (UMP45)
     {"Base.44Clip", 2},           -- soldat / chris (DEagle / 44 AutoMag)
     {"Base.Bullets44", 24},
