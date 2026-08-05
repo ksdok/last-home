@@ -8,6 +8,8 @@ LastHomeRolePicker = LastHomeRolePicker or {}
 print("[LastHome] LastHomeRolePicker charge")
 
 local DEBUG_ENABLED = LastHomeShared.DEBUG == true
+local normalizeRoleModData = LastHomeShared.normalizeRoleModData
+local getRoleKey = LastHomeShared.getRoleKey
 
 local function logRolePicker(message)
     if not DEBUG_ENABLED then return end
@@ -65,8 +67,8 @@ function RolePickerPanel:createChildren()
     self.rowTop = 92
     self.rowHeight = 74
     self.cardHeight = 68
-    self.columns = 3
-    self.rowsPerColumn = 6
+    self.columns = 4
+    self.rowsPerColumn = math.ceil(#ROLE_ORDER / self.columns)
     self.columnGap = 16
     self.buttonWidth = 118
     self.buttonHeight = 24
@@ -263,7 +265,7 @@ local function onServerCommand(module, command, data)
         if isLocalUser(data) then
             logRolePicker("Commande OpenRolePicker recue")
             local player = getPlayer()
-            if player ~= nil and player:getModData().LH_role == nil then
+            if player ~= nil and getRoleKey(player:getModData()) == nil then
                 LastHomeRolePicker.open()
             end
         end
@@ -272,7 +274,8 @@ local function onServerCommand(module, command, data)
             logRolePicker("Commande RoleAssigned recue: " .. tostring(data and data.role or "?"))
             local player = getPlayer()
             if player ~= nil then
-                player:getModData().LH_role = data.role
+                local modData = normalizeRoleModData(player:getModData())
+                modData.LH_role = data.role
             end
             LastHomeRolePicker.close()
         end

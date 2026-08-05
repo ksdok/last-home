@@ -25,6 +25,8 @@ local formatPlayerCoords = LastHomeShared.formatPlayerCoords
 local formatHouseLabel = LastHomeShared.formatHouseLabel
 local formatBoundaryLabel = LastHomeShared.formatBoundaryLabel
 local applyManualTeleportState = LastHomeShared.applyManualTeleportState
+local normalizeRoleModData = LastHomeShared.normalizeRoleModData
+local getRoleKey = LastHomeShared.getRoleKey
 local addItemsToContainer = LastHomeShared.addItemsToContainer
 local buildItemCounts = LastHomeShared.buildItemCounts
 local addRoleItems = LastHomeShared.addRoleItems
@@ -101,7 +103,7 @@ LastHomeClient.TickRolePickerFallback = function()
     local player = getPlayer()
     if player == nil then return end
     local modData = player:getModData()
-    if modData ~= nil and modData.LH_role ~= nil then
+    if getRoleKey(modData) ~= nil then
         soloPickerFallbackAt = nil
         mpRolePickerRetryAt = nil
         unregisterSoloFallbackTick()
@@ -164,10 +166,20 @@ function LastHomeClient.applyRoleLocally(player, roleKey)
     local def = ROLE_DEFS[roleKey]
     if def == nil then return false end
 
-    local modData = player:getModData()
+    local modData = normalizeRoleModData(player:getModData())
     if modData.LH_localRoleApplied == roleKey then return false end
 
     logClient("applyRoleLocally start - role=" .. tostring(roleKey) .. ", joueur=" .. tostring(player:getUsername() or "?") .. ", coords=" .. formatPlayerCoords(player))
+
+    if def.vanilla then
+        modData.LH_role = roleKey
+        modData.LH_localRoleApplied = roleKey
+        local vanillaRoleName = LastHomeRoles.ROLE_NAMES[roleKey] or roleKey
+        showRoleAssigned(vanillaRoleName)
+        print("[LastHome] Role applique localement (solo): " .. tostring(roleKey) .. " (vanilla/no-op)")
+        logClient("applyRoleLocally termine (vanilla, rien applique) - role=" .. tostring(roleKey) .. ", coords=" .. formatPlayerCoords(player))
+        return true
+    end
 
     local inv = player:getInventory()
     local roleBag = nil
@@ -202,9 +214,10 @@ local function requestRolePicker()
     local player = getPlayer()
     if player == nil then return end
 
-    local modData = player:getModData()
-    if modData.LH_role ~= nil then
-        logClient("requestRolePicker ignore - role deja choisi: " .. tostring(modData.LH_role))
+    local modData = normalizeRoleModData(player:getModData())
+    local roleKey = getRoleKey(modData)
+    if roleKey ~= nil then
+        logClient("requestRolePicker ignore - role deja choisi: " .. tostring(roleKey))
         return
     end
     if roleRequestSent then return end
@@ -411,7 +424,7 @@ local function getLocalBoundaryStatus()
     local state = LastHomeClient.waveState or {}
     local house = state.house
     local modData = player:getModData()
-    local hasRole = modData ~= nil and modData.LH_role ~= nil
+    local hasRole = getRoleKey(modData) ~= nil
     local isDead = modData ~= nil and modData.LH_dead == true
     local isSpectator = LastHomeClient.isSpectator or (modData ~= nil and modData.LH_spectator == true)
     local hasBoundary = house ~= nil and (house.boundary ~= nil or (house.boundaryRadius or 0) > 0)
@@ -743,8 +756,8 @@ local function onServerCommand(module, command, data)
                 applied = LastHomeClient.applyRoleLocally(player, data.role)
             end
 
-            local modData = player:getModData()
-            if modData.LH_role ~= data.role then
+            local modData = normalizeRoleModData(player:getModData())
+            if getRoleKey(modData) ~= data.role then
                 modData.LH_role = data.role
             end
             if data.houseId ~= nil then

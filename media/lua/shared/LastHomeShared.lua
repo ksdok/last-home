@@ -10,6 +10,8 @@ function LastHomeShared.log(module, message)
 end
 
 local NOW_SOURCE = nil
+local MAX_PERK_ADJUST_STEPS = 20
+local ROLE_VALUE_MIGRATIONS = { civil = "vanilla" }
 
 print("[LastHome] LastHomeShared charge, maisons: " .. tostring(4))
 
@@ -309,23 +311,54 @@ end
 
 local ROLE_CARRY_CAPACITY = {
     builder = 90,
+    chris = 60,
     demolisseur = 60,
+    hunk = 50,
     invincible = 90,
+    leon = 50,
+    mule = 80,
     rambo = 60,
     samourai = 60,
+    soldat = 60,
+    sniper = 60,
+    survivaliste = 60,
 }
+
+function LastHomeShared.normalizeRoleModData(modData)
+    if modData == nil then return nil end
+
+    local roleKey = modData.LH_role
+    if roleKey ~= nil and ROLE_VALUE_MIGRATIONS[roleKey] ~= nil then
+        modData.LH_role = ROLE_VALUE_MIGRATIONS[roleKey]
+    end
+
+    local appliedKey = modData.LH_localRoleApplied
+    if appliedKey ~= nil and ROLE_VALUE_MIGRATIONS[appliedKey] ~= nil then
+        modData.LH_localRoleApplied = ROLE_VALUE_MIGRATIONS[appliedKey]
+    end
+
+    return modData
+end
+
+function LastHomeShared.getRoleKey(modData)
+    modData = LastHomeShared.normalizeRoleModData(modData)
+    return modData ~= nil and modData.LH_role or nil
+end
 
 function LastHomeShared.applyCarryProfile(player, roleKey)
     if player == nil then return end
 
     local carryCapacity = ROLE_CARRY_CAPACITY[roleKey]
-    local unlimitedCarry = carryCapacity ~= nil
+    local unlimitedCarry = roleKey ~= nil and roleKey ~= "vanilla"
 
     if player.setUnlimitedCarry ~= nil then
         player:setUnlimitedCarry(unlimitedCarry)
     end
+    if player.setMaxWeightDelta ~= nil then
+        player:setMaxWeightDelta(0)
+    end
 
-    if not unlimitedCarry then return end
+    if carryCapacity == nil then return end
 
     if player.getMaxWeightBase ~= nil and player.setMaxWeightBase ~= nil then
         local baseWeight = player:getMaxWeightBase() or 0
@@ -339,10 +372,6 @@ function LastHomeShared.applyCarryProfile(player, roleKey)
         if maxWeight < carryCapacity then
             player:setMaxWeight(carryCapacity)
         end
-    end
-
-    if player.setMaxWeightDelta ~= nil then
-        player:setMaxWeightDelta(0)
     end
 end
 
@@ -365,24 +394,41 @@ function LastHomeShared.buildItemCounts(items)
 end
 
 function LastHomeShared.addRoleItems(inv, bagItem, bagItemId, items, bagContents)
-    if inv == nil or items == nil then return end
+    if inv == nil then return end
+
     local bagContainer = bagItem and bagItem:getItemContainer() or nil
+    local itemCounts = LastHomeShared.buildItemCounts(items)
     local bagCounts = LastHomeShared.buildItemCounts(bagContents)
-    for _, itemDef in ipairs(items) do
-        local itemId = itemDef[1]
-        local totalCount = itemDef[2] or 1
-        if itemId ~= bagItemId then
-            local bagCount = 0
-            if bagContainer ~= nil and bagCounts[itemId] ~= nil then
-                bagCount = math.min(totalCount, bagCounts[itemId])
-            end
-            local invCount = totalCount - bagCount
-            if invCount > 1 then
-                inv:AddItems(itemId, invCount)
-            elseif invCount == 1 then
-                inv:AddItem(itemId)
-            end
-            LastHomeShared.addItemsToContainer(bagContainer, itemId, bagCount)
+    local processed = {}
+
+    local function addDistributedItem(itemId, totalCount)
+        if itemId == nil or itemId == bagItemId or totalCount == nil or totalCount <= 0 then return end
+
+        local desiredBagCount = 0
+        if bagContainer ~= nil then
+            desiredBagCount = bagCounts[itemId] or 0
+        end
+
+        local bagCount = math.min(totalCount, desiredBagCount)
+        local invCount = totalCount - bagCount
+
+        if invCount > 1 then
+            inv:AddItems(itemId, invCount)
+        elseif invCount == 1 then
+            inv:AddItem(itemId)
+        end
+
+        LastHomeShared.addItemsToContainer(bagContainer, itemId, bagCount)
+        processed[itemId] = true
+    end
+
+    for itemId, totalCount in pairs(itemCounts) do
+        addDistributedItem(itemId, totalCount)
+    end
+
+    for itemId, bagCount in pairs(bagCounts) do
+        if not processed[itemId] then
+            addDistributedItem(itemId, bagCount)
         end
     end
 end
@@ -402,6 +448,17 @@ function LastHomeShared.applyRoleStats(player, stats)
     if stats.thirst ~= nil then playerStats:setThirst(stats.thirst) end
 end
 
+function LastHomeShared.resetRoleStats(player)
+    if player == nil then return end
+    local playerStats = player:getStats()
+    if playerStats == nil then return end
+    if playerStats.setEndurance ~= nil then playerStats:setEndurance(1) end
+    if playerStats.setPanic ~= nil then playerStats:setPanic(0) end
+    if playerStats.setHunger ~= nil then playerStats:setHunger(0) end
+    if playerStats.setThirst ~= nil then playerStats:setThirst(0) end
+    if playerStats.setFatigue ~= nil then playerStats:setFatigue(0) end
+end
+
 function LastHomeShared.isPassivePerk(perk)
     return perk == Perks.Strength or perk == Perks.Fitness
 end
@@ -416,7 +473,9 @@ function LastHomeShared.applyPerkLevel(player, perk, level)
     if player.getPerkLevel ~= nil then
         local currentLevel = player:getPerkLevel(perk)
         if currentLevel ~= nil and player.LevelPerk ~= nil then
-            while currentLevel < level do
+            local safety = MAX_PERK_ADJUST_STEPS
+            while currentLevel < level and safety > 0 do
+                safety = safety - 1
                 player:LevelPerk(perk, false)
                 local newLevel = player:getPerkLevel(perk)
                 if newLevel == nil or newLevel <= currentLevel then break end
@@ -424,7 +483,9 @@ function LastHomeShared.applyPerkLevel(player, perk, level)
             end
         end
         if currentLevel ~= nil and player.LoseLevel ~= nil then
-            while currentLevel > level do
+            local safety = MAX_PERK_ADJUST_STEPS
+            while currentLevel > level and safety > 0 do
+                safety = safety - 1
                 player:LoseLevel(perk)
                 local newLevel = player:getPerkLevel(perk)
                 if newLevel == nil or newLevel >= currentLevel then break end
@@ -478,9 +539,6 @@ end
 local function fillAmmoItem(item)
     if item == nil then return end
 
-    -- Pre-loading firearms: replicate the official engine pattern
-    -- (HandWeapon:randomizeBullets). The gun stores currentAmmoCount
-    -- directly - no need to fill/insert a magazine item.
     if item.isRanged ~= nil and item:isRanged() then
         local maxAmmo = 0
         if item.getMaxAmmo ~= nil then maxAmmo = item:getMaxAmmo() or 0 end
@@ -501,19 +559,9 @@ local function fillAmmoItem(item)
         if item.setSpentRoundChambered ~= nil then
             item:setSpentRoundChambered(false)
         end
-        local cc = (item.isContainsClip ~= nil) and tostring(item:isContainsClip()) or "?"
-        local rc = (item.isRoundChambered ~= nil) and tostring(item:isRoundChambered()) or "?"
-        local hc = (item.haveChamber ~= nil) and tostring(item:haveChamber()) or "?"
-        print("[LastHome] fillAmmoItem arme=" .. tostring(item:getType())
-            .. " maxAmmo=" .. tostring(maxAmmo)
-            .. " ammo=" .. tostring(item:getCurrentAmmoCount())
-            .. " containsClip=" .. cc
-            .. " roundChambered=" .. rc
-            .. " haveChamber=" .. hc)
         return
     end
 
-    -- Spare magazine (non-weapon item, e.g. Base.556Clip): fill to MaxAmmo.
     if item.getMaxAmmo ~= nil and item.setCurrentAmmoCount ~= nil then
         local maxAmmo = item:getMaxAmmo() or 0
         if maxAmmo > 0 then
@@ -521,6 +569,8 @@ local function fillAmmoItem(item)
         end
     end
 end
+
+LastHomeShared.fillAmmoItem = fillAmmoItem
 
 function LastHomeShared.primeRoleLoadout(inv)
     if inv == nil then return end
@@ -541,6 +591,29 @@ function LastHomeShared.resolveSecondaryEquipItem(inv, equipped, primary)
         return primary
     end
 
+    return nil
+end
+
+function LastHomeShared.getScriptManagerInstance()
+    if getScriptManager ~= nil then
+        local ok, sm = pcall(getScriptManager)
+        if ok and sm ~= nil then return sm end
+    end
+    if ScriptManager ~= nil then
+        if ScriptManager.instance ~= nil then return ScriptManager.instance end
+        if ScriptManager.getInstance ~= nil then
+            local ok, sm = pcall(function() return ScriptManager:getInstance() end)
+            if ok and sm ~= nil then return sm end
+        end
+    end
+    return nil
+end
+
+local function scriptItemExists(itemId)
+    local sm = LastHomeShared.getScriptManagerInstance()
+    if sm == nil or sm.getItem == nil then return nil end
+    local ok, item = pcall(function() return sm:getItem(itemId) end)
+    if ok and item ~= nil then return item end
     return nil
 end
 
@@ -572,9 +645,14 @@ function LastHomeShared.equipRoleItems(player, inv, equipped)
 
     if equipped.clothes then
         for _, clothId in ipairs(equipped.clothes) do
+            local scriptItem = scriptItemExists(clothId)
             local cloth = inv:FindAndReturn(clothId)
-            if cloth and cloth:getBodyLocation() ~= nil then
-                player:setWornItem(cloth:getBodyLocation(), cloth)
+            if cloth == nil and scriptItem ~= nil then
+                cloth = inv:AddItem(clothId)
+            end
+            local bodyLoc = cloth ~= nil and cloth.getBodyLocation ~= nil and cloth:getBodyLocation() or nil
+            if cloth and bodyLoc ~= nil and bodyLoc ~= "" then
+                player:setWornItem(bodyLoc, cloth)
             end
         end
     end

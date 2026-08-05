@@ -44,6 +44,8 @@ local formatCoords = LastHomeShared.formatCoords
 local formatHouseLabel = LastHomeShared.formatHouseLabel
 local formatPlayerCoords = LastHomeShared.formatPlayerCoords
 local applyManualTeleportState = LastHomeShared.applyManualTeleportState
+local normalizeRoleModData = LastHomeShared.normalizeRoleModData
+local getRoleKey = LastHomeShared.getRoleKey
 local addItemsToContainer = LastHomeShared.addItemsToContainer
 local buildItemCounts = LastHomeShared.buildItemCounts
 local addRoleItems = LastHomeShared.addRoleItems
@@ -314,12 +316,22 @@ local function applyRole(player, roleKey)
     if def == nil then return false end
 
     local username = player:getUsername()
-    local modData = player:getModData()
+    local modData = normalizeRoleModData(player:getModData())
     modData.LH_role = roleKey
 
     if username ~= nil and Server.roleLoadouts[username] == roleKey then
-        applyCarryProfile(player, roleKey)
+        if not def.vanilla then
+            applyCarryProfile(player, roleKey)
+        end
         return false
+    end
+
+    if def.vanilla then
+        if username ~= nil then
+            Server.roleLoadouts[username] = roleKey
+            Server.assignedRoles[username] = roleKey
+        end
+        return true
     end
 
     -- MP: items + equipment are applied CLIENT-SIDE on RoleAssigned (applyRoleLocally).
@@ -366,8 +378,8 @@ end
 
 local function refillBuilderResources()
     for _, player in ipairs(getScenarioPlayers()) do
-        local modData = player:getModData()
-        if modData.LH_role == "builder" then
+        local modData = normalizeRoleModData(player:getModData())
+        if getRoleKey(modData) == "builder" then
             local inv = player:getInventory()
 
             for _, refillDef in ipairs(BUILDER_REFILL_ITEMS) do
@@ -458,7 +470,8 @@ local function restoreAssignedRole(player)
 
     local roleKey = Server.assignedRoles[username]
     if roleKey == nil then
-        local persistedRole = player:getModData().LH_role
+        local modData = normalizeRoleModData(player:getModData())
+        local persistedRole = getRoleKey(modData)
         if persistedRole ~= nil and ROLE_DEFS[persistedRole] ~= nil then
             roleKey = persistedRole
             Server.assignedRoles[username] = persistedRole
@@ -523,8 +536,8 @@ function LastHomeServer.setSelectedHouse(houseId, source, actorUsername)
     ensureStockOnGround(house)
 
     for _, scenarioPlayer in ipairs(getScenarioPlayers()) do
-        local modData = scenarioPlayer:getModData()
-        if modData ~= nil and modData.LH_role ~= nil then
+        local modData = normalizeRoleModData(scenarioPlayer:getModData())
+        if getRoleKey(modData) ~= nil then
             modData.LH_houseSpawnId = nil
             if not teleportPlayerToHouse(scenarioPlayer) then
                 warnTeleportFailure(scenarioPlayer, teleportContext)

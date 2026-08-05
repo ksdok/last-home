@@ -4,7 +4,11 @@
 -- phase (prep/wave) receive a 10-second countdown, then take periodic damage
 -- until they return. Spectators and dead players are exempt.
 
+require "LastHomeShared"
+
 LastHomeBoundary = LastHomeBoundary or {}
+
+local getRoleKey = LastHomeShared.getRoleKey
 
 local COUNTDOWN_SECONDS = 10
 local DAMAGE_AMOUNT = 5
@@ -149,7 +153,7 @@ function LastHomeBoundary.updateAll(now)
             local username = player:getUsername()
             if username ~= nil then
                 local modData = player:getModData()
-                local roleKey = modData ~= nil and modData.LH_role or nil
+                local roleKey = getRoleKey ~= nil and getRoleKey(modData) or (modData ~= nil and modData.LH_role or nil)
                 local isDead = modData ~= nil and modData.LH_dead == true
                 local isSpectator = modData ~= nil and modData.LH_spectator == true
                 local alive = isAlive ~= nil and isAlive(player)
