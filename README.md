@@ -115,7 +115,7 @@ last-home/
 
 ### Required role-pack mods
 
-The role loadouts (LH-26, 22-role Brita PZRolePlay set) reference items from these mods. They are **required** by `mod.info` (`require=Brita;Brita_2;Arsenal(26)GunFighter[MAIN MOD 2.0]`): a host missing one dependency gets a clear "mod manquant" load failure. Without them the Brita weapon/armor items do not exist in the engine, so role-assignment would silently fail to spawn them (observed: `ItemContainer.AddItem: can't find Base.M249`).
+The role loadouts (LH-26, 22-role Brita PZRolePlay set) reference items from these mods. They are **required** by `mod.info` (`require=Brita,Brita_2,Arsenal(26)GunFighter[MAIN MOD 2.0]` — **comma-separated**, the PZ `mod.info` separator, not the `;` used by the server `Mods=` line): a host missing one dependency gets a clear "mod manquant" load failure. Without them the Brita weapon/armor items do not exist in the engine, so role-assignment would silently fail to spawn them (observed: `ItemContainer.AddItem: can't find Base.M249`).
 
 - **Brita's Weapon Pack** (Workshop ID: `2200148440`, `Mod ID: Brita`) — weapon assets (models/textures/sounds)
 - **Brita's Armor Pack** (Workshop ID: `2460154811`, `Mod ID: Brita_2`) — tactical clothing (module `Base`, e.g. `Base.Suit_Wick`, `Base.Glove_Mechanix`)
