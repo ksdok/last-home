@@ -8,7 +8,7 @@ MP mod (Host / sandbox). The scenario building is hardcoded via a single Lua con
 
 - **Co-op** up to 8 players (duplicate roles allowed)
 - **Real-time waves**: 2 min prep for wave 1, then 5 min; each wave lasts 5 min
-- **Building** among 4 (Hospital, Villa, Prison, Elementary School), selected by `LastHomeShared.SCENARIO_HOUSE` (`hospital | villa | prison | elementary_school | random`)
+- **Building** : **Ecole elementaire** (elementary school) — the only offered/tested scenario. Hospital, Villa, Prison remain defined in code as options (`LastHomeShared.SCENARIO_HOUSE` accepts `hospital | villa | prison | elementary_school | random`) but are **not offered/validated**.
 - **Increasing horde directions**: 1 direction at first, then 2, 3, up to 360° — with per-location gameplay exceptions if needed
 - **Permadeath**: dead players become spectators and can spawn 1 zombie during subsequent waves
 - **22 roles** from the **Brita PZRolePlay** set (`soldat` … `jill`, plus `vanilla` no-op)
@@ -76,6 +76,8 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 - ✅ Continuous vanilla/story spawn suppression around the base (periodic cleanup every 1s, including during waves; `LH_waveZombie` tagging preserved)
 - ✅ LH-19 ground stock: the community stock now spawns once on the ground near `stockSpawn` / `supply`, limited to food, water bottles, and ammunition — **validated in-game (MP)**
 - ✅ Wave system (LH-03/LH-10/LH-24), confinement (LH-05/06/07), and 22-role Brita loadouts (LH-26) **validated in-game on 2-player MP** (`elementary_school`)
+- ✅ Spawn-area cleanliness (LH-13) **validated in-game**: zombies well cleaned around the role spawn/base (no parasite spawns)
+- 🎯 **Scope: `elementary_school` only** — Villa/Hospital/Prison are out of scope (host decision); Villa `pickHouseSpawnPoint`/`stockSpawn` bug and other-house validation tickets closed accordingly
 - ❌ On-screen stock arrow removed by LH-21
 - 📝 **LH-28** spec written (not yet implemented): thick permanent outdoor fog during a Last Home game, via periodic `ClimateManager` fog-intensity override restricted to scenario houses; API B41 to be validated before implementation
 - 📋 Backlog and current tracking in [project-state.md](project-state.md)

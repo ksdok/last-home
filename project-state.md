@@ -27,7 +27,7 @@
 - ✅ **LH-05 / LH-06 / LH-07 (confinement)** validé en jeu (MP) : zone de confinement fonctionne.
 - ✅ **LH-19 (stock au sol)** validé en jeu (MP) : stock communautaire au sol fonctionne.
 - 📝 **LH-28** spec written (not yet implemented): thick permanent outdoor fog during a Last Home game, via periodic `ClimateManager` fog-intensity override restricted to scenario houses (`isScenarioHouse()`), released on game over / `resetState()`; API B41 to be validated before implementation. Commit `731e756`.
-- ⏳ Next: (1) remaining MP edge cases — **late joiners** (role picker + teleport + confinement en pleine vague), **Builder/house refill** (10 min temps réel), **permadeath → spectateur** (spawn 1 zombie/vague), reopen-picker (reporté LH-27) ; (2) **autres maisons** (`hospital`/`prison`/`villa`) + bug Villa `pickHouseSpawnPoint`/`stockSpawn` ; (3) propreté spawn rôle (LH-13, zombies parasites résiduels) ; (4) write `docs/MULTIPLAYER_SETUP.md` + vérif serveur dédié (LH-MP-4) ; (5) **LH-28 implementation** after validating the B41 `ClimateManager` fog API
+- ⏳ Next: (1) remaining MP edge cases — **late joiners** (role picker + teleport + confinement en pleine vague), **Builder/house refill** (10 min temps réel), **permadeath → spectateur** (spawn 1 zombie/vague), reopen-picker (reporté LH-27) ; (2) **propreté spawn rôle** (LH-13) — ✅ validé (zombies bien nettoyés) ; (3) write `docs/MULTIPLAYER_SETUP.md` + vérif serveur dédié (LH-MP-4) ; (4) **LH-28 implementation** after validating the B41 `ClimateManager` fog API. **Périmètre maisons : `elementary_school` uniquement** (Villa/hospital/prison retirés du périmètre par décision host).
 
 ## Completed
 
@@ -98,16 +98,14 @@
 - [ ] LH-MP-4 — Write `docs/MULTIPLAYER_SETUP.md` + run the A-H verification checklist on a dedicated/Host server (no code change expected; failures become follow-up tickets). Must confirm: (a) `OnServerStarted` fires in the SERVER VM on Host and dedicated (verified Host 25-07-26; dedicated still unconfirmed); (b) minimal `Mods=`/`Map=` line per house (`Mods=LastHome` alone vs `+Pillow/Xonic`) and whether Pillow's Random Scenarios is still required now that the Challenges menu is gone; (c) hardcoded `LastHomeShared.SCENARIO_HOUSE` is honored (elementary_school by default)
 - [x] LH-17 — Deduplication of role application (single source of truth in `LastHomeShared`). Spec written: `specs/LH-17-deduplication-role-equipment.md`
 - [x] LH-18 — Stock communautaire : analyse A vs B terminée. `specs/LH-18-stock-spawn-analysis.md` confirme que l'approche A (caisse dédiée) échoue en sync MP sur chunk déjà chargé ; LH-19 applique l'approche B (`AddWorldInventoryItem`)
-- [ ] LH-19 — Valider les autres maisons en jeu et réajuster `HOUSE_SUPPLY_MULTIPLIER` si le volume reste trop élevé hors cas école/Host déjà vérifié
+- [x] LH-19 — Valider les autres maisons en jeu et réajuster `HOUSE_SUPPLY_MULTIPLIER` — **CLOS : seule `elementary_school` est proposée (décision host) ; autres maisons hors périmètre**
 - [x] LH-22 — Vérifier en jeu l'intégration Brita/Arsenal — **validé via LH-26 (rôles Brita fonctionnent en jeu)**
 - [x] LH-23 — Vérifier en jeu le relook Brita des 10 rôles — **validé via LH-26 (rôles Brita fonctionnent en jeu)**
-- [ ] Fix Villa / house stock playability:
-  - `pickHouseSpawnPoint` fails on all 10 spawn candidates (box `[13532..13533, 2839..2843, z=1]` → no `isFree` square); it only checks `isFree(false)` and needs a wider/falling-back scan
-  - Validate the configured `stockSpawn`/`supply` square in Villa in-game so the ground stock lands in a practical location
+- [x] Fix Villa / house stock playability — **CLOS : Villa hors périmètre (seule `elementary_school` proposée)**. Historique : `pickHouseSpawnPoint` failait sur les 10 candidats (`isFree(false)` trop restrictif) ; `stockSpawn`/`supply` Villa non validés. Non pertinent tant que Villa n'est pas proposée.
 - [x] In-game solo/LAN verification of LH-03 through LH-10 (timers, skip, spectators, score, house spawn, shared stock, confinement, HUD, solo sync) — **vagues/confinement/stock/skip validés en jeu MP ; reste : spectateurs, score, HUD détaillé, solo sync**
 - [x] In-game multiplayer verification of the role picker, spawn teleports, Builder/house refill, server confinement, and wave skip — **role picker + spawn teleports + confinement + wave skip validés en jeu (MP 2 joueurs) ; reste : Builder/house refill 10 min**
-- [ ] Validate / finish the remaining Host MP spawn-area issues: ambient/stray zombies can still remain around the player at/near the role spawn when the scenario starts; add a cleanup pass tied to the selected house / spawn area, not only the existing prep/wave cleanup; also validate that the ground-stock spawn appears quickly and reliably once the chunk is loaded
-- [ ] Validate in-game the zombie pressure on Villa with sound pulse attraction (range, frequency, horde feel)
+- [x] Validate / finish the remaining Host MP spawn-area issues: ambient/stray zombies around the role spawn — **validé en jeu : zombies bien nettoyés (LH-13)**
+- [x] Validate in-game the zombie pressure on Villa with sound pulse attraction — **CLOS : Villa hors périmètre (seule `elementary_school` proposée)**
 
 ### Later
 - [ ] Structured loot in the vicinity of houses if needed
