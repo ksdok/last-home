@@ -113,13 +113,15 @@ last-home/
 
 - **Xonic's Mega Mall** (Workshop ID: `1713269594`) — map (the 4 buildings live on this map)
 
-### Required role-pack mods
+### Optional role-pack mods
+
+The role loadouts (LH-26, 22-role Brita PZRolePlay set) reference items from these mods. They are **no longer hard-required** by `mod.info` (the `require=` line was removed): the mod loads without them, but Brita/Arsenal items will be missing at role-assignment time and the corresponding roles will not receive their intended weapons/clothing. Install them for the full intended experience.
 
 - **Brita's Weapon Pack** (Workshop ID: `2200148440`, `Mod ID: Brita`) — weapon assets (models/textures/sounds)
 - **Brita's Armor Pack** (Workshop ID: `2460154811`, `Mod ID: Brita_2`) — tactical clothing (module `Base`, e.g. `Base.Suit_Wick`, `Base.Glove_Mechanix`)
 - **Arsenal(26) GunFighter** (Workshop ID: `2297098490`, `Mod ID: Arsenal(26)GunFighter[MAIN MOD 2.0]`) — functional weapon items (module `Base`, e.g. `Base.PPK`, `Base.MP5SD6_Fixed`)
 
-> Brita's Weapon Pack alone is assets-only; the functional gun items are defined by Arsenal(26) GunFighter (module `Base`), while Brita's Armor Pack provides the clothing. For **LH-26**, these three mods are now **required**: `mod.info` re-adds `require=Brita;Brita_2;Arsenal(26)GunFighter[MAIN MOD 2.0]`, so a host missing one dependency gets a clear "mod manquant" load failure instead of a silent runtime breakage.
+> Brita's Weapon Pack alone is assets-only; the functional gun items are defined by Arsenal(26) GunFighter (module `Base`), while Brita's Armor Pack provides the clothing. Previously (LH-26) these were hard-required via `mod.info` `require=Brita;Brita_2;Arsenal(26)GunFighter[MAIN MOD 2.0]` to get a clear "mod manquant" load failure; that `require=` line has been removed, so a missing dependency now surfaces as runtime errors at role assignment instead of a load failure.
 
 ### Note
 
