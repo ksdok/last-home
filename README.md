@@ -61,6 +61,7 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | [LH-24](specs/LH-24-declenchement-manuel-vague-1.md) | Déclenchement manuel de la 1ère vague (pas de timer) | ✅ |
 | [LH-25](specs/LH-25-mod-roles-seul.md) | Mod séparé : choix de rôle seul (role picker standalone) | ✅ réalisé via `../PZRolePlay` |
 | [LH-26](specs/LH-26-roles-pzroleplay.md) | Reprise des rôles de PZRolePlay (set Brita, 22 rôles) | 📝 |
+| [LH-28](specs/LH-28-brouillard-epais-exterieur.md) | Brouillard épais permanent à l'extérieur pendant la partie | 📝 |
 
 ## Status
 
