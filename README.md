@@ -60,7 +60,7 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 | [LH-23](specs/LH-23-relook-brita-10-roles.md) | Relook Brita de 10 rôles (armes + armure tactique) | 📝 |
 | [LH-24](specs/LH-24-declenchement-manuel-vague-1.md) | Déclenchement manuel de la 1ère vague (pas de timer) | ✅ |
 | [LH-25](specs/LH-25-mod-roles-seul.md) | Mod séparé : choix de rôle seul (role picker standalone) | ✅ réalisé via `../PZRolePlay` |
-| [LH-26](specs/LH-26-roles-pzroleplay.md) | Reprise des rôles de PZRolePlay (set Brita, 22 rôles) | 📝 |
+| [LH-26](specs/LH-26-roles-pzroleplay.md) | Reprise des rôles de PZRolePlay (set Brita, 22 rôles) | ✅ |
 | [LH-28](specs/LH-28-brouillard-epais-exterieur.md) | Brouillard épais permanent à l'extérieur pendant la partie | 📝 |
 
 ## Status
@@ -68,13 +68,14 @@ A solo sandbox game (single player, mod active) also works via the `OnGameStart`
 - ✅ Versioned specs complete for **LH-01** through **LH-08** and **LH-10**
 - 📝 Exploration spec written: **LH-12** (aggro via `createHordeFromTo`)
 - ✅ Implementation of **LH-02** through **LH-08**, **LH-10**, **LH-13**, **LH-14**, **LH-19**, **LH-20**, **LH-21** and **LH-24** complete (**LH-15** removed by **LH-21**)
-- 🧪 **LH-22/LH-23** were intermediate Brita steps; **LH-26** is now **merged to `main`**: the embedded role set is replaced with the **22-role Brita PZRolePlay** roster, `vanilla` is added as the no-op hard mode, and required Brita/Arsenal dependencies are restored in `mod.info`. **In-game validation still pending** (priming, attachments, rigs, clothing)
+- ✅ **LH-22/LH-23** were intermediate Brita steps; **LH-26** is merged to `main` AND **validated in-game** (2-player MP, `elementary_school`): the embedded role set is replaced with the **22-role Brita PZRolePlay** roster, `vanilla` is added as the no-op hard mode, and required Brita/Arsenal dependencies are restored in `mod.info` (`require=Brita,Brita_2,Arsenal(26)GunFighter[MAIN MOD 2.0]`, comma-separated)
 - ✅ MP-only delivery (LH-MP-6): the Challenges menu entries were removed; the mod runs from the multiplayer Host menu / solo sandbox, with the building hardcoded via `LastHomeShared.SCENARIO_HOUSE` (currently `elementary_school`)
 - ✅ Two-VM bootstrap fix: `OnServerStarted` runs the bootstrap in the SERVER VM (authoritative); `OnGameStart` is the solo-sandbox fallback (gated by `isClient()`). `applyDefaultSandboxVars` runs server-side so vanilla zombies are suppressed at the initial MP spawn
 - ✅ LH-10/LH-24 timers: prep wave 1 waits for a manual `K` trigger (no auto-start), subsequent prep = 5 min, wave = 5 min, skip via `K` key
 - ✅ Wave attraction refocused on alarm-like sound pulses toward the base to make zombie pressure reliable
 - ✅ Continuous vanilla/story spawn suppression around the base (periodic cleanup every 1s, including during waves; `LH_waveZombie` tagging preserved)
-- ✅ LH-19 ground stock: the community stock now spawns once on the ground near `stockSpawn` / `supply`, limited to food, water bottles, and ammunition
+- ✅ LH-19 ground stock: the community stock now spawns once on the ground near `stockSpawn` / `supply`, limited to food, water bottles, and ammunition — **validated in-game (MP)**
+- ✅ Wave system (LH-03/LH-10/LH-24), confinement (LH-05/06/07), and 22-role Brita loadouts (LH-26) **validated in-game on 2-player MP** (`elementary_school`)
 - ❌ On-screen stock arrow removed by LH-21
 - 📝 **LH-28** spec written (not yet implemented): thick permanent outdoor fog during a Last Home game, via periodic `ClimateManager` fog-intensity override restricted to scenario houses; API B41 to be validated before implementation
 - 📋 Backlog and current tracking in [project-state.md](project-state.md)
